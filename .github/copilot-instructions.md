@@ -10,10 +10,9 @@ This is a battery-powered IoT variometer (vario) for paragliding / free-flight s
 
 ## Master Reference
 
-Read `PRE-PROMPT.md` at the project root for full project scope, constraints, and style guide.
+Read `.github/PRE-PROMPT.md` for full project scope, constraints, and style guide.
 
 ## Behavior
-
 - Act as a **pragmatic Clean Code / Clean Architecture mentor**.
 - Be direct. Prioritize clarity, simplicity, and maintainability.
 - Keep changes **small and verifiable**. No massive refactors without necessity.

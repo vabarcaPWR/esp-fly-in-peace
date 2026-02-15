@@ -206,17 +206,15 @@ if (!self || !cfg)
 
 ```
 component_name/
-├── component_api.h          // Public API (exposed to other components)
-├── component_vars.h         // Public variables (if any)
+├── CMakeLists.txt            // ESP-IDF component registration
+├── include/
+│   └── component_name.h      // Public API (include guard, extern "C", Doxygen)
 └── src/
-    ├── component.h           // Internal header (not exposed)
-    ├── component.c           // Main implementation
-    ├── component_api.c       // API implementation (bridges public API to internals)
-    ├── component_types.h     // Private type definitions
-    └── subcomponent/
-        └── src/
-            └── ...
+    └── component_name.c      // Implementation (private types, static functions)
 ```
+
+> For complex components, additional internal headers (`*_types.h`) and source files
+> may be added under `src/`, but keep the public API in a single header under `include/`.
 
 ### 4.3 Naming Conventions
 
@@ -399,13 +397,13 @@ When the developer faces a choice outside their expertise:
 
 ### 5.2 Copilot Custom Agents
 
-Define custom Copilot agents (chat participants) to scope AI behavior per project domain. These are configured as `.github/copilot/agents/*.agent.md` (or equivalent configuration depending on Copilot version).
+Define custom Copilot agents (chat participants) to scope AI behavior per project domain. These are configured as `.github/agents/*.agent.md`.
 
 #### Agent: `@firmware`
 
 **Purpose**: Firmware-specific assistance for ESP32-C3 development.
 
-**File**: `.github/copilot/agents/firmware.agent.md`
+**File**: `.github/agents/firmware.agent.md`
 
 ```markdown
 # Agent: Firmware
@@ -446,7 +444,7 @@ and low-power design for ESP32-C3.
 
 **Purpose**: Mobile app development assistance.
 
-**File**: `.github/copilot/agents/app.agent.md`
+**File**: `.github/agents/app.agent.md`
 
 ```markdown
 # Agent: Mobile App
@@ -483,7 +481,7 @@ Provide extra context, explain patterns, and suggest the simplest correct approa
 
 **Purpose**: Documentation and roadmap management.
 
-**File**: `.github/copilot/agents/docs.agent.md`
+**File**: `.github/agents/docs.agent.md`
 
 ```markdown
 # Agent: Documentation
@@ -512,11 +510,11 @@ Technical writer and project manager for the esp-fly-in-peace project.
 
 ### 5.3 Copilot Prompt Files
 
-Reusable prompt templates for common tasks. Stored in `.github/copilot/prompts/`.
+Reusable prompt templates for common tasks. Stored in `.github/prompts/`.
 
 #### Prompt: New Firmware Component
 
-**File**: `.github/copilot/prompts/firmware-new-component.prompt.md`
+**File**: `.github/prompts/firmware-new-component.prompt.md`
 
 ```markdown
 # New Firmware Component
@@ -546,7 +544,7 @@ Generate the following files:
 
 #### Prompt: New Sensor Driver
 
-**File**: `.github/copilot/prompts/firmware-new-sensor.prompt.md`
+**File**: `.github/prompts/firmware-new-sensor.prompt.md`
 
 ```markdown
 # New Sensor Driver
@@ -572,7 +570,7 @@ Create a sensor driver that implements the sensor HAL interface.
 
 #### Prompt: BLE Service
 
-**File**: `.github/copilot/prompts/firmware-ble-service.prompt.md`
+**File**: `.github/prompts/firmware-ble-service.prompt.md`
 
 ```markdown
 # BLE Service Implementation
@@ -600,7 +598,7 @@ Create or modify a BLE service using NimBLE.
 
 #### Prompt: App New Screen
 
-**File**: `.github/copilot/prompts/app-new-screen.prompt.md`
+**File**: `.github/prompts/app-new-screen.prompt.md`
 
 ```markdown
 # New App Screen
@@ -632,7 +630,7 @@ Skills define what the AI should be capable of doing well within each project co
 | `freertos-task` | Create FreeRTOS tasks with proper stack sizing, priorities, and inter-task communication (queues, events) |
 | `nimble-ble` | Configure NimBLE, register GATT services, handle GAP events, manage connections |
 | `i2c-driver` | Initialize I2C bus, communicate with sensors, handle NACK/timeout |
-| `kalman-filter` | Implement and tune a 1D Kalman filter for barometric altitude |
+| `kalman-filter` | Implement and tune a 2-state Kalman filter for altitude and vario |
 | `lk8ex1-format` | Format and validate LK8EX1 NMEA sentences with checksum |
 | `nvs-config` | Read/write configuration to NVS, define config schema, handle defaults |
 | `power-mgmt` | Configure light-sleep, tickless idle, peripheral power gating |
@@ -683,20 +681,19 @@ Skills define what the AI should be capable of doing well within each project co
 
 ```
 esp-fly-in-peace/
-├── PRE-PROMPT.md                              # THIS FILE — master prompt
 ├── esp-fly-in-peace.code-workspace            # VS Code workspace
 ├── .github/
+│   ├── PRE-PROMPT.md                          # Master prompt (this file)
 │   ├── copilot-instructions.md                # Global Copilot instructions
-│   └── copilot/
-│       ├── agents/
-│       │   ├── firmware.agent.md
-│       │   ├── app.agent.md
-│       │   └── docs.agent.md
-│       └── prompts/
-│           ├── firmware-new-component.prompt.md
-│           ├── firmware-new-sensor.prompt.md
-│           ├── firmware-ble-service.prompt.md
-│           └── app-new-screen.prompt.md
+│   ├── agents/
+│   │   ├── firmware.agent.md
+│   │   ├── app.agent.md
+│   │   └── docs.agent.md
+│   └── prompts/
+│       ├── firmware-new-component.prompt.md
+│       ├── firmware-new-sensor.prompt.md
+│       ├── firmware-ble-service.prompt.md
+│       └── app-new-screen.prompt.md
 │
 ├── docs/
 │   ├── roadmap.micro.md                       # Firmware roadmap
@@ -720,7 +717,7 @@ esp-fly-in-peace/
 │   │   ├── sensor_ms5611/                     # MS5611 driver
 │   │   │   ├── include/sensor_ms5611.h
 │   │   │   └── src/sensor_ms5611.c
-│   │   ├── kalman_filter/                     # 1D Kalman filter
+│   │   ├── kalman_filter/                     # 2-state Kalman filter (altitude + vario)
 │   │   │   ├── include/kalman_filter.h
 │   │   │   └── src/kalman_filter.c
 │   │   ├── lk8ex1/                            # LK8EX1 protocol formatter
@@ -825,7 +822,7 @@ For each task:
 | 0 | Project Bootstrap | ESP-IDF project setup, build system, scripts, .clang-format, Ceedling config | 2–3 days |
 | 1 | Hardware Abstraction | I2C bus driver, sensor HAL interface definition | 2–3 days |
 | 2 | MS5611 Sensor Driver | I2C communication, calibration, compensation, unit tests | 3–4 days |
-| 3 | Kalman Filter | 1D Kalman filter for altitude, unit tests with synthetic data | 2–3 days |
+| 3 | Kalman Filter | 2-state Kalman filter for altitude and vario, unit tests with synthetic data | 2–3 days |
 | 4 | LK8EX1 Protocol | Sentence formatter with checksum, unit tests | 1–2 days |
 | 5 | BLE NUS Service | NimBLE init, GAP advertising, NUS GATT service, TX notifications | 3–4 days |
 | 6 | Data Pipeline | FreeRTOS tasks: sensor→filter→format→BLE, queues, timing (10 Hz read, 4 Hz send) | 3–4 days |
@@ -848,7 +845,7 @@ For each task:
 | 3 | NUS Communication | Send/receive data via NUS, raw data display for debugging | 2–3 days |
 | 4 | LK8EX1 Parser | Parse LK8EX1 sentences, extract pressure/altitude/vario values | 1–2 days |
 | 5 | Real-Time Display | Main flight screen: altitude (m), vario (m/s), pressure (hPa), connection status | 3–4 days |
-| 6 | Device Configuration | Read/send config parameters via BLE NUS (device name, sample rate, etc.) | 3–4 days |
+| 6 | Device Configuration | Read/send config parameters via BLE Config Service (device name, sample rate, etc.) | 3–4 days |
 | 7 | Settings & Persistence | App settings (units, display preferences), local storage | 2–3 days |
 | 8 | Polish & Testing | Error handling review, UI polish, unit tests, integration tests | 3–5 days |
 | 9 | Documentation | User guide, build instructions, screenshots | 1–2 days |
@@ -968,13 +965,15 @@ $LK8EX1,101325,99999,50,235,999,*checksum\r\n
 [ESP32-C3]                          [XCTrack / Mobile App]
     │                                       │
     │  ◄── BLE Connect ──────────────────── │
-    │  ◄── Subscribe to TX (notify) ──────  │
+    │  ◄── Subscribe to NUS TX (notify) ──  │
     │                                       │
     │  ── TX Notify: "$LK8EX1,..." ──────►  │  (4 Hz)
     │  ── TX Notify: "$LK8EX1,..." ──────►  │
     │                                       │
-    │  ◄── RX Write: config command ──────  │  (from app)
-    │  ── TX Notify: config response ────►  │
+    │  ◄── [App] Read Config char ────────  │  (Config Service GATT)
+    │  ── Config JSON response ──────────►  │
+    │  ◄── [App] Write Config char ───────  │
+    │  ── Write ack ─────────────────────►  │
 ```
 
 ### BLE Advertising
@@ -984,22 +983,13 @@ $LK8EX1,101325,99999,50,235,999,*checksum\r\n
 - Advertising interval: 100–200 ms (when not connected), optimizable for power.
 - Connection interval: negotiate 15–30 ms for reliable 4 Hz data at low power.
 
-### NUS Communication Protocol (Device Config)
+### Config Service (GATT — Hybrid Architecture)
 
-For configuration commands via NUS RX characteristic, use a simple text-based protocol:
+Device configuration uses a **separate GATT service** (not NUS). This cleanly separates
+the streaming data path (NUS) from the configuration path (Config Service).
 
-```
-Command format:  CMD:PARAM=VALUE\n
-Response format: RSP:PARAM=VALUE\n  or  ERR:CODE:MESSAGE\n
-
-Examples:
-  CMD:NAME=MyVario\n       → RSP:NAME=MyVario\n
-  CMD:RATE=10\n            → RSP:RATE=10\n
-  CMD:GET:NAME\n           → RSP:NAME=FlyInPeace\n
-  CMD:GET:ALL\n            → RSP:NAME=FlyInPeace;RATE=10;...\n
-  CMD:SAVE\n               → RSP:OK\n
-  CMD:INVALID\n            → ERR:01:Unknown command\n
-```
+See `docs/architecture/ble_protocol.md` for the full Config Service specification
+(service UUID, characteristics, JSON format).
 
 ---
 

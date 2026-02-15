@@ -12,7 +12,7 @@ Provide extra context, explain patterns, and suggest the simplest correct approa
 - Technology: Flutter with Dart
 - BLE: Connect to ESP32-C3 via Nordic UART Service (NUS) using `flutter_blue_plus`
 - Protocol: Parse LK8EX1 NMEA sentences from BLE NUS TX characteristic (notify)
-- Config: Send/receive device config commands via NUS RX characteristic (write)
+- Config: Read/write device config via BLE Config Service GATT (separate from NUS)
 - Features (MVP): BLE scan/connect, real-time vario display, device configuration
 - Roadmap: `docs/roadmap.app.md`
 

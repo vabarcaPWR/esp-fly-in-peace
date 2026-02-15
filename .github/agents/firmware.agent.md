@@ -13,7 +13,7 @@ and low-power design for ESP32-C3.
 - BLE: NimBLE stack, Nordic UART Service (NUS)
 - Sensor: MS5611 (I2C), extensible via HAL interface
 - Tests: Ceedling (Unity + CMock) in `micro/test/`
-- Style: See `PRE-PROMPT.md` §4. Apply `.clang-format` after edits.
+- Style: See `.github/PRE-PROMPT.md` §4. Apply `.clang-format` after edits.
 - Power: Light-sleep between sensor reads. Optimize BLE connection intervals.
 - Roadmap: `docs/roadmap.micro.md`
 

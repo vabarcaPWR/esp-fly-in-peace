@@ -1,6 +1,6 @@
 # System Architecture — ESP Fly-in-Peace
 
-> Last updated: 2026-02-13
+> Last updated: 2026-02-15
 
 ## 1. High-Level Overview
 
@@ -22,7 +22,7 @@
 The system consists of three parts:
 
 1. **ESP32-C3 Device** — Firmware running on an ESP32-C3 microcontroller. Reads a barometric pressure sensor, filters the data, and transmits via BLE.
-2. **XCTrack** — Third-party Android flight instrument app. Receives LK8EX1 sentences over BLE SPP for vario and altitude display.
+2. **XCTrack** — Third-party Android flight instrument app. Receives LK8EX1 sentences over BLE NUS for vario and altitude display.
 3. **Mobile App** — Companion Flutter app for device configuration, real-time data visualization, and debugging.
 
 ## 2. Firmware Architecture
@@ -66,13 +66,13 @@ The system consists of three parts:
 
 | Component | Responsibility | Key Files |
 |-----------|---------------|-----------|
-| **sensor** | Sensor HAL + MS5611 I2C driver | `sensor_api.h`, `ms5611.c`, `sensor_i2c.c` |
-| **filter** | 2-state Kalman filter (pressure + vario) | `filter_api.h`, `filter.c` |
-| **protocol** | LK8EX1 sentence formatter | `protocol_api.h`, `protocol.c` |
-| **ble** | NimBLE BLE stack, SPP + Config services | `ble_api.h`, `ble_spp.c`, `ble_config_svc.c` |
-| **config** | NVS configuration manager | `config_api.h`, `config.c` |
-| **led** | WS2812 RGB LED status indicator | `led_api.h`, `led.c` |
-| **power** | Power management, battery monitoring | `power_api.h`, `power.c` |
+| **sensor** | Sensor HAL + MS5611 I2C driver | `sensor_hal.h`, `sensor_ms5611.h`, `sensor_ms5611.c` |
+| **filter** | 2-state Kalman filter (altitude + vario) | `kalman_filter.h`, `kalman_filter.c` |
+| **protocol** | LK8EX1 sentence formatter | `lk8ex1.h`, `lk8ex1.c` |
+| **ble** | NimBLE BLE stack, NUS + Config services | `ble_nus.h`, `ble_nus.c`, `ble_config_svc.c` |
+| **config** | NVS configuration manager | `config_manager.h`, `config_manager.c` |
+| **led** | WS2812 RGB LED status indicator | `led_indicator.h`, `led_indicator.c` |
+| **power** | Power management, battery monitoring | `power_manager.h`, `power_manager.c` |
 
 ### 2.3 Data Flow
 
@@ -82,7 +82,7 @@ graph LR
     B -->|raw P, T| C[Kalman Filter]
     C -->|filtered P, vario| D[Shared State]
     D -->|read @ 4 Hz| E[LK8EX1 Formatter]
-    E -->|sentence string| F[BLE SPP TX]
+    E -->|sentence string| F[BLE NUS TX]
     F -->|notify| G[XCTrack / App]
 ```
 
@@ -145,7 +145,7 @@ gantt
 │  │          │  │  Config Service   │   │
 │  └────┬─────┘  └──────────────────┘   │
 ├───────┼────────────────────────────────┤
-│       │      flutter_reactive_ble      │
+│       │        flutter_blue_plus       │
 │       │          (BLE Plugin)          │
 └───────┼────────────────────────────────┘
         │
@@ -159,7 +159,7 @@ gantt
 | UI Framework | Flutter |
 | Language | Dart |
 | State Management | Riverpod |
-| BLE Communication | flutter_reactive_ble |
+| BLE Communication | flutter_blue_plus |
 | Charts | fl_chart |
 | Target Platform | Android (API 21+) |
 
@@ -186,8 +186,8 @@ See [ble_protocol.md](ble_protocol.md) for full specification.
 
 | Service | Purpose | Data rate |
 |---------|---------|-----------|
-| SPP | LK8EX1 streaming | 4 Hz (notifications) |
-| Config | Device settings | On-demand (read/write) |
+| NUS (Nordic UART Service) | LK8EX1 streaming | 4 Hz (notifications) |
+| Config Service | Device settings | On-demand (read/write) |
 
 ### 4.2 Data Format
 
@@ -206,7 +206,7 @@ LK8EX1 sentence — see [lk8ex1_protocol.md](lk8ex1_protocol.md) for full specif
 
 ## 6. Key Design Decisions
 
-See [PRE-PROMPT.md](../PRE-PROMPT.md) Section 12 — Decision Log for the full list.
+See [PRE-PROMPT.md](../../.github/PRE-PROMPT.md) for the full project reference.
 
 Key architectural choices:
 - **Sensor HAL**: Abstracted via function pointers to support future sensors (BMP390)

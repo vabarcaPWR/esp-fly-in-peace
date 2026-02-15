@@ -44,14 +44,13 @@ Create or modify a BLE service using NimBLE for the esp-fly-in-peace firmware.
 
 7. **Apply `.clang-format`** after generating all files.
 
-## Config Command Protocol (via NUS RX)
+## Config Service (Separate GATT — Hybrid Architecture)
 
-```
-CMD:PARAM=VALUE\n     → Set parameter
-CMD:GET:PARAM\n       → Get parameter
-CMD:GET:ALL\n         → Get all parameters
-CMD:SAVE\n            → Save to NVS
+Device configuration uses a **separate GATT service**, NOT the NUS RX/TX path.
 
-RSP:PARAM=VALUE\n     → Success response
-ERR:CODE:MESSAGE\n    → Error response
-```
+- **Config Service UUID**: `0000ABC0-0000-1000-8000-00805F9B34FB`
+- **Device Info** (Read): `0000ABC1-...` — returns JSON `{"name", "fw", "bat"}`
+- **Config Read** (Read): `0000ABC2-...` — returns current config as JSON
+- **Config Write** (Write): `0000ABC3-...` — accepts partial JSON config updates
+
+See `docs/architecture/ble_protocol.md` for the full specification.

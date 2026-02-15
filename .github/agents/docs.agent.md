@@ -9,7 +9,7 @@ Technical writer and project manager for the esp-fly-in-peace project.
 - Working directory: `docs/`
 - Documents: `roadmap.micro.md`, `roadmap.app.md`, architecture decision records
 - Format: Markdown with checklists for task tracking
-- Master reference: `PRE-PROMPT.md` at project root
+- Master reference: `.github/PRE-PROMPT.md`
 
 ## Capabilities
 

@@ -4,7 +4,7 @@
 > **Component**: Mobile App (`app/`)  
 > **Technology**: Flutter (Dart) — Android only (MVP)  
 > **BLE Plugin**: `flutter_blue_plus`  
-> **Master reference**: `PRE-PROMPT.md`
+> **Master reference**: `.github/PRE-PROMPT.md`
 
 ---
 
@@ -30,7 +30,7 @@
 - [ ] **Phase 3: NUS Communication**
   - [ ] Task 3.1: Discover NUS service and characteristics
   - [ ] Task 3.2: Subscribe to TX notifications (receive data)
-  - [ ] Task 3.3: Write to RX characteristic (send commands)
+  - [ ] Task 3.3: Write to RX characteristic (reserved for future use)
   - [ ] Task 3.4: Raw data debug screen
 - [ ] **Phase 4: LK8EX1 Parser**
   - [ ] Task 4.1: LK8EX1 sentence parser
@@ -45,7 +45,7 @@
   - [ ] Task 5.5: Connection status indicator
   - [ ] Task 5.6: Data stream integration
 - [ ] **Phase 6: Device Configuration**
-  - [ ] Task 6.1: Config command protocol (CMD/RSP)
+  - [ ] Task 6.1: Config Service GATT client (read/write JSON)
   - [ ] Task 6.2: Config screen UI
   - [ ] Task 6.3: Read current config from device
   - [ ] Task 6.4: Write config and save to device NVS
@@ -464,19 +464,19 @@ Required manifest permissions:
 
 ---
 
-### Task 3.3: Write to RX characteristic (send commands)
+### Task 3.3: Write to RX characteristic (reserved for future use)
 
-**Description**: Implement sending data (config commands) to the device via the RX characteristic.
+**Description**: Implement sending data to the device via the NUS RX characteristic. Reserved for future firmware commands. Device config uses the separate Config Service GATT (Phase 6).
 
 **Acceptance Criteria**:
-- [ ] Function: `Future<void> sendCommand(String command)` — writes to RX characteristic
+- [ ] Function: `Future<void> sendCommand(String command)` — writes to NUS RX characteristic
 - [ ] Appends `\n` delimiter if not present
 - [ ] Handles MTU fragmentation (split long messages)
 - [ ] Returns error if not connected
 - [ ] Logs sent commands at debug level
 
 **Validation**:
-- Send `CMD:GET:NAME\n` → device responds (verify in firmware logs)
+- Send text via NUS RX → device receives (verify in firmware logs)
 
 ---
 
@@ -486,14 +486,14 @@ Required manifest permissions:
 
 **Acceptance Criteria**:
 - [ ] Screen shows raw TX data (line by line, scrolling)
-- [ ] Text input field to send arbitrary commands via RX
-- [ ] Timestamp for each received line
-- [ ] "Clear" button to reset log
+- Text input field to send arbitrary data via NUS RX
+- Timestamp for each received line
+- "Clear" button to reset log
 - [ ] Accessible from app drawer/menu (developer tool, not user-facing)
 
 **Validation**:
 - Connect to device → raw LK8EX1 sentences visible
-- Type `CMD:GET:ALL` → response visible in log
+- Type text in input → sent via NUS RX
 
 ---
 
@@ -697,28 +697,27 @@ Required manifest permissions:
 
 **Objective**: Build the UI and BLE communication to read and modify device configuration parameters.  
 **Estimated Duration**: 3–4 days  
-**Dependencies**: Phase 3 (NUS send/receive), Phase 5 (dashboard working)
+**Dependencies**: Phase 3 (BLE connection), Phase 5 (dashboard working)
 
 ---
 
-### Task 6.1: Config command protocol (CMD/RSP)
+### Task 6.1: Config Service GATT client (read/write JSON)
 
-**Description**: Implement the client-side protocol for sending config commands and parsing responses.
+**Description**: Implement the client-side BLE Config Service. Discover the Config Service GATT, read Device Info and Config characteristics, and write config updates as JSON.
 
 **Acceptance Criteria**:
-- [ ] Function: `Future<String> sendConfigCommand(String cmd)` — sends command, waits for response
-- [ ] Response timeout: 3 seconds
-- [ ] Parse RSP responses (success) and ERR responses (failure)
-- [ ] Handle multiple concurrent commands (queue or reject)
-- [ ] Model: `ConfigResponse` (success: bool, param: String, value: String, error: String?)
+- [ ] Discover Config Service by UUID `0000ABC0-0000-1000-8000-00805F9B34FB`
+- [ ] Function: `Future<DeviceInfo> readDeviceInfo()` — reads and parses Device Info JSON
+- [ ] Function: `Future<DeviceConfig> readConfig()` — reads and parses Config JSON
+- [ ] Function: `Future<void> writeConfig(Map<String, dynamic> updates)` — sends partial JSON update
+- [ ] Model: `DeviceInfo` (name, firmware version, battery mV)
+- [ ] Model: `DeviceConfig` (sensor_rate, ble_tx_rate, kalman_q, kalman_r, device_name)
+- [ ] Handle read/write errors gracefully
 
 **Validation**:
-- Send `CMD:GET:NAME` → receive `RSP:NAME=FlyInPeace`
-- Send invalid → receive `ERR:...` response
-
-**Files to create**:
-- `app/lib/core/ble/nus_protocol.dart`
-- `app/lib/core/models/device_config.dart`
+- Read Device Info → valid JSON with firmware version
+- Read Config → current device configuration
+- Write config update → value changes on device
 
 ---
 
@@ -733,8 +732,8 @@ Required manifest permissions:
   - Sensor OSR (dropdown: 256, 512, 1024, 2048, 4096)
   - BLE TX rate (slider: 1–10 Hz)
   - Reference pressure (numeric input, Pa)
-- [ ] "Save to device" button (sends `CMD:SAVE`)
-- [ ] "Reset defaults" button (optional, sends reset command)
+- [ ] "Save to device" button (writes config JSON + triggers NVS save)
+- [ ] "Reset defaults" button (optional, sends reset config)
 - [ ] Loading state while reading current config
 - [ ] Only accessible when connected
 
@@ -749,8 +748,8 @@ Required manifest permissions:
 **Description**: On opening the config screen, read all current configuration values from the device.
 
 **Acceptance Criteria**:
-- [ ] Send `CMD:GET:ALL` on screen load
-- [ ] Parse response and populate form fields
+- [ ] Read all config values via Config Read characteristic on screen load
+- [ ] Parse JSON response and populate form fields
 - [ ] Show loading spinner while waiting for response
 - [ ] Show error if read fails (with retry button)
 
@@ -764,9 +763,9 @@ Required manifest permissions:
 **Description**: Send modified configuration values to the device and persist to NVS.
 
 **Acceptance Criteria**:
-- [ ] Send `CMD:PARAM=VALUE` for each changed parameter
-- [ ] Verify RSP for each command
-- [ ] Send `CMD:SAVE` to persist changes to NVS
+- [ ] Write JSON with changed parameters to Config Write characteristic
+- [ ] Verify write succeeds (no BLE error)
+- [ ] Trigger NVS save on device (via save flag in JSON or separate write)
 - [ ] Show success/failure feedback (snackbar)
 - [ ] Only send changed values (diff against original)
 
@@ -892,7 +891,7 @@ Required manifest permissions:
 
 **Acceptance Criteria**:
 - [ ] LK8EX1 parser: 8+ test cases (see Phase 4)
-- [ ] Config command protocol: 5+ test cases
+- [ ] Config Service GATT client: 5+ test cases
 - [ ] Unit conversion functions: metric ↔ imperial
 - [ ] All tests pass with `flutter test`
 

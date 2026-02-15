@@ -3,7 +3,7 @@
 > **Project**: esp-fly-in-peace  
 > **Component**: Firmware (`micro/`)  
 > **Target**: ESP32-C3-DevKitC-02 v1.1  
-> **Master reference**: `PRE-PROMPT.md`
+> **Master reference**: `.github/PRE-PROMPT.md`
 
 ---
 
@@ -26,7 +26,7 @@
   - [ ] Task 2.4: Ceedling unit tests for compensation
   - [ ] Task 2.5: Integration test on hardware
 - [ ] **Phase 3: Kalman Filter**
-  - [ ] Task 3.1: 1D Kalman filter implementation
+  - [ ] Task 3.1: 2-state Kalman filter implementation
   - [ ] Task 3.2: Altitude calculation from pressure
   - [ ] Task 3.3: Vario (vertical speed) derivation
   - [ ] Task 3.4: Ceedling unit tests with synthetic data
@@ -38,7 +38,7 @@
   - [ ] Task 5.1: NimBLE initialization and GAP configuration
   - [ ] Task 5.2: NUS GATT service registration
   - [ ] Task 5.3: TX notification (send LK8EX1 data)
-  - [ ] Task 5.4: RX write handler (receive config commands)
+  - [ ] Task 5.4: RX write handler (reserved for future use)
   - [ ] Task 5.5: Connection state management
   - [ ] Task 5.6: Verify with nRF Connect / XCTrack
 - [ ] **Phase 6: Data Pipeline**
@@ -54,7 +54,7 @@
 - [ ] **Phase 8: NVS Configuration**
   - [ ] Task 8.1: Config schema definition
   - [ ] Task 8.2: NVS read/write with defaults
-  - [ ] Task 8.3: BLE config command handler (CMD/RSP protocol)
+  - [ ] Task 8.3: BLE Config Service GATT (read/write characteristics)
   - [ ] Task 8.4: Ceedling unit tests for config parsing
 - [ ] **Phase 9: Power Optimization**
   - [ ] Task 9.1: Light-sleep between sensor reads
@@ -426,25 +426,25 @@ Datasheet test vector:
 
 ## Phase 3: Kalman Filter
 
-**Objective**: Implement a 1D Kalman filter to smooth pressure readings and derive altitude and vertical speed (vario).  
+**Objective**: Implement a 2-state Kalman filter (altitude + vario) to smooth pressure readings and derive altitude and vertical speed.  
 **Estimated Duration**: 2–3 days  
 **Dependencies**: Phase 2 complete (compensation math for test data)
 
 ---
 
-### Task 3.1: 1D Kalman filter implementation
+### Task 3.1: 2-state Kalman filter implementation
 
-**Description**: Implement a simple 1D Kalman filter for barometric altitude smoothing. The filter takes pressure as input and outputs smoothed pressure.
+**Description**: Implement a 2-state Kalman filter for barometric altitude and vertical speed (vario). The state vector is `[altitude, vario]`. The filter takes pressure-derived altitude as input and outputs both smoothed altitude and estimated vertical speed.
 
 **Acceptance Criteria**:
 - [ ] Component `kalman_filter` created in `micro/components/kalman_filter/`
-- [ ] State struct: `kalman_state_t` with state estimate, error covariance, process noise (Q), measurement noise (R)
-- [ ] API: `kalman_init(state, Q, R, initial_value)`, `kalman_update(state, measurement)` → filtered value
+- [ ] State struct: `kalman_state_t` with 2-element state vector `[altitude, vario]`, 2x2 covariance matrix, process noise (Q), measurement noise (R)
+- [ ] API: `kalman_init(state, Q, R, initial_altitude)`, `kalman_update(state, measured_altitude, dt)` → filtered altitude + vario
 - [ ] Pure C, no ESP-IDF dependencies (fully testable on host)
 - [ ] Configurable Q and R parameters for tuning
 
 **Validation**:
-- Unit tests with synthetic data show smoothing behavior
+- Unit tests with synthetic data show smoothing behavior and correct vario derivation
 
 **Files to create**:
 - `micro/components/kalman_filter/CMakeLists.txt`
@@ -452,7 +452,8 @@ Datasheet test vector:
 - `micro/components/kalman_filter/src/kalman_filter.c`
 
 **Notes**:
-- Start with a simple 1D filter. Can be upgraded to 2D (pressure + vario) later.
+- State vector: `x = [altitude, vario]`. Prediction uses constant-velocity model.
+- Measurement: altitude derived from pressure (only altitude is measured, vario is estimated).
 - Reasonable starting values: Q=0.01, R=0.5 (tune with real sensor data).
 
 ---
@@ -667,9 +668,9 @@ Datasheet test vector:
 
 ---
 
-### Task 5.4: RX write handler (receive config commands)
+### Task 5.4: RX write handler (reserved for future use)
 
-**Description**: Implement the RX characteristic write handler to receive commands from the mobile app.
+**Description**: Implement the NUS RX characteristic write handler. Reserved for future use (firmware commands, calibration triggers). Config is handled via the separate Config Service GATT.
 
 **Acceptance Criteria**:
 - [ ] RX data received via GATT write callback
@@ -887,9 +888,9 @@ Datasheet test vector:
 
 ## Phase 8: NVS Configuration
 
-**Objective**: Store and retrieve device configuration from NVS, and expose it via BLE config commands.  
+**Objective**: Store and retrieve device configuration from NVS, and expose it via a BLE Config Service GATT.  
 **Estimated Duration**: 2–3 days  
-**Dependencies**: Phase 5 (BLE RX handler), Phase 6 (pipeline needs config for reference pressure)
+**Dependencies**: Phase 5 (BLE stack), Phase 6 (pipeline needs config for reference pressure)
 
 ---
 
@@ -937,37 +938,36 @@ Datasheet test vector:
 
 ---
 
-### Task 8.3: BLE config command handler (CMD/RSP protocol)
+### Task 8.3: BLE Config Service GATT (read/write characteristics)
 
-**Description**: Implement the BLE configuration command parser that processes commands received via NUS RX and sends responses via NUS TX.
+**Description**: Implement a separate BLE GATT service for device configuration with Read and Write characteristics. Uses JSON format (see `docs/architecture/ble_protocol.md` for full specification).
 
 **Acceptance Criteria**:
-- [ ] Parses `CMD:PARAM=VALUE\n` format
-- [ ] Parses `CMD:GET:PARAM\n` and `CMD:GET:ALL\n` queries
-- [ ] Parses `CMD:SAVE\n` to persist config
-- [ ] Sends `RSP:PARAM=VALUE\n` on success
-- [ ] Sends `ERR:CODE:MESSAGE\n` on failure (invalid param, invalid value, etc.)
-- [ ] Registered as NUS RX callback
-- [ ] Logs received commands at DEBUG level
+- [ ] Config Service registered with UUID `0000ABC0-0000-1000-8000-00805F9B34FB`
+- [ ] Device Info characteristic (Read): returns JSON `{"name", "fw", "bat"}`
+- [ ] Config Read characteristic (Read): returns current config as JSON
+- [ ] Config Write characteristic (Write): accepts partial JSON config updates
+- [ ] Validates all fields before applying (rejects invalid values)
+- [ ] Integrates with `config_manager` component for persistence
+- [ ] Logs config changes at INFO level
 
 **Validation**:
-- From nRF Connect UART: send `CMD:GET:NAME\n` → receive `RSP:NAME=FlyInPeace\n`
-- Send `CMD:NAME=TestVario\n` → receive `RSP:NAME=TestVario\n`
-- Send `CMD:SAVE\n` → receive `RSP:OK\n`
+- From nRF Connect: read Device Info char → valid JSON with firmware version
+- Read Config char → current configuration values
+- Write Config char with `{"sensor_rate": 20}` → value updated
 
 ---
 
-### Task 8.4: Ceedling unit tests for config parsing
+### Task 8.4: Ceedling unit tests for config
 
-**Description**: Unit tests for the config command parser (string parsing logic, no NVS dependency).
+**Description**: Unit tests for the config manager (validation logic, defaults, no NVS dependency).
 
 **Acceptance Criteria**:
-- [ ] Test: parse valid SET command
-- [ ] Test: parse valid GET command
-- [ ] Test: parse GET:ALL command
-- [ ] Test: reject invalid command format
-- [ ] Test: reject invalid parameter name
-- [ ] Test: reject out-of-range value
+- [ ] Test: valid parameter values accepted
+- [ ] Test: invalid parameter values rejected
+- [ ] Test: out-of-range values rejected
+- [ ] Test: default values returned on init
+- [ ] Test: partial config updates work correctly
 - [ ] All tests pass
 
 **Validation**:
