@@ -1,0 +1,30 @@
+{
+  "folders": [
+    {"path": ".github", "name": "GitHub Copilot"},
+    { "path": "micro", "name": "Firmware (ESP32-C3)" },
+    { "path": "app", "name": "Mobile App (Flutter)" },
+    { "path": "docs", "name": "Documentation" }
+  ],
+  "settings": {
+    "files.associations": {
+      "*.h": "c",
+      "*.c": "c"
+    },
+    "editor.formatOnSave": false,
+    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+    "[dart]": {
+      "editor.formatOnSave": true,
+      "editor.defaultFormatter": "Dart-Code.dart-code"
+    }
+  },
+  "extensions": {
+    "recommendations": [
+      "github.copilot",
+      "github.copilot-chat",
+      "espressif.esp-idf-extension",
+      "ms-vscode.cmake-tools",
+      "Dart-Code.dart-code",
+      "Dart-Code.flutter"
+    ]
+  }
+}
