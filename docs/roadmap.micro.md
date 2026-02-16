@@ -16,6 +16,7 @@
   - [x] Task 0.4: Create build/flash/test/monitor scripts
   - [x] Task 0.5: Configure `sdkconfig.defaults` for ESP32-C3 + NimBLE
   - [x] Task 0.6: Verify "Hello World" builds, flashes, and runs
+  - [ ] Task 0.7: Create ESP-IDF environment activation script
 - [ ] **Phase 1: Hardware Abstraction**
   - [ ] Task 1.1: I2C bus driver wrapper
   - [ ] Task 1.2: Sensor HAL interface definition
@@ -223,6 +224,38 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 - None (verification only)
 
 **Notes**: This is the gate for Phase 0. Do not proceed to Phase 1 until this passes.
+
+---
+
+### Task 0.7: Create ESP-IDF environment activation script
+
+**Description**: Create a sourceable shell script `micro/scripts/env.sh` that activates or deactivates the ESP-IDF environment (`idf.py`, toolchain, Python venv). This allows using the build/flash/monitor scripts from any terminal without manually sourcing ESP-IDF's `export.sh`.
+
+**Usage**:
+- Activate: `source ./scripts/env.sh` or `. ./scripts/env.sh`
+- Deactivate: `idf_deactivate`
+
+**Acceptance Criteria**:
+- [ ] `micro/scripts/env.sh` exists and is sourceable (not executable directly)
+- [ ] Sourcing it activates the ESP-IDF environment (adds `idf.py` to PATH)
+- [ ] Defines an `idf_deactivate` function that restores the original PATH/environment
+- [ ] Prints a colored status message indicating activation/deactivation
+- [ ] Is idempotent — sourcing twice does not duplicate PATH entries
+- [ ] Detects ESP-IDF installation path automatically or uses `IDF_PATH` if set
+- [ ] All existing scripts (`build.sh`, `flash.sh`, etc.) work after sourcing
+
+**Validation**:
+- Open a fresh terminal, `source ./scripts/env.sh`, run `idf.py --version`
+- Run `idf_deactivate`, verify `idf.py` is no longer in PATH
+- Source again, run `./scripts/build.sh` — build succeeds
+
+**Files to create**:
+- `micro/scripts/env.sh`
+
+**Notes**:
+- ESP-IDF v5.5.2 is installed at `~/.espressif/v5.5.2/esp-idf/`.
+- The script should source `$IDF_PATH/export.sh` internally.
+- Must be sourced (`. env.sh`), not executed (`./env.sh`), to modify the calling shell's environment.
 
 ---
 
