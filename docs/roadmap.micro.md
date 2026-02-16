@@ -9,13 +9,13 @@
 
 ## Summary Checklist
 
-- [ ] **Phase 0: Project Bootstrap**
-  - [ ] Task 0.1: Create ESP-IDF project skeleton
-  - [ ] Task 0.2: Configure `.clang-format`
-  - [ ] Task 0.3: Configure Ceedling for host-side unit tests
-  - [ ] Task 0.4: Create build/flash/test/monitor scripts
-  - [ ] Task 0.5: Configure `sdkconfig.defaults` for ESP32-C3 + NimBLE
-  - [ ] Task 0.6: Verify "Hello World" builds, flashes, and runs
+- [x] **Phase 0: Project Bootstrap**
+  - [x] Task 0.1: Create ESP-IDF project skeleton
+  - [x] Task 0.2: Configure `.clang-format`
+  - [x] Task 0.3: Configure Ceedling for host-side unit tests
+  - [x] Task 0.4: Create build/flash/test/monitor scripts
+  - [x] Task 0.5: Configure `sdkconfig.defaults` for ESP32-C3 + NimBLE
+  - [x] Task 0.6: Verify "Hello World" builds, flashes, and runs
 - [ ] **Phase 1: Hardware Abstraction**
   - [ ] Task 1.1: I2C bus driver wrapper
   - [ ] Task 1.2: Sensor HAL interface definition
@@ -87,11 +87,11 @@
 **Description**: Initialize the ESP-IDF project structure under `micro/` with the standard CMake layout. Create `main/main.c` with a minimal `app_main()` that logs a startup message.
 
 **Acceptance Criteria**:
-- [ ] `micro/CMakeLists.txt` exists with correct `cmake_minimum_required` and `project()` calls
-- [ ] `micro/main/CMakeLists.txt` registers `main.c` as source
-- [ ] `micro/main/main.c` contains `app_main()` that logs `"esp-fly-in-peace firmware starting"` via `ESP_LOGI`
-- [ ] `micro/components/` directory exists (empty, ready for components)
-- [ ] Project compiles with `idf.py build` targeting `esp32c3`
+- [x] `micro/CMakeLists.txt` exists with correct `cmake_minimum_required` and `project()` calls
+- [x] `micro/main/CMakeLists.txt` registers `main.c` as source
+- [x] `micro/main/main.c` contains `app_main()` that logs `"esp-fly-in-peace firmware starting"` via `ESP_LOGI`
+- [x] `micro/components/` directory exists (empty, ready for components)
+- [x] Project compiles with `idf.py build` targeting `esp32c3`
 
 **Validation**:
 - Run `idf.py set-target esp32c3 && idf.py build` — build succeeds with 0 errors
@@ -111,9 +111,9 @@
 **Description**: Create the `.clang-format` file at `micro/.clang-format` with the project's coding style (Allman braces, 4-space indent, 120-char limit, pointer right-aligned).
 
 **Acceptance Criteria**:
-- [ ] `micro/.clang-format` exists
-- [ ] Running `clang-format -style=file micro/main/main.c` produces output matching the style guide
-- [ ] Allman braces, 4-space indent, 120-char line limit, right-aligned pointers
+- [x] `micro/.clang-format` exists
+- [x] Running `clang-format -style=file micro/main/main.c` produces output matching the style guide
+- [x] Allman braces, 4-space indent, 120-char line limit, right-aligned pointers
 
 **Validation**:
 - Format `main.c` with `clang-format -i -style=file micro/main/main.c` and verify style compliance
@@ -130,10 +130,10 @@
 **Description**: Set up Ceedling in `micro/test/` for host-side unit testing. Configure `project.yml` to find source files in `micro/components/*/src/` and `micro/components/*/include/`.
 
 **Acceptance Criteria**:
-- [ ] `micro/test/project.yml` exists with correct paths
-- [ ] `micro/test/support/` directory exists for mock helpers
-- [ ] Running `ceedling test:all` from `micro/test/` succeeds (even with zero tests)
-- [ ] A sample test file can be compiled and run
+- [x] `micro/test/project.yml` exists with correct paths
+- [x] `micro/test/support/` directory exists for mock helpers
+- [x] Running `ceedling test:all` from `micro/test/` succeeds (even with zero tests)
+- [x] A sample test file can be compiled and run
 
 **Validation**:
 - Create a trivial test (`test_sample.c`) that passes, run `ceedling test:all`, verify green output
@@ -152,13 +152,13 @@
 **Description**: Create bash scripts in `micro/scripts/` for common development workflows. All scripts should accept `-p PORT` for serial port override (default: `/dev/ttyUSB0`).
 
 **Acceptance Criteria**:
-- [ ] `build.sh` — runs `idf.py build`, exits non-zero on failure
-- [ ] `flash.sh` — runs `idf.py -p $PORT flash`, supports `-p` flag
-- [ ] `monitor.sh` — runs `idf.py -p $PORT monitor`, supports `-p` flag
-- [ ] `test.sh` — runs `cd ../test && ceedling test:all`
-- [ ] `all.sh` — chains build → flash → monitor
-- [ ] All scripts are executable (`chmod +x`)
-- [ ] All scripts print colored status messages (green=success, red=error)
+- [x] `build.sh` — runs `idf.py build`, exits non-zero on failure
+- [x] `flash.sh` — runs `idf.py -p $PORT flash`, supports `-p` flag
+- [x] `monitor.sh` — runs `idf.py -p $PORT monitor`, supports `-p` flag
+- [x] `test.sh` — runs `cd ../test && ceedling test:all`
+- [x] `all.sh` — chains build → flash → monitor
+- [x] All scripts are executable (`chmod +x`)
+- [x] All scripts print colored status messages (green=success, red=error)
 
 **Validation**:
 - Run `./scripts/build.sh` — build succeeds
@@ -178,13 +178,13 @@
 **Description**: Create `sdkconfig.defaults` with optimal settings for the project: NimBLE (not Bluedroid), FreeRTOS tick rate, log level, partition table, flash size.
 
 **Acceptance Criteria**:
-- [ ] `sdkconfig.defaults` exists at `micro/sdkconfig.defaults`
-- [ ] NimBLE is enabled, Bluedroid is disabled
-- [ ] FreeRTOS tick rate is 1000 Hz (1 ms resolution for timing)
-- [ ] Flash size set to 4 MB (DevKitC-02)
-- [ ] Log level default set to INFO
-- [ ] Power management enabled (`CONFIG_PM_ENABLE=y`)
-- [ ] Building with these defaults succeeds
+- [x] `sdkconfig.defaults` exists at `micro/sdkconfig.defaults`
+- [x] NimBLE is enabled, Bluedroid is disabled
+- [x] FreeRTOS tick rate is 1000 Hz (1 ms resolution for timing)
+- [x] Flash size set to 4 MB (DevKitC-02)
+- [x] Log level default set to INFO
+- [x] Power management enabled (`CONFIG_PM_ENABLE=y`)
+- [x] Building with these defaults succeeds
 
 **Validation**:
 - Delete `sdkconfig`, run `idf.py build` — defaults are applied, build succeeds
@@ -211,10 +211,10 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Description**: End-to-end verification: build the firmware, flash it to the DevKitC-02, and verify the startup log message appears in the serial monitor.
 
 **Acceptance Criteria**:
-- [ ] `idf.py build` succeeds with 0 errors, 0 warnings (except SDK warnings)
-- [ ] `idf.py flash` succeeds
-- [ ] Serial monitor shows `"esp-fly-in-peace firmware starting"` log message
-- [ ] No crash or reboot loops
+- [x] `idf.py build` succeeds with 0 errors, 0 warnings (except SDK warnings)
+- [x] `idf.py flash` succeeds
+- [x] Serial monitor shows `"esp-fly-in-peace firmware starting"` log message
+- [x] No crash or reboot loops
 
 **Validation**:
 - Run `./scripts/all.sh` — observe startup message in monitor output
