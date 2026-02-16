@@ -50,6 +50,7 @@
   - [ ] Task 6.3: Read current config from device
   - [ ] Task 6.4: Write config and save to device NVS
   - [ ] Task 6.5: Config validation and error handling
+  - [ ] Task 6.6: Altitude calibration via BLE
 - [ ] **Phase 7: Settings & Persistence**
   - [ ] Task 7.1: App settings screen
   - [ ] Task 7.2: Display units (metric/imperial)
@@ -621,8 +622,10 @@ Required manifest permissions:
 - [ ] Large numeric display (altitude in meters or feet)
 - [ ] Unit label ("m" or "ft")
 - [ ] Handles "no data" state (shows "---" or similar)
+- [ ] Shows "---" when uncalibrated (`altitude == 99999`); shows calibrated value otherwise
 - [ ] Updates in real-time as new data arrives
 - [ ] Font size appropriate for glancing at while flying
+- [ ] Optional: "Calibrate" quick-action icon/button (opens calibration dialog from Task 6.6)
 
 **Validation**:
 - Widget shows altitude value, updates with live data
@@ -711,7 +714,8 @@ Required manifest permissions:
 - [ ] Function: `Future<DeviceConfig> readConfig()` — reads and parses Config JSON
 - [ ] Function: `Future<void> writeConfig(Map<String, dynamic> updates)` — sends partial JSON update
 - [ ] Model: `DeviceInfo` (name, firmware version, battery mV)
-- [ ] Model: `DeviceConfig` (sensor_rate, ble_tx_rate, kalman_q, kalman_r, device_name)
+- [ ] Model: `DeviceConfig` (sensor_rate, ble_tx_rate, kalman_q, kalman_r, reference_pressure_pa, device_name)
+- [ ] Function: `Future<void> calibrateAltitude(double altitudeM)` — sends `{"action": "calibrate", "altitude_m": <value>}` via Config Write characteristic (per `ble_protocol.md` §Calibrate Action)
 - [ ] Handle read/write errors gracefully
 
 **Validation**:
@@ -731,7 +735,11 @@ Required manifest permissions:
   - Device name (text input, max 20 chars)
   - Sensor OSR (dropdown: 256, 512, 1024, 2048, 4096)
   - BLE TX rate (slider: 1–10 Hz)
-  - Reference pressure (numeric input, Pa)
+  - Reference pressure (numeric input, Pa) — read-only display of current QNH
+- [ ] Altitude calibration section (separated from config fields):
+  - "Calibrate Altitude" button
+  - Opens calibration dialog (see Task 6.6)
+  - Shows current `reference_pressure_pa` value (read-only, updated after calibration)
 - [ ] "Save to device" button (writes config JSON + triggers NVS save)
 - [ ] "Reset defaults" button (optional, sends reset config)
 - [ ] Loading state while reading current config
@@ -788,6 +796,49 @@ Required manifest permissions:
 **Validation**:
 - Enter invalid value → inline error shown, not sent
 - Send valid value, device responds with ERR → error shown to user
+
+---
+
+### Task 6.6: Altitude calibration via BLE
+
+**Description**: Implement the altitude calibration flow from the mobile app. The pilot enters a known altitude (e.g., elevation at launch site), the app sends a calibrate command via the BLE Config Write characteristic, and the device computes the reference pressure (QNH) using the inverse barometric formula. The calibrated altitude then appears in the LK8EX1 data stream.
+
+**BLE Protocol Reference**: `ble_protocol.md` §Config Write — Calibrate Action  
+**Firmware Reference**: `firmware-architecture.md` §4.4 `kalman_filter_calibrate()`, §6.3 Calibration Queue
+
+**Acceptance Criteria**:
+- [ ] "Calibrate Altitude" button accessible from:
+  - Config screen (calibration section)
+  - Dashboard screen (quick-action icon on altitude widget — optional)
+- [ ] Tapping the button opens a calibration dialog:
+  - Numeric input field for known altitude
+  - Unit-aware: meters or feet (converted to meters before sending, per app unit setting)
+  - Placeholder text showing current altitude (if available) or "Enter altitude"
+  - Input range validation: -500 to 10000 m (or equivalent in feet)
+  - "Calibrate" confirmation button + "Cancel" button
+- [ ] On confirm: calls `calibrateAltitude(double altitudeM)` from Task 6.1
+  - Sends `{"action": "calibrate", "altitude_m": <value>}` via Config Write (`0xABC3`)
+  - Shows loading indicator while waiting for BLE write ack
+- [ ] On success (BLE write ack received):
+  - Show success snackbar: "Altitude calibrated to \<value\> m"
+  - Dashboard altitude widget updates within ~250 ms (next LK8EX1 frame)
+  - Config screen shows updated `reference_pressure_pa` (re-read via Config Read)
+- [ ] On error (BLE write fails, timeout, out of range):
+  - Show error dialog with descriptive message
+  - Input remains for retry (don't dismiss dialog)
+- [ ] Only available when BLE is connected
+
+**Validation**:
+- Calibrate to known altitude → LK8EX1 stream shows correct altitude within 1 second
+- Reboot device → calibrated altitude persists (QNH saved in NVS)
+- Enter out-of-range value → validation error shown, command not sent
+- Disconnect BLE → calibrate button disabled
+
+**Files to create/modify**:
+- `app/lib/features/config/widgets/calibration_dialog.dart`
+- `app/lib/features/config/config_screen.dart`
+- `app/lib/features/config/config_provider.dart`
+- `app/lib/features/dashboard/dashboard_screen.dart` (optional quick-action)
 
 ---
 
@@ -892,6 +943,7 @@ Required manifest permissions:
 **Acceptance Criteria**:
 - [ ] LK8EX1 parser: 8+ test cases (see Phase 4)
 - [ ] Config Service GATT client: 5+ test cases
+- [ ] Altitude calibration: send calibrate command, verify response handling
 - [ ] Unit conversion functions: metric ↔ imperial
 - [ ] All tests pass with `flutter test`
 
@@ -902,7 +954,8 @@ Required manifest permissions:
 **Acceptance Criteria**:
 - [ ] Scanner screen: renders in scanning, results, empty, error states
 - [ ] Dashboard screen: renders with data, without data, disconnected state
-- [ ] Config screen: renders with loaded config
+- [ ] Config screen: renders with loaded config, calibration section visible
+- [ ] Calibration dialog: renders input, validates range, shows success/error
 - [ ] All widget tests pass with `flutter test`
 
 ---
@@ -910,7 +963,8 @@ Required manifest permissions:
 ### Task 8.5: Integration test with real device
 
 **Acceptance Criteria**:
-- [ ] Full workflow: scan → connect → view data → configure → disconnect
+- [ ] Full workflow: scan → connect → view data → configure → calibrate altitude → disconnect
+- [ ] Calibrate altitude → verify LK8EX1 altitude updates within 1 second
 - [ ] Works for 30+ minutes continuously
 - [ ] Auto-reconnect works after device restart
 - [ ] No memory leaks (check with Flutter DevTools)
@@ -969,7 +1023,6 @@ Required manifest permissions:
 - **Flight Playback**: Replay saved flights with timeline scrubbing
 - **Data Export**: Export flight data as CSV, IGC, or KML
 - **WiFi Configuration**: Configure device WiFi settings via BLE
-- **Sensor Calibration Wizard**: Guided calibration flow in the app
 - **Multiple Device Support**: Connect to multiple varios simultaneously
 - **Map Integration**: Show position on map (if GPS available from XCTrack)
 - **Widgets**: Home screen widget showing last known altitude

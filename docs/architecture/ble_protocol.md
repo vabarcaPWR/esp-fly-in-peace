@@ -1,6 +1,6 @@
 # BLE Protocol Specification — ESP Fly-in-Peace
 
-> Last updated: 2026-02-16
+> Last updated: 2025-07-11
 
 ## Overview
 
@@ -33,7 +33,8 @@ This **hybrid architecture** cleanly separates the real-time data streaming path
 
 - Receives data from the client.
 - Data encoding: UTF-8 string.
-- Reserved for future use (firmware commands, calibration triggers, etc.).
+- Reserved for future use (firmware commands, etc.).
+- **Note**: Altitude calibration is handled through the Config Service (see §2 Config Write — Calibrate action), not via NUS RX.
 
 ## 2. Config Service
 
@@ -73,6 +74,7 @@ Returns current device configuration as a JSON string:
   "ble_tx_rate": 4,
   "kalman_q": 0.01,
   "kalman_r": 0.5,
+  "reference_pressure_pa": 101325.0,
   "device_name": "FlyInPeace",
   "wifi_enabled": false
 }
@@ -84,6 +86,7 @@ Returns current device configuration as a JSON string:
 | `ble_tx_rate` | int | 1-50 | 4 | BLE send rate (Hz) |
 | `kalman_q` | float | 0.001-10.0 | 0.01 | Kalman process noise |
 | `kalman_r` | float | 0.01-100.0 | 0.5 | Kalman measurement noise |
+| `reference_pressure_pa` | float | 80000.0-120000.0 | 101325.0 | Reference sea-level pressure — QNH (Pa) |
 | `device_name` | string | 1-20 chars | "FlyInPeace" | BLE device name |
 | `wifi_enabled` | bool | — | false | WiFi service state |
 
@@ -99,6 +102,26 @@ Accepts a JSON string with configuration updates. Partial updates are supported 
 ```
 
 The device validates all fields before applying. Invalid values are rejected and the write returns an error.
+
+#### Calibrate Action
+
+To calibrate the barometric altimeter, the client sends a JSON payload with the `action` field set to `"calibrate"` and the known altitude in meters:
+
+```json
+{
+  "action": "calibrate",
+  "altitude_m": 452.0
+}
+```
+
+| Field | Type | Range | Description |
+|-------|------|-------|-------------|
+| `action` | string | `"calibrate"` | Action identifier |
+| `altitude_m` | float | -500.0 — 10000.0 | Known altitude at current position (m) |
+
+**Flow**: Config Write → `CONFIG_REQUEST_CALIBRATE` → config_task → calibration_queue → sensor_task → `kalman_filter_calibrate()`. The sensor_task computes the new reference pressure (QNH) using the inverse barometric formula and persists it to NVS.
+
+**Response**: The write returns success (`0x00`) immediately after queuing the calibration request. The actual calibration is applied asynchronously within the next sensor_task cycle (≤ 100 ms). The updated `reference_pressure_pa` value can be verified via Config Read.
 
 ## 3. BLE Parameters
 
@@ -141,6 +164,9 @@ Client (App/XCTrack)                    Device (ESP32-C3)
        │◄─── Config JSON ────────────────────│
        │                                       │
        │──── [Optional] Write Config ─────────►│  (Config Service)
+       │◄─── Write ack ──────────────────────│
+       │                                       │
+       │──── [Optional] Calibrate altitude ───►│  (Config Write + action)
        │◄─── Write ack ──────────────────────│
        │                                       │
        │──── Disconnect ──────────────────────►│
@@ -245,8 +271,7 @@ The Config Service is registered internally by `ble_nus_init()`. It interacts wi
 |-----------|---------|-----------------|
 | Device Info read | Client reads `0xABC1` | Build JSON from fw version + battery |
 | Config read | Client reads `0xABC2` | `config_manager_load()` → JSON response |
-| Config write | Client writes `0xABC3` | Post `CONFIG_REQUEST_WRITE` to config queue |
-
+| Config write | Client writes `0xABC3` | Post `CONFIG_REQUEST_WRITE` to config queue || Calibrate altitude | Client writes `0xABC3` with `action: "calibrate"` | Post `CONFIG_REQUEST_CALIBRATE` to config queue → calibration_queue → sensor_task |
 ---
 
 *End of BLE Protocol Specification*

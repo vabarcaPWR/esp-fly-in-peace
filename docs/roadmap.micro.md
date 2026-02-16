@@ -21,65 +21,72 @@
   - [x] Task 1.1: System architecture document
   - [x] Task 1.2: Component interface contracts
   - [x] Task 1.3: FreeRTOS task model and data flow design
-- [ ] **Phase 2: BLE NUS Service**
-  - [ ] Task 2.1: NimBLE initialization and GAP configuration
-  - [ ] Task 2.2: NUS GATT service registration
-  - [ ] Task 2.3: TX notification (send data)
-  - [ ] Task 2.4: RX write handler (reserved for future use)
-  - [ ] Task 2.5: Connection state management
-  - [ ] Task 2.6: Verify with nRF Connect
-- [ ] **Phase 3: LK8EX1 Protocol**
-  - [ ] Task 3.1: LK8EX1 data abstraction layer
-  - [ ] Task 3.2: NMEA checksum calculator
-  - [ ] Task 3.3: LK8EX1 sentence formatter
-  - [ ] Task 3.4: Simulated data provider
-  - [ ] Task 3.5: BLE + LK8EX1 integration (send simulated frames)
-  - [ ] Task 3.6: Ceedling unit tests
+- [ ] **Phase 2: LK8EX1 Protocol**
+  - [ ] Task 2.1: LK8EX1 data types and formatter
+  - [ ] Task 2.2: NMEA checksum calculator
+  - [ ] Task 2.3: Ceedling unit tests for LK8EX1
+- [ ] **Phase 3: BLE NUS Service**
+  - [ ] Task 3.1: NimBLE initialization and GAP configuration
+  - [ ] Task 3.2: NUS GATT service registration
+  - [ ] Task 3.3: TX notification (send data)
+  - [ ] Task 3.4: RX write handler (reserved for future use)
+  - [ ] Task 3.5: Connection state management
+  - [ ] Task 3.6: BLE + LK8EX1 integration (send simulated frames)
+  - [ ] Task 3.7: Verify with nRF Connect
 - [ ] **Phase 4: LED Indicator**
   - [ ] Task 4.1: WS2812 driver via RMT peripheral
-  - [ ] Task 4.2: LED state machine (red/green/blue patterns)
+  - [ ] Task 4.2: LED state machine (patterns per `led_state_e`)
   - [ ] Task 4.3: Integration with BLE connection state
-- [ ] **Phase 5: Hardware Abstraction**
-  - [ ] Task 5.1: I2C bus driver wrapper
-  - [ ] Task 5.2: Sensor HAL interface definition
+- [ ] **Phase 5: Sensor HAL (Compile-Time Abstraction)**
+  - [ ] Task 5.1: Kconfig sensor selection (`choice SENSOR_DRIVER`)
+  - [ ] Task 5.2: `sensor_hal` public API and compile-time dispatch
+  - [ ] Task 5.3: I2C bus initialization
 - [ ] **Phase 6: MS5611 Sensor Driver**
   - [ ] Task 6.1: MS5611 PROM calibration read
   - [ ] Task 6.2: MS5611 raw pressure & temperature read
   - [ ] Task 6.3: MS5611 compensation math
   - [ ] Task 6.4: Ceedling unit tests for compensation
   - [ ] Task 6.5: Integration test on hardware
-- [ ] **Phase 7: Kalman Filter**
-  - [ ] Task 7.1: 2-state Kalman filter implementation
-  - [ ] Task 7.2: Altitude calculation from pressure
-  - [ ] Task 7.3: Vario (vertical speed) derivation
-  - [ ] Task 7.4: Ceedling unit tests with synthetic data
-- [ ] **Phase 8: Data Pipeline**
-  - [ ] Task 8.1: Sensor reader task (10 Hz)
-  - [ ] Task 8.2: Data processing task (Kalman + LK8EX1 formatting)
-  - [ ] Task 8.3: BLE sender task (4 Hz)
-  - [ ] Task 8.4: Inter-task communication (FreeRTOS queues)
-  - [ ] Task 8.5: Replace simulated provider with real sensor data
-  - [ ] Task 8.6: End-to-end data flow validation
-- [ ] **Phase 9: NVS Configuration**
-  - [ ] Task 9.1: Config schema definition
-  - [ ] Task 9.2: NVS read/write with defaults
-  - [ ] Task 9.3: BLE Config Service GATT (read/write characteristics)
-  - [ ] Task 9.4: Ceedling unit tests for config parsing
-- [ ] **Phase 10: Power Optimization**
-  - [ ] Task 10.1: Light-sleep between sensor reads
-  - [ ] Task 10.2: BLE connection interval optimization
-  - [ ] Task 10.3: Peripheral power gating
-  - [ ] Task 10.4: Power consumption measurement & logging
-- [ ] **Phase 11: Integration & Validation**
-  - [ ] Task 11.1: End-to-end test with XCTrack
-  - [ ] Task 11.2: Long-duration stability test (8+ hours)
-  - [ ] Task 11.3: Power consumption budget verification
-  - [ ] Task 11.4: Edge case testing (BLE disconnect/reconnect, sensor errors)
-- [ ] **Phase 12: Documentation & Cleanup**
-  - [ ] Task 12.1: Firmware README with build/flash instructions
-  - [ ] Task 12.2: Component API documentation
-  - [ ] Task 12.3: Architecture diagram update (Mermaid)
-  - [ ] Task 12.4: Code review pass (Boy Scout Rule)
+- [ ] **Phase 7: BMP390 Sensor Driver**
+  - [ ] Task 7.1: BMP390 trimming coefficients read
+  - [ ] Task 7.2: BMP390 raw pressure & temperature read
+  - [ ] Task 7.3: BMP390 compensation math
+  - [ ] Task 7.4: Ceedling unit tests for compensation
+  - [ ] Task 7.5: Integration test on hardware
+- [ ] **Phase 8: Kalman Filter**
+  - [ ] Task 8.1: 2-state Kalman filter implementation
+  - [ ] Task 8.2: Altitude calculation from pressure
+  - [ ] Task 8.3: Altitude calibration (inverse barometric formula)
+  - [ ] Task 8.4: Vario (vertical speed) derivation
+  - [ ] Task 8.5: Ceedling unit tests with synthetic data
+- [ ] **Phase 9: Data Pipeline**
+  - [ ] Task 9.1: Shared flight data structure and mutex
+  - [ ] Task 9.2: Calibration queue (sensor_task consumer)
+  - [ ] Task 9.3: Sensor reader task (10 Hz)
+  - [ ] Task 9.4: BLE sender task (4 Hz)
+  - [ ] Task 9.5: Replace simulated provider with real sensor data
+  - [ ] Task 9.6: End-to-end data flow validation
+- [ ] **Phase 10: NVS Configuration**
+  - [ ] Task 10.1: Config schema definition and defaults
+  - [ ] Task 10.2: NVS read/write with validation
+  - [ ] Task 10.3: BLE Config Service GATT (read/write characteristics)
+  - [ ] Task 10.4: Config task (event-driven)
+  - [ ] Task 10.5: Ceedling unit tests for config validation
+- [ ] **Phase 11: Power Optimization**
+  - [ ] Task 11.1: Light-sleep between sensor reads
+  - [ ] Task 11.2: BLE connection interval optimization
+  - [ ] Task 11.3: Peripheral power gating
+  - [ ] Task 11.4: Power consumption measurement & logging
+- [ ] **Phase 12: Integration & Validation**
+  - [ ] Task 12.1: End-to-end test with XCTrack
+  - [ ] Task 12.2: Long-duration stability test (8+ hours)
+  - [ ] Task 12.3: Power consumption budget verification
+  - [ ] Task 12.4: Edge case testing (BLE disconnect/reconnect, sensor errors)
+- [ ] **Phase 13: Documentation & Cleanup**
+  - [ ] Task 13.1: Firmware README with build/flash instructions
+  - [ ] Task 13.2: Component API documentation
+  - [ ] Task 13.3: Architecture diagram update (Mermaid)
+  - [ ] Task 13.4: Code review pass (Boy Scout Rule)
 
 ---
 
@@ -324,44 +331,121 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 
 ---
 
-## Phase 2: BLE NUS Service
+---
 
-**Objective**: Implement Bluetooth Low Energy with NimBLE, advertising the Nordic UART Service, and supporting TX notifications and RX writes.  
-**Estimated Duration**: 3–4 days  
-**Dependencies**: Phase 0 (NimBLE config in sdkconfig.defaults)
+## Phase 2: LK8EX1 Protocol
+
+**Objective**: Implement the LK8EX1 NMEA sentence formatter with checksum calculation. This is a pure-C component with zero ESP-IDF dependencies, making it the ideal first component to implement and test with Ceedling.  
+**Estimated Duration**: 1–2 days  
+**Dependencies**: Phase 1 (interface contract in `firmware-architecture.md` §4.5)  
+**Architecture Reference**: `firmware-architecture.md` §4.5 `lk8ex1`
 
 ---
 
-### Task 2.1: NimBLE initialization and GAP configuration
+### Task 2.1: LK8EX1 data types and formatter
 
-**Description**: Create the `ble_nus` component. Initialize the NimBLE host stack and configure GAP parameters (device name, advertising parameters, connection parameters).
+**Description**: Create the `lk8ex1` component with the `lk8ex1_data_t` input struct and `lk8ex1_format()` function, following the contract defined in the architecture document.
+
+**Acceptance Criteria**:
+- [ ] Component `lk8ex1` created in `micro/components/lk8ex1/`
+- [ ] `lk8ex1_data_t` struct with fields per architecture §4.5: `pressure_pa`, `altitude_m`, `vario_cms`, `temperature_dc`, `battery_mv`
+- [ ] `esp_err_t lk8ex1_format(const lk8ex1_data_t *data, char *buffer, size_t buffer_size)`
+- [ ] Output format: `$LK8EX1,pressure,altitude,vario,temperature,battery*XX\r\n`
+- [ ] Returns `ESP_ERR_INVALID_ARG` for NULL pointers
+- [ ] Returns `ESP_ERR_INVALID_SIZE` if `buffer_size < LK8EX1_MAX_SENTENCE_LEN` (64 bytes)
+- [ ] All integer formatting — no floating-point operations
+- [ ] Pure C, no ESP-IDF dependencies (testable on host)
+
+**Validation**:
+- Unit tests verify correct output for known inputs
+
+**Files to create**:
+- `micro/components/lk8ex1/CMakeLists.txt`
+- `micro/components/lk8ex1/include/lk8ex1.h`
+- `micro/components/lk8ex1/src/lk8ex1.c`
+
+---
+
+### Task 2.2: NMEA checksum calculator
+
+**Description**: Implement checksum and validation functions per architecture contract.
+
+**Acceptance Criteria**:
+- [ ] `uint8_t lk8ex1_checksum(const char *sentence, size_t len)` — XOR of chars between `$` and `*` (exclusive)
+- [ ] `bool lk8ex1_validate(const char *sentence)` — parses, computes, and compares checksum
+- [ ] Handles edge cases: null input, missing `$` or `*`
+
+**Validation**:
+- Unit tests with known NMEA sentences
+
+**Files to modify**:
+- `micro/components/lk8ex1/include/lk8ex1.h`
+- `micro/components/lk8ex1/src/lk8ex1.c`
+
+---
+
+### Task 2.3: Ceedling unit tests for LK8EX1
+
+**Description**: Write comprehensive unit tests for LK8EX1 formatting and checksum.
+
+**Acceptance Criteria**:
+- [ ] Test file `micro/test/test_lk8ex1.c` exists
+- [ ] Test: format with typical values produces correct sentence (e.g., `$LK8EX1,101325,99999,50,235,999*XX\r\n`)
+- [ ] Test: format with `altitude_m = 99999` (no GPS) works correctly
+- [ ] Test: format with `battery_mv = 999` (no battery) works correctly
+- [ ] Test: checksum matches manual XOR calculation
+- [ ] Test: `lk8ex1_validate()` returns `true` for correct sentence
+- [ ] Test: `lk8ex1_validate()` returns `false` for corrupted sentence
+- [ ] Test: format with NULL buffer returns `ESP_ERR_INVALID_ARG`
+- [ ] Test: format with insufficient buffer size returns `ESP_ERR_INVALID_SIZE`
+- [ ] All tests pass in `ceedling test:all`
+
+**Validation**:
+- Run `./scripts/test.sh` — all tests green
+
+**Files to create**:
+- `micro/test/test_lk8ex1.c`
+
+---
+
+## Phase 3: BLE NUS Service
+
+**Objective**: Implement Bluetooth Low Energy with NimBLE, advertising the Nordic UART Service (NUS), and supporting TX notifications. Integrate with LK8EX1 to send simulated flight data.  
+**Estimated Duration**: 3–4 days  
+**Dependencies**: Phase 2 (LK8EX1 formatter for integration test)  
+**Architecture Reference**: `firmware-architecture.md` §4.6 `ble_nus`, `ble_protocol.md`
+
+---
+
+### Task 3.1: NimBLE initialization and GAP configuration
+
+**Description**: Create the `ble_nus` component. Initialize the NimBLE host stack and configure GAP parameters following the API contract from the architecture document.
 
 **Acceptance Criteria**:
 - [ ] Component `ble_nus` created in `micro/components/ble_nus/`
-- [ ] NimBLE host stack initialized and running
-- [ ] Device name configurable (default: `"FlyInPeace"`)
-- [ ] GAP event handler processes: connect, disconnect, MTU exchange, connection update
+- [ ] `ble_nus_cfg_t` struct with `device_name` (default: `"FlyInPeace"`) and `adv_interval_ms` (default: 100)
+- [ ] `esp_err_t ble_nus_init(const ble_nus_cfg_t *cfg)` — initializes NimBLE host, starts advertising
+- [ ] GAP event handler processes: `BLE_GAP_EVENT_CONNECT`, `BLE_GAP_EVENT_DISCONNECT`, `BLE_GAP_EVENT_MTU`
 - [ ] Advertising starts automatically at boot
 - [ ] Advertising restarts after disconnect
-- [ ] Advertising interval: 100 ms (configurable)
+- [ ] MTU negotiation: requests 256 bytes
 - [ ] Logs connection/disconnection events
 
 **Validation**:
-- Flash firmware, scan with nRF Connect on phone — device `"FlyInPeace"` appears
+- Flash firmware, scan with nRF Connect — device `"FlyInPeace"` appears
 
 **Files to create**:
 - `micro/components/ble_nus/CMakeLists.txt`
 - `micro/components/ble_nus/include/ble_nus.h`
 - `micro/components/ble_nus/src/ble_nus.c`
-- `micro/components/ble_nus/src/ble_nus_types.h`
 
 **Notes**:
-- NimBLE requires a host task — use `nimble_port_freertos_init()`.
-- Set `BLE_GAP_EVENT_CONNECT`, `BLE_GAP_EVENT_DISCONNECT`, `BLE_GAP_EVENT_MTU` handlers.
+- NimBLE host task created internally by `nimble_port_freertos_init()` (Priority 4, 4096 bytes stack).
+- UUIDs per `ble_protocol.md`: Service `6E400001-B5A3-F393-E0A9-E50E24DCCA9E`.
 
 ---
 
-### Task 2.2: NUS GATT service registration
+### Task 3.2: NUS GATT service registration
 
 **Description**: Register the Nordic UART Service (NUS) with NimBLE's GATT server, including TX (notify) and RX (write) characteristics.
 
@@ -380,223 +464,103 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 
 ---
 
-### Task 2.3: TX notification (send data)
+### Task 3.3: TX notification (send data)
 
-**Description**: Implement the function to send data via BLE NUS TX characteristic notifications.
+**Description**: Implement the `ble_nus_send()` function per architecture contract.
 
 **Acceptance Criteria**:
-- [ ] Public API: `esp_err_t ble_nus_send(const uint8_t *data, uint16_t len)`
-- [ ] Checks if a client is connected and subscribed to notifications
-- [ ] Respects MTU size — fragments data if needed
-- [ ] Returns `ESP_ERR_INVALID_STATE` if not connected
+- [ ] `esp_err_t ble_nus_send(const uint8_t *data, uint16_t len)` implemented
+- [ ] Checks if client is connected and CCCD subscribed to notifications
+- [ ] Respects MTU size — fragments data if payload exceeds (MTU - 3)
+- [ ] Returns `ESP_ERR_INVALID_STATE` if not connected or not subscribed
 - [ ] Thread-safe (can be called from any task)
 
 **Validation**:
-- Send test string via `ble_nus_send()`, verify receipt in nRF Connect UART terminal
+- Send test string, verify receipt in nRF Connect UART terminal
 
 **Files to modify**:
-- `micro/components/ble_nus/include/ble_nus.h`
 - `micro/components/ble_nus/src/ble_nus.c`
 
 ---
 
-### Task 2.4: RX write handler (reserved for future use)
+### Task 3.4: RX write handler (reserved for future use)
 
-**Description**: Implement the NUS RX characteristic write handler. Reserved for future use (firmware commands, calibration triggers). Config is handled via the separate Config Service GATT.
+**Description**: Implement the NUS RX write handler. Data is passed to a registered callback.
 
 **Acceptance Criteria**:
-- [ ] RX data received via GATT write callback
-- [ ] Data passed to a registered callback function (decoupled from BLE internals)
-- [ ] API: `ble_nus_register_rx_callback(ble_nus_rx_cb_t callback)`
-- [ ] Callback receives `(const uint8_t *data, uint16_t len)`
+- [ ] `void ble_nus_register_rx_callback(ble_nus_rx_cb_t callback)` implemented
+- [ ] Callback receives `(const uint8_t *data, uint16_t len)` on GATT write
 - [ ] Handles partial writes / fragmented data
+- [ ] If no callback registered, RX data is silently discarded
 
 **Validation**:
-- Send text from nRF Connect UART, verify it arrives in the registered callback
+- Send text from nRF Connect UART, verify it arrives in the registered callback (log output)
 
 **Files to modify**:
-- `micro/components/ble_nus/include/ble_nus.h`
 - `micro/components/ble_nus/src/ble_nus.c`
 
 ---
 
-### Task 2.5: Connection state management
+### Task 3.5: Connection state management
 
-**Description**: Expose BLE connection state so other components (LED, data pipeline) can react to connections/disconnections.
+**Description**: Expose BLE connection state per architecture contract.
 
 **Acceptance Criteria**:
-- [ ] API: `bool ble_nus_is_connected(void)` — returns current connection state
-- [ ] API: `ble_nus_register_state_callback(ble_nus_state_cb_t cb)` — notified on connect/disconnect
-- [ ] State callback receives: connected (true/false) + connection handle
+- [ ] `bool ble_nus_is_connected(void)` — returns current connection state (atomic read)
+- [ ] `void ble_nus_register_state_callback(ble_nus_state_cb_t cb)` — notified on connect/disconnect
+- [ ] Callback receives: `(bool connected, uint16_t conn_handle)`
 - [ ] Thread-safe state access
 
 **Validation**:
 - Connect/disconnect from nRF Connect, verify state callbacks fire and `is_connected()` updates
 
 **Files to modify**:
-- `micro/components/ble_nus/include/ble_nus.h`
 - `micro/components/ble_nus/src/ble_nus.c`
 
 ---
 
-### Task 2.6: Verify with nRF Connect
+### Task 3.6: BLE + LK8EX1 integration (send simulated frames)
 
-**Description**: Full BLE NUS validation: send simulated LK8EX1 sentences and verify they are received correctly.
+**Description**: Send simulated LK8EX1 frames over BLE at 4 Hz to validate the full BLE → NUS TX pipeline.
+
+**Acceptance Criteria**:
+- [ ] Temporary FreeRTOS task sends simulated `lk8ex1_data_t` every 250 ms
+- [ ] Data contains realistic values (pressure ~101325 Pa, vario 0, temp 230)
+- [ ] Frames are valid LK8EX1 sentences with correct checksum
+- [ ] Frames received correctly in nRF Connect UART view
+
+**Validation**:
+- Receive LK8EX1 sentences in nRF Connect at ~4 Hz rate
+
+**Files to modify**:
+- `micro/main/main.c` (temporary: simulated sender, replaced in Phase 9)
+
+---
+
+### Task 3.7: Verify with nRF Connect
+
+**Description**: Full BLE NUS validation with nRF Connect app.
 
 **Acceptance Criteria**:
 - [ ] Device advertises and is visible in nRF Connect
 - [ ] Connection succeeds, NUS service and characteristics visible
-- [ ] TX notifications received correctly (full LK8EX1 sentence)
-- [ ] RX writes received correctly in firmware callback
-- [ ] XCTrack detects the device as a sensor source (if available for testing)
+- [ ] TX notifications received correctly (full LK8EX1 sentences)
+- [ ] RX writes received correctly in firmware callback (log output)
 - [ ] Reconnection works after disconnect
+- [ ] `esp_err_t ble_nus_deinit(void)` cleans up resources
 
 **Validation**:
 - Test with nRF Connect (mandatory)
-- Test with XCTrack (if available — nice to have at this stage)
-
-**Files to modify**:
-- `micro/main/main.c` (temporary: send simulated LK8EX1 every 250 ms)
-
----
-
-## Phase 3: LK8EX1 Protocol
-
-**Objective**: Implement the LK8EX1 NMEA sentence formatter with checksum calculation.  
-**Estimated Duration**: 1–2 days  
-**Dependencies**: Phase 3 (for understanding the data fields)
-
----
-
-### Task 3.1: LK8EX1 data abstraction layer
-
-**Description**: Create the `lk8ex1` component that formats flight data into an LK8EX1 NMEA sentence string.
-
-**Acceptance Criteria**:
-- [ ] Component `lk8ex1` created in `micro/components/lk8ex1/`
-- [ ] Input struct: `lk8ex1_data_t` with fields: `pressure_pa`, `altitude_m` (or 99999), `vario_cm_s`, `temperature_dc` (°C×10), `battery_mv` (or 999)
-- [ ] Output function: `lk8ex1_format(data, buffer, buffer_size)` → `esp_err_t`
-- [ ] Sentence format: `$LK8EX1,pressure,altitude,vario,temperature,battery*XX\r\n`
-- [ ] Checksum: XOR of chars between `$` and `*` (exclusive), 2-digit uppercase hex
-- [ ] Buffer size check to prevent overflow
-- [ ] Pure C, no ESP-IDF dependencies (testable on host)
-
-**Validation**:
-- Unit tests verify correct output for known inputs
-
-**Files to create**:
-- `micro/components/lk8ex1/CMakeLists.txt`
-- `micro/components/lk8ex1/include/lk8ex1.h`
-- `micro/components/lk8ex1/src/lk8ex1.c`
-
----
-
-### Task 3.2: NMEA checksum calculator
-
-**Description**: Implement a reusable NMEA checksum function (XOR of characters between `$` and `*`).
-
-**Acceptance Criteria**:
-- [ ] Function: `uint8_t nmea_checksum(const char *sentence)` — computes XOR checksum
-- [ ] Validation function: `bool nmea_validate_checksum(const char *sentence)` — checks existing checksum
-- [ ] Handles edge cases: null input, missing `$` or `*`
-
-**Validation**:
-- Unit tests with known NMEA sentences
-
-**Files to modify**:
-- `micro/components/lk8ex1/src/lk8ex1.c`
-
-**Notes**: The checksum function can also be used by the app-side parser for validation.
-
----
-
-### Task 3.3: LK8EX1 sentence formatter
-
-**Description**: Create the `lk8ex1` component that formats flight data into an LK8EX1 NMEA sentence string.
-
-**Acceptance Criteria**:
-- [ ] Component `lk8ex1` created in `micro/components/lk8ex1/`
-- [ ] Input struct: `lk8ex1_data_t` with fields: `pressure_pa`, `altitude_m` (or 99999), `vario_cm_s`, `temperature_dc` (°C×10), `battery_mv` (or 999)
-- [ ] Output function: `lk8ex1_format(data, buffer, buffer_size)` → `esp_err_t`
-- [ ] Sentence format: `$LK8EX1,pressure,altitude,vario,temperature,battery*XX\r\n`
-- [ ] Checksum: XOR of chars between `$` and `*` (exclusive), 2-digit uppercase hex
-- [ ] Buffer size check to prevent overflow
-- [ ] Pure C, no ESP-IDF dependencies (testable on host)
-
-**Validation**:
-- Unit tests verify correct output for known inputs
-
-**Files to create**:
-- `micro/components/lk8ex1/CMakeLists.txt`
-- `micro/components/lk8ex1/include/lk8ex1.h`
-- `micro/components/lk8ex1/src/lk8ex1.c`
-
----
-
-### Task 3.4: Simulated data provider
-
-**Description**: Provide simulated flight data for testing.
-
-**Acceptance Criteria**:
-- [ ] Function to generate random or patterned data
-- [ ] Data rate: 10 Hz (matches sensor read rate)
-- [ ] Data range: realistic (e.g., 30000–110000 Pa for pressure)
-- [ ] Data format: matches LK8EX1 requirements
-
-**Validation**:
-- Verify with known test vectors from MS5611 datasheet (Application Note AN520)
-
-**Files to modify**:
-- `micro/components/lk8ex1/src/lk8ex1.c`
-
----
-
-### Task 3.5: BLE + LK8EX1 integration (send simulated frames)
-
-**Description**: Send simulated LK8EX1 frames over BLE.
-
-**Acceptance Criteria**:
-- [ ] Function to send simulated frames
-- [ ] Frames sent at 4 Hz (matches BLE TX rate)
-- [ ] Frames contain valid LK8EX1 data
-- [ ] Frames are received correctly
-
-**Validation**:
-- Receive LK8EX1 sentences in nRF Connect at ~4 Hz rate
-
-**Files to modify**:
-- `micro/main/main.c` (temporary: send simulated LK8EX1 every 250 ms)
-
----
-
-### Task 3.6: Ceedling unit tests
-
-**Description**: Write unit tests for LK8EX1 formatting and checksum.
-
-**Acceptance Criteria**:
-- [ ] Test: format with typical values produces correct sentence
-- [ ] Test: format with altitude=99999 (no GPS) works correctly
-- [ ] Test: format with battery=999 (no battery readout) works correctly
-- [ ] Test: checksum matches manual XOR calculation
-- [ ] Test: validate checksum returns true for correct sentence
-- [ ] Test: validate checksum returns false for corrupted sentence
-- [ ] Test: format with null buffer returns error
-- [ ] Test: format with insufficient buffer size returns error
-- [ ] All tests pass in `ceedling test:all`
-
-**Validation**:
-- Run `./scripts/test.sh` — all tests green
-
-**Files to create**:
-- `micro/test/test_lk8ex1.c`
+- Test with XCTrack (nice to have — validate LK8EX1 parsing)
 
 ---
 
 ## Phase 4: LED Indicator
 
-**Objective**: Drive the onboard WS2812 RGB LED to indicate device state (BLE connected/disconnected, WiFi stub).  
+**Objective**: Drive the onboard WS2812 RGB LED to indicate device state using the state machine defined in the architecture.  
 **Estimated Duration**: 1–2 days  
-**Dependencies**: Phase 5 (BLE state callbacks)
+**Dependencies**: Phase 3 (BLE state callbacks for integration)  
+**Architecture Reference**: `firmware-architecture.md` §4.7 `led_indicator`, §8.3 LED State Machine
 
 ---
 
@@ -606,38 +570,41 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 
 **Acceptance Criteria**:
 - [ ] Component `led_indicator` created in `micro/components/led_indicator/`
-- [ ] API: `led_indicator_init()`, `led_indicator_set_color(r, g, b)`, `led_indicator_off()`
-- [ ] Uses RMT peripheral (ESP-IDF `led_strip` driver or direct RMT)
-- [ ] GPIO8 (WS2812 data pin on DevKitC-02)
-- [ ] Works correctly with WS2812 timing requirements
+- [ ] `esp_err_t led_indicator_init(void)` — configures RMT channel on GPIO 8, creates LED task (Priority 1, 2048 bytes)
+- [ ] Internal functions to set RGB color and turn off LED via RMT
+- [ ] Uses ESP-IDF `led_strip` component or direct RMT encoding for WS2812 timing
+- [ ] GPIO 8 (WS2812 data pin on DevKitC-02 v1.1)
 
 **Validation**:
-- Flash firmware, LED lights up with specified color
+- Flash firmware, LED lights up with a test color
 
 **Files to create**:
 - `micro/components/led_indicator/CMakeLists.txt`
 - `micro/components/led_indicator/include/led_indicator.h`
 - `micro/components/led_indicator/src/led_indicator.c`
 
-**Notes**: ESP-IDF v5.x has a `led_strip` component — use it if available, or implement directly with RMT.
-
 ---
 
-### Task 4.2: LED state machine (red/green/blue patterns)
+### Task 4.2: LED state machine (patterns per `led_state_e`)
 
-**Description**: Implement a state machine that drives the LED with different blink patterns based on device state.
+**Description**: Implement the LED state machine per architecture §8.3 with all defined states and patterns.
 
 **Acceptance Criteria**:
-- [ ] LED states: `DISCONNECTED` (red, 100ms on / 1900ms off), `CONNECTED` (green, 100ms on / 4900ms off), `WIFI_ACTIVE` (blue, steady)
-- [ ] FreeRTOS task or software timer drives the blink pattern
-- [ ] API: `led_indicator_set_state(led_state_e state)`
-- [ ] State transitions are immediate (no waiting for current cycle to finish)
-- [ ] Default state on boot: `DISCONNECTED` (red blink)
+- [ ] `led_state_e` enum: `LED_STATE_BOOT`, `LED_STATE_BLE_DISCONNECTED`, `LED_STATE_BLE_CONNECTED`, `LED_STATE_WIFI_ENABLED`, `LED_STATE_ERROR`
+- [ ] `esp_err_t led_indicator_set_state(led_state_e state)` — thread-safe (queue-based, depth 1, overwrite)
+- [ ] `led_state_e led_indicator_get_state(void)` — returns current state
+- [ ] Pattern definitions per architecture §8.3:
+  - `BOOT`: Blue solid (on during initialization)
+  - `BLE_DISCONNECTED`: Red blink (100 ms ON / 1900 ms OFF)
+  - `BLE_CONNECTED`: Green blink (100 ms ON / 4900 ms OFF)
+  - `WIFI_ENABLED`: Blue blink (stub for future)
+  - `ERROR`: Red fast blink (100 ms ON / 100 ms OFF)
+- [ ] LED task runs at 10 Hz (100 ms tick), evaluates on/off state within pattern cycle
+- [ ] Default state on boot: `LED_STATE_BOOT` → transitions to `LED_STATE_BLE_DISCONNECTED` after init
 
 **Validation**:
-- Boot without BLE connection → red blink (100ms/1900ms)
-- Connect via BLE → green blink (100ms/4900ms)
-- Disconnect → back to red blink
+- Boot → blue solid → red blink after init completes
+- Verify all patterns with visual inspection
 
 ---
 
@@ -646,8 +613,10 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Description**: Register a BLE state callback to automatically change LED state on connect/disconnect.
 
 **Acceptance Criteria**:
-- [ ] BLE connect → LED state = `CONNECTED` (green)
-- [ ] BLE disconnect → LED state = `DISCONNECTED` (red)
+- [ ] `ble_nus_register_state_callback()` used to hook BLE state changes
+- [ ] BLE connect → `led_indicator_set_state(LED_STATE_BLE_CONNECTED)` (green)
+- [ ] BLE disconnect → `led_indicator_set_state(LED_STATE_BLE_DISCONNECTED)` (red)
+- [ ] `esp_err_t led_indicator_deinit(void)` cleans up task and RMT resources
 - [ ] Transition is immediate and visible
 
 **Validation**:
@@ -655,80 +624,93 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 
 ---
 
-## Phase 5: Hardware Abstraction
+## Phase 5: Sensor HAL (Compile-Time Abstraction)
 
-**Objective**: Create a thin abstraction over I2C and define the sensor HAL interface that all sensor drivers will implement.  
-**Estimated Duration**: 2–3 days  
-**Dependencies**: Phase 0 complete
-
----
-
-### Task 5.1: I2C bus driver wrapper
-
-**Description**: Create the `i2c_bus` component — a thin wrapper around ESP-IDF's I2C master driver that simplifies common operations (write, read, write-then-read). This isolates sensor drivers from ESP-IDF's I2C API changes.
-
-**Acceptance Criteria**:
-- [ ] Component `i2c_bus` created in `micro/components/i2c_bus/`
-- [ ] Public API: `i2c_bus_init()`, `i2c_bus_write()`, `i2c_bus_read()`, `i2c_bus_write_read()`, `i2c_bus_deinit()`
-- [ ] All functions return `esp_err_t`
-- [ ] Configurable I2C port, SDA/SCL pins, clock speed via config struct
-- [ ] Header follows project conventions (include guard, `extern "C"`, Doxygen)
-- [ ] Uses ESP-IDF's new I2C master driver (v5.x `i2c_master.h`)
-
-**Validation**:
-- Build succeeds with the new component
-- (Optional) Quick test: init I2C bus, scan for devices, log found addresses
-
-**Files to create**:
-- `micro/components/i2c_bus/CMakeLists.txt`
-- `micro/components/i2c_bus/include/i2c_bus.h`
-- `micro/components/i2c_bus/src/i2c_bus.c`
-- `micro/components/i2c_bus/src/i2c_bus_types.h`
-
-**Notes**:
-- ESP32-C3 has 1 I2C port (I2C_NUM_0).
-- Default pins for DevKitC-02: SDA=GPIO4, SCL=GPIO5 (configurable).
-- Use 100 kHz (standard mode) by default; MS5611 supports up to 400 kHz.
+**Objective**: Create the sensor hardware abstraction layer with compile-time driver selection via Kconfig. NO `i2c_bus` wrapper — sensor drivers use ESP-IDF I2C directly per architecture decision.  
+**Estimated Duration**: 1–2 days  
+**Dependencies**: Phase 1 (interface contract in `firmware-architecture.md` §4.1)  
+**Architecture Reference**: `firmware-architecture.md` §4.1 `sensor_hal`
 
 ---
 
-### Task 5.2: Sensor HAL interface definition
+### Task 5.1: Kconfig sensor selection (`choice SENSOR_DRIVER`)
 
-**Description**: Define the `sensor_hal` component — an abstract interface that all sensor drivers must implement. This allows the data pipeline to work with any sensor without knowing its specifics.
+**Description**: Create the Kconfig menu for compile-time sensor driver selection.
 
 **Acceptance Criteria**:
 - [ ] Component `sensor_hal` created in `micro/components/sensor_hal/`
-- [ ] Interface struct `sensor_hal_interface_t` defined with function pointers:
-  - `esp_err_t (*init)(void *ctx, const void *cfg)`
-  - `esp_err_t (*read)(void *ctx)`
-  - `void (*deinit)(void *ctx)`
-  - `int32_t (*get_pressure_pa)(void *ctx)` — returns pressure in Pascals
-  - `int32_t (*get_temperature_cc)(void *ctx)` — returns temperature in centi-Celsius (°C × 100)
-- [ ] Public struct `sensor_hal_t` that wraps the interface + context pointer
-- [ ] Convenience functions: `sensor_hal_init()`, `sensor_hal_read()`, etc. that dispatch through function pointers
-- [ ] Header includes Doxygen documentation
+- [ ] `sensor_hal/Kconfig` with `choice SENSOR_DRIVER` block per architecture §4.1
+- [ ] Options: `CONFIG_SENSOR_MS5611` (default), `CONFIG_SENSOR_BMP390`
+- [ ] Each option has help text with sensor specs (I2C address, resolution, accuracy)
+- [ ] Selection visible in `idf.py menuconfig` under "Component config → Sensor driver"
 
 **Validation**:
-- Build succeeds
-- Review: interface is generic enough for MS5611 and future BMP390
+- `idf.py menuconfig` shows the sensor selection menu
+- `sdkconfig` contains `CONFIG_SENSOR_MS5611=y` by default
 
 **Files to create**:
+- `micro/components/sensor_hal/Kconfig`
 - `micro/components/sensor_hal/CMakeLists.txt`
+
+---
+
+### Task 5.2: `sensor_hal` public API and compile-time dispatch
+
+**Description**: Implement the `sensor_hal` public API with `#if defined()` compile-time dispatch per architecture §4.1.
+
+**Acceptance Criteria**:
+- [ ] `sensor_data_t` struct per architecture: `pressure_pa` (int32), `temperature_mc` (int32), `timestamp_us` (int64)
+- [ ] Public API per architecture contract:
+  - `esp_err_t sensor_hal_init(void)` — configures I2C, reads calibration
+  - `esp_err_t sensor_hal_read(sensor_data_t *out)` — full read cycle (trigger → wait → read → compensate)
+  - `esp_err_t sensor_hal_deinit(void)` — releases I2C, powers down
+  - `const char *sensor_hal_get_name(void)` — returns `"MS5611"` or `"BMP390"`
+- [ ] `sensor_hal.c` uses `#if defined(CONFIG_SENSOR_MS5611)` / `#elif defined(CONFIG_SENSOR_BMP390)` dispatch
+- [ ] `#else #error` if no sensor selected
+- [ ] CMakeLists.txt conditionally adds `REQUIRES sensor_ms5611` or `sensor_bmp390` per architecture
+- [ ] **NO function pointers, NO `void *ctx`** — compile-time dispatch only
+
+**Validation**:
+- Build succeeds with `CONFIG_SENSOR_MS5611=y`
+- Build succeeds with `CONFIG_SENSOR_BMP390=y` (once Phase 7 exists; stub for now)
+- Build fails with no sensor selected → `#error` message
+
+**Files to create**:
 - `micro/components/sensor_hal/include/sensor_hal.h`
 - `micro/components/sensor_hal/src/sensor_hal.c`
 
+---
+
+### Task 5.3: I2C bus initialization
+
+**Description**: Initialize the I2C master bus in `sensor_hal_init()` using ESP-IDF's I2C driver directly (no wrapper component). Per architecture, sensor drivers use ESP-IDF I2C directly.
+
+**Acceptance Criteria**:
+- [ ] I2C master bus configured in `sensor_hal_init()` before calling driver init
+- [ ] I2C port: `I2C_NUM_0`, SDA: GPIO 6, SCL: GPIO 7, Clock: 400 kHz (per architecture §11.2)
+- [ ] Pull-ups: configured via GPIO config (external 4.7 kΩ recommended)
+- [ ] I2C bus released in `sensor_hal_deinit()`
+- [ ] Uses ESP-IDF v5.x `i2c_master.h` API
+
+**Validation**:
+- Build succeeds
+- (After Phase 6) I2C scan detects sensor at address 0x77
+
+**Files to modify**:
+- `micro/components/sensor_hal/src/sensor_hal.c`
+
 **Notes**:
-- The HAL uses `void *ctx` for the sensor instance and `void *cfg` for configuration to keep it type-agnostic.
-- Each sensor driver will define its own `_t` struct and cast from `void *`.
-- The pipeline task will only interact with `sensor_hal_t`, never with specific sensor types.
+- **No `i2c_bus` wrapper component**: per architecture decision, sensor drivers use ESP-IDF I2C directly to minimize abstraction layers.
+- I2C initialization happens once in `sensor_hal_init()`, then the driver handle is passed to the selected sensor driver.
 
 ---
 
 ## Phase 6: MS5611 Sensor Driver
 
-**Objective**: Implement a fully functional MS5611 barometric pressure sensor driver with calibration, compensation, and unit tests.  
+**Objective**: Implement a fully functional MS5611 barometric pressure sensor driver with PROM calibration, ADC conversion, and second-order compensation.  
 **Estimated Duration**: 3–4 days  
-**Dependencies**: Phase 1 complete
+**Dependencies**: Phase 5 (sensor_hal + I2C init)  
+**Architecture Reference**: `firmware-architecture.md` §4.2 `sensor_ms5611`
 
 ---
 
@@ -738,11 +720,14 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 
 **Acceptance Criteria**:
 - [ ] Component `sensor_ms5611` created in `micro/components/sensor_ms5611/`
-- [ ] `sensor_ms5611_init()` reads all 6 PROM coefficients via I2C
-- [ ] Calibration data stored in driver struct
+- [ ] `sensor_ms5611_t` and `sensor_ms5611_cfg_t` structs per architecture §4.2
+- [ ] `sensor_ms5611_init(sensor_ms5611_t *self, const sensor_ms5611_cfg_t *cfg)` reads all 6 PROM coefficients
+- [ ] Sends reset command (`0x1E`) before PROM read
+- [ ] Calibration data stored in `self->calibration[6]`
+- [ ] Validates PROM CRC (word 7)
 - [ ] Handles I2C errors (retry once, then return error)
-- [ ] Validates PROM CRC if available
 - [ ] Logs calibration values at INFO level on successful init
+- [ ] Uses ESP-IDF I2C driver directly (no wrapper)
 
 **Validation**:
 - Flash to DevKitC-02 with MS5611 connected, verify calibration values in log output
@@ -751,7 +736,6 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 - `micro/components/sensor_ms5611/CMakeLists.txt`
 - `micro/components/sensor_ms5611/include/sensor_ms5611.h`
 - `micro/components/sensor_ms5611/src/sensor_ms5611.c`
-- `micro/components/sensor_ms5611/src/sensor_ms5611_types.h`
 
 **Notes**:
 - MS5611 I2C address: `0x77` (CSB low) or `0x76` (CSB high). Default: `0x77`.
@@ -762,18 +746,19 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 
 ### Task 6.2: MS5611 raw pressure & temperature read
 
-**Description**: Implement the ADC conversion and raw data read for pressure (D1) and temperature (D2) from the MS5611.
+**Description**: Implement the ADC conversion and raw data read for pressure (D1) and temperature (D2).
 
 **Acceptance Criteria**:
-- [ ] Function to start ADC conversion (command + wait for conversion time)
-- [ ] Function to read 24-bit ADC result
-- [ ] Supports configurable OSR (Over-Sampling Ratio): 256, 512, 1024, 2048, 4096
-- [ ] Default OSR: 4096 (highest precision, ~9.04 ms conversion time)
-- [ ] Reads both D1 (pressure) and D2 (temperature) in sequence
+- [ ] `sensor_ms5611_read(sensor_ms5611_t *self, sensor_data_t *out)` performs full read cycle
+- [ ] Starts D1 (pressure) ADC conversion, waits, reads 24-bit result
+- [ ] Starts D2 (temperature) ADC conversion, waits, reads 24-bit result
+- [ ] Configurable OSR per `sensor_ms5611_cfg_t.osr` (256, 512, 1024, 2048, 4096)
+- [ ] Default OSR: 4096 (~9.04 ms conversion time per measurement)
+- [ ] Populates `out->timestamp_us` with `esp_timer_get_time()`
 - [ ] Handles I2C read errors
 
 **Validation**:
-- Flash to hardware, log raw D1 and D2 values, verify they are non-zero and in expected range
+- Flash to hardware, log raw D1 and D2 values, verify non-zero and in expected range
 
 **Files to modify**:
 - `micro/components/sensor_ms5611/src/sensor_ms5611.c`
@@ -781,47 +766,41 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Notes**:
 - Conversion commands: `0x40 + 2*OSR_index` (pressure), `0x50 + 2*OSR_index` (temperature)
 - ADC read command: `0x00` — returns 3 bytes (24-bit value)
-- Conversion time for OSR 4096: ~9.04 ms — use `vTaskDelay(pdMS_TO_TICKS(10))`
-- Total read cycle for both P+T: ~20 ms → allows 10 Hz reads with margin
+- Total read cycle for both P+T at OSR 4096: ~20 ms → allows 10 Hz with margin
 
 ---
 
 ### Task 6.3: MS5611 compensation math
 
-**Description**: Implement the second-order temperature compensation algorithm from the MS5611 datasheet to convert raw D1/D2 into calibrated pressure (Pa) and temperature (°C × 100).
+**Description**: Implement the second-order temperature compensation algorithm from the MS5611 datasheet.
 
 **Acceptance Criteria**:
-- [ ] Implements the full compensation algorithm per datasheet (including second-order for T < 20°C and T < -15°C)
-- [ ] Output pressure in Pascals (int32_t)
-- [ ] Output temperature in centi-Celsius (int32_t, e.g., 2350 = 23.50°C)
-- [ ] Pure function (no side effects) for easy unit testing
+- [ ] Full compensation per datasheet (including second-order for T < 20°C and T < -15°C)
+- [ ] Output pressure in Pascals → `out->pressure_pa` (`int32_t`)
+- [ ] Output temperature in milli-Celsius → `out->temperature_mc` (`int32_t`, e.g., 23500 = 23.5°C)
 - [ ] Uses 64-bit intermediate calculations to avoid overflow
+- [ ] Pure computation (no I2C calls) — separable for unit testing
+- [ ] `sensor_ms5611_deinit(sensor_ms5611_t *self)` releases resources
 
 **Validation**:
-- Verify with known test vectors from MS5611 datasheet (Application Note AN520)
+- Datasheet test vector: C1=40127, C2=36924, C3=23317, C4=23282, C5=33464, C6=28312, D1=9085466, D2=8569150 → TEMP=2007, P=100009
 
 **Files to modify**:
 - `micro/components/sensor_ms5611/src/sensor_ms5611.c`
-
-**Notes**:
-Datasheet test vector:
-- C1=40127, C2=36924, C3=23317, C4=23282, C5=33464, C6=28312
-- D1=9085466, D2=8569150
-- Expected: TEMP=2007 (20.07°C), P=100009 (1000.09 mbar = 100009 Pa)
 
 ---
 
 ### Task 6.4: Ceedling unit tests for compensation
 
-**Description**: Write comprehensive unit tests for the MS5611 compensation math using known test vectors.
+**Description**: Write unit tests for the MS5611 compensation math using known test vectors.
 
 **Acceptance Criteria**:
 - [ ] Test file `micro/test/test_sensor_ms5611.c` exists
 - [ ] Test: datasheet reference vector produces expected P and T values
 - [ ] Test: second-order compensation activates for T < 20°C
 - [ ] Test: second-order compensation activates for T < -15°C
-- [ ] Test: init with null parameters returns error
-- [ ] All tests pass with `ceedling test:all`
+- [ ] Test: init with NULL parameters returns `ESP_ERR_INVALID_ARG`
+- [ ] All tests pass in `ceedling test:all`
 
 **Validation**:
 - Run `./scripts/test.sh` — all tests green
@@ -829,539 +808,186 @@ Datasheet test vector:
 **Files to create**:
 - `micro/test/test_sensor_ms5611.c`
 
-**Notes**: Mock the I2C layer with CMock. The compensation math should be in a static function that can be tested by calling the public `read` function with mocked I2C responses.
+**Notes**: Mock the I2C layer with CMock. The compensation math should be testable by providing known raw values.
 
 ---
 
 ### Task 6.5: Integration test on hardware
 
-**Description**: Run the MS5611 driver on actual hardware and verify readings are reasonable.
+**Description**: Run the MS5611 driver on actual hardware through `sensor_hal` and verify readings are reasonable.
 
 **Acceptance Criteria**:
-- [ ] Pressure readings are in the range 30000–110000 Pa (300–1100 mbar)
-- [ ] Temperature readings are in a reasonable range (e.g., 15–35°C indoors)
-- [ ] Readings are stable (±10 Pa over 10 seconds at rest)
+- [ ] Pressure readings in range 30000–110000 Pa (300–1100 mbar)
+- [ ] Temperature readings reasonable (e.g., 15–35°C indoors → 15000–35000 milli-°C)
+- [ ] Readings stable (±10 Pa over 10 seconds at rest)
 - [ ] 10 Hz read rate achieved without I2C errors
+- [ ] `sensor_hal_get_name()` returns `"MS5611"`
 - [ ] Log output shows formatted pressure and temperature values
 
 **Validation**:
-- Flash firmware, observe sensor readings in serial monitor for 60 seconds
+- Flash firmware, observe sensor readings via `sensor_hal_read()` in serial monitor for 60 seconds
 - Compare pressure reading with known altitude / weather station data
 
 **Files to modify**:
-- `micro/main/main.c` (temporary test loop, will be replaced by data pipeline)
+- `micro/main/main.c` (temporary test loop: call `sensor_hal_init()`, loop `sensor_hal_read()` at 10 Hz)
 
 ---
 
-## Phase 7: Kalman Filter
+## Phase 7: BMP390 Sensor Driver
 
-**Objective**: Implement a 2-state Kalman filter (altitude + vario) to smooth pressure readings and derive altitude and vertical speed.  
-**Estimated Duration**: 2–3 days  
-**Dependencies**: Phase 2 complete (compensation math for test data)
-
----
-
-### Task 7.1: 2-state Kalman filter implementation
-
-**Description**: Implement a 2-state Kalman filter for barometric altitude and vertical speed (vario). The state vector is `[altitude, vario]`. The filter takes pressure-derived altitude as input and outputs both smoothed altitude and estimated vertical speed.
-
-**Acceptance Criteria**:
-- [ ] Component `kalman_filter` created in `micro/components/kalman_filter/`
-- [ ] State struct: `kalman_state_t` with 2-element state vector `[altitude, vario]`, 2x2 covariance matrix, process noise (Q), measurement noise (R)
-- [ ] API: `kalman_init(state, Q, R, initial_altitude)`, `kalman_update(state, measured_altitude, dt)` → filtered altitude + vario
-- [ ] Pure C, no ESP-IDF dependencies (fully testable on host)
-- [ ] Configurable Q and R parameters for tuning
-
-**Validation**:
-- Unit tests with synthetic data show smoothing behavior and correct vario derivation
-
-**Files to create**:
-- `micro/components/kalman_filter/CMakeLists.txt`
-- `micro/components/kalman_filter/include/kalman_filter.h`
-- `micro/components/kalman_filter/src/kalman_filter.c`
-
-**Notes**:
-- State vector: `x = [altitude, vario]`. Prediction uses constant-velocity model.
-- Measurement: altitude derived from pressure (only altitude is measured, vario is estimated).
-- Reasonable starting values: Q=0.01, R=0.5 (tune with real sensor data).
-
----
-
-### Task 7.2: Altitude calculation from pressure
-
-**Description**: Implement the barometric altitude formula to convert filtered pressure to altitude in meters.
-
-**Acceptance Criteria**:
-- [ ] Function: `float altitude_from_pressure(int32_t pressure_pa, int32_t reference_pressure_pa)` → altitude in meters
-- [ ] Uses the international barometric formula: `altitude = 44330 * (1 - (P/P0)^(1/5.255))`
-- [ ] Reference pressure configurable (default: 101325 Pa = sea level)
-- [ ] Pure function, no side effects
-
-**Validation**:
-- Known test: 101325 Pa at sea level → 0 m
-- Known test: 89876 Pa → ~1000 m
-
-**Files to modify**:
-- `micro/components/kalman_filter/src/kalman_filter.c`
-- `micro/components/kalman_filter/include/kalman_filter.h`
-
----
-
-### Task 7.3: Vario (vertical speed) derivation
-
-**Description**: Calculate vertical speed (vario) from the rate of change of filtered altitude.
-
-**Acceptance Criteria**:
-- [ ] Function computes vario as `(altitude_current - altitude_previous) / dt`
-- [ ] Output in cm/s (integer, as required by LK8EX1)
-- [ ] Handles first sample gracefully (vario = 0)
-- [ ] Optionally applies a low-pass filter to vario to reduce noise
-
-**Validation**:
-- Synthetic test: constant altitude → vario = 0
-- Synthetic test: linearly increasing altitude → constant positive vario
-
-**Files to modify**:
-- `micro/components/kalman_filter/src/kalman_filter.c`
-- `micro/components/kalman_filter/include/kalman_filter.h`
-
----
-
-### Task 7.4: Ceedling unit tests with synthetic data
-
-**Description**: Write unit tests for the Kalman filter, altitude calculation, and vario derivation.
-
-**Acceptance Criteria**:
-- [ ] Test: Kalman filter converges to true value with noisy input
-- [ ] Test: Kalman filter with constant input returns same value
-- [ ] Test: altitude formula produces known results for known pressures
-- [ ] Test: vario = 0 for constant altitude
-- [ ] Test: vario correct sign for ascending/descending
-- [ ] Test: init with null state returns error
-- [ ] All tests pass in `ceedling test:all`
-
-**Validation**:
-- Run `./scripts/test.sh` — all tests green
-
-**Files to create**:
-- `micro/test/test_kalman_filter.c`
-
----
-
-## Phase 4: LK8EX1 Protocol
-
-**Objective**: Implement the LK8EX1 NMEA sentence formatter with checksum calculation.  
-**Estimated Duration**: 1–2 days  
-**Dependencies**: Phase 3 (for understanding the data fields)
-
----
-
-### Task 3.1: LK8EX1 data abstraction layer
-
-**Description**: Create the `lk8ex1` component that formats flight data into an LK8EX1 NMEA sentence string.
-
-**Acceptance Criteria**:
-- [ ] Component `lk8ex1` created in `micro/components/lk8ex1/`
-- [ ] Input struct: `lk8ex1_data_t` with fields: `pressure_pa`, `altitude_m` (or 99999), `vario_cm_s`, `temperature_dc` (°C×10), `battery_mv` (or 999)
-- [ ] Output function: `lk8ex1_format(data, buffer, buffer_size)` → `esp_err_t`
-- [ ] Sentence format: `$LK8EX1,pressure,altitude,vario,temperature,battery*XX\r\n`
-- [ ] Checksum: XOR of chars between `$` and `*` (exclusive), 2-digit uppercase hex
-- [ ] Buffer size check to prevent overflow
-- [ ] Pure C, no ESP-IDF dependencies (testable on host)
-
-**Validation**:
-- Unit tests verify correct output for known inputs
-
-**Files to create**:
-- `micro/components/lk8ex1/CMakeLists.txt`
-- `micro/components/lk8ex1/include/lk8ex1.h`
-- `micro/components/lk8ex1/src/lk8ex1.c`
-
----
-
-### Task 3.2: NMEA checksum calculator
-
-**Description**: Implement a reusable NMEA checksum function (XOR of characters between `$` and `*`).
-
-**Acceptance Criteria**:
-- [ ] Function: `uint8_t nmea_checksum(const char *sentence)` — computes XOR checksum
-- [ ] Validation function: `bool nmea_validate_checksum(const char *sentence)` — checks existing checksum
-- [ ] Handles edge cases: null input, missing `$` or `*`
-
-**Validation**:
-- Unit tests with known NMEA sentences
-
-**Files to modify**:
-- `micro/components/lk8ex1/src/lk8ex1.c`
-
-**Notes**: The checksum function can also be used by the app-side parser for validation.
-
----
-
-### Task 3.3: LK8EX1 sentence formatter
-
-**Description**: Create the `lk8ex1` component that formats flight data into an LK8EX1 NMEA sentence string.
-
-**Acceptance Criteria**:
-- [ ] Component `lk8ex1` created in `micro/components/lk8ex1/`
-- [ ] Input struct: `lk8ex1_data_t` with fields: `pressure_pa`, `altitude_m` (or 99999), `vario_cm_s`, `temperature_dc` (°C×10), `battery_mv` (or 999)
-- [ ] Output function: `lk8ex1_format(data, buffer, buffer_size)` → `esp_err_t`
-- [ ] Sentence format: `$LK8EX1,pressure,altitude,vario,temperature,battery*XX\r\n`
-- [ ] Checksum: XOR of chars between `$` and `*` (exclusive), 2-digit uppercase hex
-- [ ] Buffer size check to prevent overflow
-- [ ] Pure C, no ESP-IDF dependencies (testable on host)
-
-**Validation**:
-- Unit tests verify correct output for known inputs
-
-**Files to create**:
-- `micro/components/lk8ex1/CMakeLists.txt`
-- `micro/components/lk8ex1/include/lk8ex1.h`
-- `micro/components/lk8ex1/src/lk8ex1.c`
-
----
-
-### Task 3.4: Simulated data provider
-
-**Description**: Provide simulated flight data for testing.
-
-**Acceptance Criteria**:
-- [ ] Function to generate random or patterned data
-- [ ] Data rate: 10 Hz (matches sensor read rate)
-- [ ] Data range: realistic (e.g., 30000–110000 Pa for pressure)
-- [ ] Data format: matches LK8EX1 requirements
-
-**Validation**:
-- Verify with known test vectors from MS5611 datasheet (Application Note AN520)
-
-**Files to modify**:
-- `micro/components/lk8ex1/src/lk8ex1.c`
-
----
-
-### Task 3.5: BLE + LK8EX1 integration (send simulated frames)
-
-**Description**: Send simulated LK8EX1 frames over BLE.
-
-**Acceptance Criteria**:
-- [ ] Function to send simulated frames
-- [ ] Frames sent at 4 Hz (matches BLE TX rate)
-- [ ] Frames contain valid LK8EX1 data
-- [ ] Frames are received correctly
-
-**Validation**:
-- Receive LK8EX1 sentences in nRF Connect at ~4 Hz rate
-
-**Files to modify**:
-- `micro/main/main.c` (temporary: send simulated LK8EX1 every 250 ms)
-
----
-
-### Task 3.6: Ceedling unit tests
-
-**Description**: Write unit tests for LK8EX1 formatting and checksum.
-
-**Acceptance Criteria**:
-- [ ] Test: format with typical values produces correct sentence
-- [ ] Test: format with altitude=99999 (no GPS) works correctly
-- [ ] Test: format with battery=999 (no battery readout) works correctly
-- [ ] Test: checksum matches manual XOR calculation
-- [ ] Test: validate checksum returns true for correct sentence
-- [ ] Test: validate checksum returns false for corrupted sentence
-- [ ] Test: format with null buffer returns error
-- [ ] Test: format with insufficient buffer size returns error
-- [ ] All tests pass in `ceedling test:all`
-
-**Validation**:
-- Run `./scripts/test.sh` — all tests green
-
-**Files to create**:
-- `micro/test/test_lk8ex1.c`
-
----
-
-## Phase 4: LED Indicator
-
-**Objective**: Drive the onboard WS2812 RGB LED to indicate device state (BLE connected/disconnected, WiFi stub).  
-**Estimated Duration**: 1–2 days  
-**Dependencies**: Phase 5 (BLE state callbacks)
-
----
-
-### Task 4.1: WS2812 driver via RMT peripheral
-
-**Description**: Create the `led_indicator` component that drives the WS2812 RGB LED using the ESP32-C3's RMT peripheral.
-
-**Acceptance Criteria**:
-- [ ] Component `led_indicator` created in `micro/components/led_indicator/`
-- [ ] API: `led_indicator_init()`, `led_indicator_set_color(r, g, b)`, `led_indicator_off()`
-- [ ] Uses RMT peripheral (ESP-IDF `led_strip` driver or direct RMT)
-- [ ] GPIO8 (WS2812 data pin on DevKitC-02)
-- [ ] Works correctly with WS2812 timing requirements
-
-**Validation**:
-- Flash firmware, LED lights up with specified color
-
-**Files to create**:
-- `micro/components/led_indicator/CMakeLists.txt`
-- `micro/components/led_indicator/include/led_indicator.h`
-- `micro/components/led_indicator/src/led_indicator.c`
-
-**Notes**: ESP-IDF v5.x has a `led_strip` component — use it if available, or implement directly with RMT.
-
----
-
-### Task 4.2: LED state machine (red/green/blue patterns)
-
-**Description**: Implement a state machine that drives the LED with different blink patterns based on device state.
-
-**Acceptance Criteria**:
-- [ ] LED states: `DISCONNECTED` (red, 100ms on / 1900ms off), `CONNECTED` (green, 100ms on / 4900ms off), `WIFI_ACTIVE` (blue, steady)
-- [ ] FreeRTOS task or software timer drives the blink pattern
-- [ ] API: `led_indicator_set_state(led_state_e state)`
-- [ ] State transitions are immediate (no waiting for current cycle to finish)
-- [ ] Default state on boot: `DISCONNECTED` (red blink)
-
-**Validation**:
-- Boot without BLE connection → red blink (100ms/1900ms)
-- Connect via BLE → green blink (100ms/4900ms)
-- Disconnect → back to red blink
-
----
-
-### Task 4.3: Integration with BLE connection state
-
-**Description**: Register a BLE state callback to automatically change LED state on connect/disconnect.
-
-**Acceptance Criteria**:
-- [ ] BLE connect → LED state = `CONNECTED` (green)
-- [ ] BLE disconnect → LED state = `DISCONNECTED` (red)
-- [ ] Transition is immediate and visible
-
-**Validation**:
-- Connect/disconnect from phone, observe LED color changes
-
----
-
-## Phase 5: Hardware Abstraction
-
-**Objective**: Create a thin abstraction over I2C and define the sensor HAL interface that all sensor drivers will implement.  
-**Estimated Duration**: 2–3 days  
-**Dependencies**: Phase 0 complete
-
----
-
-### Task 5.1: I2C bus driver wrapper
-
-**Description**: Create the `i2c_bus` component — a thin wrapper around ESP-IDF's I2C master driver that simplifies common operations (write, read, write-then-read). This isolates sensor drivers from ESP-IDF's I2C API changes.
-
-**Acceptance Criteria**:
-- [ ] Component `i2c_bus` created in `micro/components/i2c_bus/`
-- [ ] Public API: `i2c_bus_init()`, `i2c_bus_write()`, `i2c_bus_read()`, `i2c_bus_write_read()`, `i2c_bus_deinit()`
-- [ ] All functions return `esp_err_t`
-- [ ] Configurable I2C port, SDA/SCL pins, clock speed via config struct
-- [ ] Header follows project conventions (include guard, `extern "C"`, Doxygen)
-- [ ] Uses ESP-IDF's new I2C master driver (v5.x `i2c_master.h`)
-
-**Validation**:
-- Build succeeds with the new component
-- (Optional) Quick test: init I2C bus, scan for devices, log found addresses
-
-**Files to create**:
-- `micro/components/i2c_bus/CMakeLists.txt`
-- `micro/components/i2c_bus/include/i2c_bus.h`
-- `micro/components/i2c_bus/src/i2c_bus.c`
-- `micro/components/i2c_bus/src/i2c_bus_types.h`
-
-**Notes**:
-- ESP32-C3 has 1 I2C port (I2C_NUM_0).
-- Default pins for DevKitC-02: SDA=GPIO4, SCL=GPIO5 (configurable).
-- Use 100 kHz (standard mode) by default; MS5611 supports up to 400 kHz.
-
----
-
-### Task 5.2: Sensor HAL interface definition
-
-**Description**: Define the `sensor_hal` component — an abstract interface that all sensor drivers must implement. This allows the data pipeline to work with any sensor without knowing its specifics.
-
-**Acceptance Criteria**:
-- [ ] Component `sensor_hal` created in `micro/components/sensor_hal/`
-- [ ] Interface struct `sensor_hal_interface_t` defined with function pointers:
-  - `esp_err_t (*init)(void *ctx, const void *cfg)`
-  - `esp_err_t (*read)(void *ctx)`
-  - `void (*deinit)(void *ctx)`
-  - `int32_t (*get_pressure_pa)(void *ctx)` — returns pressure in Pascals
-  - `int32_t (*get_temperature_cc)(void *ctx)` — returns temperature in centi-Celsius (°C × 100)
-- [ ] Public struct `sensor_hal_t` that wraps the interface + context pointer
-- [ ] Convenience functions: `sensor_hal_init()`, `sensor_hal_read()`, etc. that dispatch through function pointers
-- [ ] Header includes Doxygen documentation
-
-**Validation**:
-- Build succeeds
-- Review: interface is generic enough for MS5611 and future BMP390
-
-**Files to create**:
-- `micro/components/sensor_hal/CMakeLists.txt`
-- `micro/components/sensor_hal/include/sensor_hal.h`
-- `micro/components/sensor_hal/src/sensor_hal.c`
-
-**Notes**:
-- The HAL uses `void *ctx` for the sensor instance and `void *cfg` for configuration to keep it type-agnostic.
-- Each sensor driver will define its own `_t` struct and cast from `void *`.
-- The pipeline task will only interact with `sensor_hal_t`, never with specific sensor types.
-
----
-
-## Phase 6: MS5611 Sensor Driver
-
-**Objective**: Implement a fully functional MS5611 barometric pressure sensor driver with calibration, compensation, and unit tests.  
+**Objective**: Implement a fully functional BMP390 barometric pressure sensor driver with NVM trimming, compensation, and IIR filter support.  
 **Estimated Duration**: 3–4 days  
-**Dependencies**: Phase 1 complete
+**Dependencies**: Phase 5 (sensor_hal + I2C init)  
+**Architecture Reference**: `firmware-architecture.md` §4.3 `sensor_bmp390`
 
 ---
 
-### Task 6.1: MS5611 PROM calibration read
+### Task 7.1: BMP390 trimming coefficients read
 
-**Description**: Implement reading the 6 factory calibration coefficients (C1–C6) from the MS5611's PROM via I2C. These are needed for pressure/temperature compensation.
+**Description**: Implement reading the 11 NVM trimming coefficients from the BMP390 and validate the chip ID.
 
 **Acceptance Criteria**:
-- [ ] Component `sensor_ms5611` created in `micro/components/sensor_ms5611/`
-- [ ] `sensor_ms5611_init()` reads all 6 PROM coefficients via I2C
-- [ ] Calibration data stored in driver struct
+- [ ] Component `sensor_bmp390` created in `micro/components/sensor_bmp390/`
+- [ ] `sensor_bmp390_t` and `sensor_bmp390_cfg_t` structs per architecture §4.3
+- [ ] `sensor_bmp390_init(sensor_bmp390_t *self, const sensor_bmp390_cfg_t *cfg)` implemented
+- [ ] Reads and validates chip ID register (expected: `0x60`)
+- [ ] Returns `ESP_ERR_NOT_FOUND` if chip ID doesn't match
+- [ ] Reads 11 trimming coefficients from NVM (par_t1..par_t3, par_p1..par_p11)
+- [ ] Converts raw NVM bytes to `float` coefficients per Bosch datasheet
+- [ ] Configures OSR, ODR, and IIR filter settings per `sensor_bmp390_cfg_t`
 - [ ] Handles I2C errors (retry once, then return error)
-- [ ] Validates PROM CRC if available
-- [ ] Logs calibration values at INFO level on successful init
+- [ ] Logs sensor info at INFO level on successful init
+- [ ] Uses ESP-IDF I2C driver directly (no wrapper)
 
 **Validation**:
-- Flash to DevKitC-02 with MS5611 connected, verify calibration values in log output
+- Flash to DevKitC-02 with BMP390 connected, verify chip ID and coefficients in log output
 
 **Files to create**:
-- `micro/components/sensor_ms5611/CMakeLists.txt`
-- `micro/components/sensor_ms5611/include/sensor_ms5611.h`
-- `micro/components/sensor_ms5611/src/sensor_ms5611.c`
-- `micro/components/sensor_ms5611/src/sensor_ms5611_types.h`
+- `micro/components/sensor_bmp390/CMakeLists.txt`
+- `micro/components/sensor_bmp390/include/sensor_bmp390.h`
+- `micro/components/sensor_bmp390/src/sensor_bmp390.c`
 
 **Notes**:
-- MS5611 I2C address: `0x77` (CSB low) or `0x76` (CSB high). Default: `0x77`.
-- PROM read commands: `0xA0` to `0xAE` (8 words, 16-bit each; C1–C6 are words 1–6).
-- Reset command: `0x1E` — send before PROM read.
+- BMP390 I2C address: `0x77` (SDO=GND) or `0x76` (SDO=VCC). Default: `0x77`.
+- Chip ID register: `0x00`, expected value: `0x60`.
+- NVM trimming data: registers `0x31`–`0x45` (21 bytes → 11 coefficients).
 
 ---
 
-### Task 6.2: MS5611 raw pressure & temperature read
+### Task 7.2: BMP390 raw pressure & temperature read
 
-**Description**: Implement the ADC conversion and raw data read for pressure (D1) and temperature (D2) from the MS5611.
+**Description**: Implement forced measurement mode and raw data read for pressure and temperature.
 
 **Acceptance Criteria**:
-- [ ] Function to start ADC conversion (command + wait for conversion time)
-- [ ] Function to read 24-bit ADC result
-- [ ] Supports configurable OSR (Over-Sampling Ratio): 256, 512, 1024, 2048, 4096
-- [ ] Default OSR: 4096 (highest precision, ~9.04 ms conversion time)
-- [ ] Reads both D1 (pressure) and D2 (temperature) in sequence
-- [ ] Handles I2C read errors
+- [ ] `sensor_bmp390_read(sensor_bmp390_t *self, sensor_data_t *out)` performs full read cycle
+- [ ] Sets forced mode in PWR_CTRL register (`0x1B`)
+- [ ] Waits for data ready (poll STATUS register `0x03`, bit 5+6)
+- [ ] Reads 24-bit raw pressure and 24-bit raw temperature from data registers
+- [ ] Configurable OSR_P and OSR_T per `sensor_bmp390_cfg_t` (1x, 2x, 4x, 8x, 16x, 32x)
+- [ ] Default: OSR_P = 8x, OSR_T = 1x
+- [ ] IIR filter coefficient configurable (default: 3)
+- [ ] Populates `out->timestamp_us` with `esp_timer_get_time()`
 
 **Validation**:
-- Flash to hardware, log raw D1 and D2 values, verify they are non-zero and in expected range
+- Flash to hardware, log raw pressure and temperature values
 
 **Files to modify**:
-- `micro/components/sensor_ms5611/src/sensor_ms5611.c`
+- `micro/components/sensor_bmp390/src/sensor_bmp390.c`
 
 **Notes**:
-- Conversion commands: `0x40 + 2*OSR_index` (pressure), `0x50 + 2*OSR_index` (temperature)
-- ADC read command: `0x00` — returns 3 bytes (24-bit value)
-- Conversion time for OSR 4096: ~9.04 ms — use `vTaskDelay(pdMS_TO_TICKS(10))`
-- Total read cycle for both P+T: ~20 ms → allows 10 Hz reads with margin
+- Conversion time depends on OSR: ~5 ms (1x) to ~40 ms (32x).
+- Data registers: pressure `0x04`–`0x06`, temperature `0x07`–`0x09`.
 
 ---
 
-### Task 6.3: MS5611 compensation math
+### Task 7.3: BMP390 compensation math
 
-**Description**: Implement the second-order temperature compensation algorithm from the MS5611 datasheet to convert raw D1/D2 into calibrated pressure (Pa) and temperature (°C × 100).
+**Description**: Implement the compensation algorithm per Bosch BMP390 datasheet using float arithmetic.
 
 **Acceptance Criteria**:
-- [ ] Implements the full compensation algorithm per datasheet (including second-order for T < 20°C and T < -15°C)
-- [ ] Output pressure in Pascals (int32_t)
-- [ ] Output temperature in centi-Celsius (int32_t, e.g., 2350 = 23.50°C)
-- [ ] Pure function (no side effects) for easy unit testing
-- [ ] Uses 64-bit intermediate calculations to avoid overflow
+- [ ] Full compensation algorithm using 11 trimming coefficients
+- [ ] Output pressure in Pascals → `out->pressure_pa` (`int32_t`)
+- [ ] Output temperature in milli-Celsius → `out->temperature_mc` (`int32_t`)
+- [ ] Uses `float` arithmetic (ESP32-C3 has no FPU; `float` is faster than `double` in software)
+- [ ] Pure computation — separable for unit testing
+- [ ] `sensor_bmp390_deinit(sensor_bmp390_t *self)` releases resources
 
 **Validation**:
-- Verify with known test vectors from MS5611 datasheet (Application Note AN520)
+- Compare output with Bosch reference implementation / BMP3 API
 
 **Files to modify**:
-- `micro/components/sensor_ms5611/src/sensor_ms5611.c`
-
-**Notes**:
-Datasheet test vector:
-- C1=40127, C2=36924, C3=23317, C4=23282, C5=33464, C6=28312
-- D1=9085466, D2=8569150
-- Expected: TEMP=2007 (20.07°C), P=100009 (1000.09 mbar = 100009 Pa)
+- `micro/components/sensor_bmp390/src/sensor_bmp390.c`
 
 ---
 
-### Task 6.4: Ceedling unit tests for compensation
+### Task 7.4: Ceedling unit tests for compensation
 
-**Description**: Write comprehensive unit tests for the MS5611 compensation math using known test vectors.
+**Description**: Write unit tests for the BMP390 compensation math.
 
 **Acceptance Criteria**:
-- [ ] Test file `micro/test/test_sensor_ms5611.c` exists
-- [ ] Test: datasheet reference vector produces expected P and T values
-- [ ] Test: second-order compensation activates for T < 20°C
-- [ ] Test: second-order compensation activates for T < -15°C
-- [ ] Test: init with null parameters returns error
-- [ ] All tests pass with `ceedling test:all`
+- [ ] Test file `micro/test/test_sensor_bmp390.c` exists
+- [ ] Test: known trimming coefficients + raw values produce expected P and T
+- [ ] Test: init with NULL parameters returns `ESP_ERR_INVALID_ARG`
+- [ ] Test: chip ID validation (correct ID vs wrong ID)
+- [ ] All tests pass in `ceedling test:all`
 
 **Validation**:
 - Run `./scripts/test.sh` — all tests green
 
 **Files to create**:
-- `micro/test/test_sensor_ms5611.c`
-
-**Notes**: Mock the I2C layer with CMock. The compensation math should be in a static function that can be tested by calling the public `read` function with mocked I2C responses.
+- `micro/test/test_sensor_bmp390.c`
 
 ---
 
-### Task 6.5: Integration test on hardware
+### Task 7.5: Integration test on hardware
 
-**Description**: Run the MS5611 driver on actual hardware and verify readings are reasonable.
+**Description**: Run the BMP390 driver on actual hardware through `sensor_hal` and verify readings.
 
 **Acceptance Criteria**:
-- [ ] Pressure readings are in the range 30000–110000 Pa (300–1100 mbar)
-- [ ] Temperature readings are in a reasonable range (e.g., 15–35°C indoors)
-- [ ] Readings are stable (±10 Pa over 10 seconds at rest)
+- [ ] Pressure readings in range 30000–125000 Pa (300–1250 hPa)
+- [ ] Temperature readings reasonable (15000–35000 milli-°C indoors)
+- [ ] Readings stable (noise ≤ ±3 Pa at rest — BMP390 is more precise than MS5611)
 - [ ] 10 Hz read rate achieved without I2C errors
-- [ ] Log output shows formatted pressure and temperature values
+- [ ] `sensor_hal_get_name()` returns `"BMP390"`
+- [ ] Sensor selected via `idf.py menuconfig` → `CONFIG_SENSOR_BMP390=y`
 
 **Validation**:
-- Flash firmware, observe sensor readings in serial monitor for 60 seconds
-- Compare pressure reading with known altitude / weather station data
+- Flash firmware with `CONFIG_SENSOR_BMP390=y`, observe readings in serial monitor
+- Compare with MS5611 readings (if both sensors available)
 
 **Files to modify**:
-- `micro/main/main.c` (temporary test loop, will be replaced by data pipeline)
+- `micro/main/main.c` (same test loop as Phase 6, but with BMP390 selected)
 
 ---
 
-## Phase 7: Kalman Filter
+## Phase 8: Kalman Filter
 
 **Objective**: Implement a 2-state Kalman filter (altitude + vario) to smooth pressure readings and derive altitude and vertical speed.  
 **Estimated Duration**: 2–3 days  
-**Dependencies**: Phase 2 complete (compensation math for test data)
+**Dependencies**: Phase 6 or Phase 7 (compensated pressure data for validation)  
+**Architecture Reference**: `firmware-architecture.md` §4.4 `kalman_filter`
 
 ---
 
-### Task 7.1: 2-state Kalman filter implementation
+### Task 8.1: 2-state Kalman filter implementation
 
-**Description**: Implement a 2-state Kalman filter for barometric altitude and vertical speed (vario). The state vector is `[altitude, vario]`. The filter takes pressure-derived altitude as input and outputs both smoothed altitude and estimated vertical speed.
+**Description**: Implement the 2-state Kalman filter per architecture contract §4.4.
 
 **Acceptance Criteria**:
 - [ ] Component `kalman_filter` created in `micro/components/kalman_filter/`
-- [ ] State struct: `kalman_state_t` with 2-element state vector `[altitude, vario]`, 2x2 covariance matrix, process noise (Q), measurement noise (R)
-- [ ] API: `kalman_init(state, Q, R, initial_altitude)`, `kalman_update(state, measured_altitude, dt)` → filtered altitude + vario
-- [ ] Pure C, no ESP-IDF dependencies (fully testable on host)
-- [ ] Configurable Q and R parameters for tuning
+- [ ] `kalman_cfg_t` struct: `q_altitude` (default 0.01), `q_vario` (default 0.01), `r_measurement` (default 0.5), `reference_pressure_pa` (default 101325.0)
+- [ ] `kalman_state_t` struct: `altitude_m`, `vario_ms`, `p[2][2]` covariance, `last_timestamp_us`, `initialized` flag
+- [ ] `kalman_filter_init(state, cfg)` — sets initial state, covariance = identity
+- [ ] `kalman_filter_update(state, cfg, pressure_pa, timestamp_us)` — predict + correct step, uses `cfg->reference_pressure_pa` as P0
+- [ ] First call sets altitude from pressure, marks `initialized = true` (no predict step)
+- [ ] `kalman_filter_reset(state)` — clears state
+- [ ] `kalman_filter_calibrate(cfg, state, known_altitude_m, current_pressure_pa)` — computes new P0 via inverse barometric formula, stores in `cfg->reference_pressure_pa`, resets filter state
+- [ ] `calibrate()` validates: altitude ∈ [-500, 10000] m, pressure ∈ [20000, 120000] Pa
+- [ ] Pure C, no ESP-IDF dependencies (fully host-testable)
+- [ ] All math uses `float` (not `double`)
 
 **Validation**:
-- Unit tests with synthetic data show smoothing behavior and correct vario derivation
+- Unit tests show convergence and correct vario derivation
 
 **Files to create**:
 - `micro/components/kalman_filter/CMakeLists.txt`
@@ -1370,62 +996,84 @@ Datasheet test vector:
 
 **Notes**:
 - State vector: `x = [altitude, vario]`. Prediction uses constant-velocity model.
-- Measurement: altitude derived from pressure (only altitude is measured, vario is estimated).
-- Reasonable starting values: Q=0.01, R=0.5 (tune with real sensor data).
+- Measurement: altitude derived from pressure. Vario is estimated by the filter.
+- Constant-velocity model: altitude_predicted = altitude + vario × dt
 
 ---
 
-### Task 7.2: Altitude calculation from pressure
+### Task 8.2: Altitude calculation from pressure
 
-**Description**: Implement the barometric altitude formula to convert filtered pressure to altitude in meters.
+**Description**: Implement the barometric formula for converting pressure to altitude.
 
 **Acceptance Criteria**:
-- [ ] Function: `float altitude_from_pressure(int32_t pressure_pa, int32_t reference_pressure_pa)` → altitude in meters
-- [ ] Uses the international barometric formula: `altitude = 44330 * (1 - (P/P0)^(1/5.255))`
-- [ ] Reference pressure configurable (default: 101325 Pa = sea level)
+- [ ] Internal function converts `pressure_pa` to altitude in meters
+- [ ] Uses ISA barometric formula: $h = 44330 \times (1 - (P/P_0)^{0.1903})$
+- [ ] Reference pressure $P_0$ taken from `kalman_cfg_t.reference_pressure_pa` (default: 101325 Pa)
+- [ ] Input: `float pressure_pa`, output: `float altitude_m`
 - [ ] Pure function, no side effects
 
 **Validation**:
-- Known test: 101325 Pa at sea level → 0 m
-- Known test: 89876 Pa → ~1000 m
-
-**Files to modify**:
-- `micro/components/kalman_filter/src/kalman_filter.c`
-- `micro/components/kalman_filter/include/kalman_filter.h`
+- 101325 Pa → 0 m, 89876 Pa → ~1000 m, 79501 Pa → ~2000 m
 
 ---
 
-### Task 7.3: Vario (vertical speed) derivation
+### Task 8.3: Altitude calibration (inverse barometric formula)
 
-**Description**: Calculate vertical speed (vario) from the rate of change of filtered altitude.
+**Description**: Implement `kalman_filter_calibrate()` to derive a new reference pressure (QNH) from a known altitude and current pressure, enabling barometric altimeter calibration.
 
 **Acceptance Criteria**:
-- [ ] Function computes vario as `(altitude_current - altitude_previous) / dt`
-- [ ] Output in cm/s (integer, as required by LK8EX1)
-- [ ] Handles first sample gracefully (vario = 0)
-- [ ] Optionally applies a low-pass filter to vario to reduce noise
+- [ ] `esp_err_t kalman_filter_calibrate(kalman_cfg_t *cfg, kalman_state_t *state, float known_altitude_m, float current_pressure_pa)` implemented
+- [ ] Computes P0 using inverse barometric formula: $P_0 = P / (1 - h/44330)^{5.255}$
+- [ ] Stores result in `cfg->reference_pressure_pa`
+- [ ] Resets filter state (`kalman_filter_reset`) so next update uses new P0 immediately
+- [ ] Validates inputs: `known_altitude_m` ∈ [-500, 10000], `current_pressure_pa` ∈ [20000, 120000]
+- [ ] Returns `ESP_ERR_INVALID_ARG` for out-of-range values; P0 unchanged on error
+- [ ] Pure function, no ESP-IDF dependencies
 
 **Validation**:
-- Synthetic test: constant altitude → vario = 0
-- Synthetic test: linearly increasing altitude → constant positive vario
+- Calibrate at sea level (0 m, 101325 Pa) → P0 = 101325
+- Calibrate at 500 m with 95461 Pa → P0 ≈ 101325
+- Calibrate at 1000 m with 89876 Pa → P0 ≈ 101325
+- After calibration, `kalman_filter_update()` produces altitude matching known value
 
 **Files to modify**:
-- `micro/components/kalman_filter/src/kalman_filter.c`
 - `micro/components/kalman_filter/include/kalman_filter.h`
+- `micro/components/kalman_filter/src/kalman_filter.c`
 
 ---
 
-### Task 7.4: Ceedling unit tests with synthetic data
+### Task 8.4: Vario (vertical speed) derivation
 
-**Description**: Write unit tests for the Kalman filter, altitude calculation, and vario derivation.
+**Description**: The Kalman filter directly estimates vario as its second state variable. Verify it produces correct vertical speed values.
 
 **Acceptance Criteria**:
-- [ ] Test: Kalman filter converges to true value with noisy input
-- [ ] Test: Kalman filter with constant input returns same value
-- [ ] Test: altitude formula produces known results for known pressures
-- [ ] Test: vario = 0 for constant altitude
-- [ ] Test: vario correct sign for ascending/descending
-- [ ] Test: init with null state returns error
+- [ ] Vario output in m/s (`float`) from `kalman_state_t.vario_ms`
+- [ ] Constant pressure input → vario converges to 0 m/s
+- [ ] Linearly decreasing pressure → positive vario (ascending)
+- [ ] Linearly increasing pressure → negative vario (descending)
+- [ ] Vario converted to cm/s (`int32_t`) when passed to `lk8ex1_data_t.vario_cms`
+
+**Validation**:
+- Synthetic test data with known altitude trajectories
+
+---
+
+### Task 8.5: Ceedling unit tests with synthetic data
+
+**Description**: Write comprehensive unit tests for the Kalman filter.
+
+**Acceptance Criteria**:
+- [ ] Test file `micro/test/test_kalman_filter.c` exists
+- [ ] Test: filter converges to true value with noisy sinusoidal input
+- [ ] Test: constant input → altitude stable, vario ≈ 0
+- [ ] Test: altitude formula produces correct results for known pressures
+- [ ] Test: ascending pressure sequence → positive vario
+- [ ] Test: descending pressure sequence → negative vario
+- [ ] Test: `kalman_filter_reset()` clears state properly
+- [ ] Test: `kalman_filter_calibrate()` with known altitude derives correct P0
+- [ ] Test: `kalman_filter_calibrate()` rejects out-of-range altitude/pressure
+- [ ] Test: after calibration, `update()` produces altitude matching known value
+- [ ] Test: init with NULL state returns `ESP_ERR_INVALID_ARG`
 - [ ] All tests pass in `ceedling test:all`
 
 **Validation**:
@@ -1436,1234 +1084,524 @@ Datasheet test vector:
 
 ---
 
-## Phase 4: LK8EX1 Protocol
+## Phase 9: Data Pipeline
 
-**Objective**: Implement the LK8EX1 NMEA sentence formatter with checksum calculation.  
-**Estimated Duration**: 1–2 days  
-**Dependencies**: Phase 3 (for understanding the data fields)
-
----
-
-### Task 3.1: LK8EX1 data abstraction layer
-
-**Description**: Create the `lk8ex1` component that formats flight data into an LK8EX1 NMEA sentence string.
-
-**Acceptance Criteria**:
-- [ ] Component `lk8ex1` created in `micro/components/lk8ex1/`
-- [ ] Input struct: `lk8ex1_data_t` with fields: `pressure_pa`, `altitude_m` (or 99999), `vario_cm_s`, `temperature_dc` (°C×10), `battery_mv` (or 999)
-- [ ] Output function: `lk8ex1_format(data, buffer, buffer_size)` → `esp_err_t`
-- [ ] Sentence format: `$LK8EX1,pressure,altitude,vario,temperature,battery*XX\r\n`
-- [ ] Checksum: XOR of chars between `$` and `*` (exclusive), 2-digit uppercase hex
-- [ ] Buffer size check to prevent overflow
-- [ ] Pure C, no ESP-IDF dependencies (testable on host)
-
-**Validation**:
-- Unit tests verify correct output for known inputs
-
-**Files to create**:
-- `micro/components/lk8ex1/CMakeLists.txt`
-- `micro/components/lk8ex1/include/lk8ex1.h`
-- `micro/components/lk8ex1/src/lk8ex1.c`
-
----
-
-### Task 3.2: NMEA checksum calculator
-
-**Description**: Implement a reusable NMEA checksum function (XOR of characters between `$` and `*`).
-
-**Acceptance Criteria**:
-- [ ] Function: `uint8_t nmea_checksum(const char *sentence)` — computes XOR checksum
-- [ ] Validation function: `bool nmea_validate_checksum(const char *sentence)` — checks existing checksum
-- [ ] Handles edge cases: null input, missing `$` or `*`
-
-**Validation**:
-- Unit tests with known NMEA sentences
-
-**Files to modify**:
-- `micro/components/lk8ex1/src/lk8ex1.c`
-
-**Notes**: The checksum function can also be used by the app-side parser for validation.
-
----
-
-### Task 3.3: LK8EX1 sentence formatter
-
-**Description**: Create the `lk8ex1` component that formats flight data into an LK8EX1 NMEA sentence string.
-
-**Acceptance Criteria**:
-- [ ] Component `lk8ex1` created in `micro/components/lk8ex1/`
-- [ ] Input struct: `lk8ex1_data_t` with fields: `pressure_pa`, `altitude_m` (or 99999), `vario_cm_s`, `temperature_dc` (°C×10), `battery_mv` (or 999)
-- [ ] Output function: `lk8ex1_format(data, buffer, buffer_size)` → `esp_err_t`
-- [ ] Sentence format: `$LK8EX1,pressure,altitude,vario,temperature,battery*XX\r\n`
-- [ ] Checksum: XOR of chars between `$` and `*` (exclusive), 2-digit uppercase hex
-- [ ] Buffer size check to prevent overflow
-- [ ] Pure C, no ESP-IDF dependencies (testable on host)
-
-**Validation**:
-- Unit tests verify correct output for known inputs
-
-**Files to create**:
-- `micro/components/lk8ex1/CMakeLists.txt`
-- `micro/components/lk8ex1/include/lk8ex1.h`
-- `micro/components/lk8ex1/src/lk8ex1.c`
-
----
-
-### Task 3.4: Simulated data provider
-
-**Description**: Provide simulated flight data for testing.
-
-**Acceptance Criteria**:
-- [ ] Function to generate random or patterned data
-- [ ] Data rate: 10 Hz (matches sensor read rate)
-- [ ] Data range: realistic (e.g., 30000–110000 Pa for pressure)
-- [ ] Data format: matches LK8EX1 requirements
-
-**Validation**:
-- Verify with known test vectors from MS5611 datasheet (Application Note AN520)
-
-**Files to modify**:
-- `micro/components/lk8ex1/src/lk8ex1.c`
-
----
-
-### Task 3.5: BLE + LK8EX1 integration (send simulated frames)
-
-**Description**: Send simulated LK8EX1 frames over BLE.
-
-**Acceptance Criteria**:
-- [ ] Function to send simulated frames
-- [ ] Frames sent at 4 Hz (matches BLE TX rate)
-- [ ] Frames contain valid LK8EX1 data
-- [ ] Frames are received correctly
-
-**Validation**:
-- Receive LK8EX1 sentences in nRF Connect at ~4 Hz rate
-
-**Files to modify**:
-- `micro/main/main.c` (temporary: send simulated LK8EX1 every 250 ms)
-
----
-
-### Task 3.6: Ceedling unit tests
-
-**Description**: Write unit tests for LK8EX1 formatting and checksum.
-
-**Acceptance Criteria**:
-- [ ] Test: format with typical values produces correct sentence
-- [ ] Test: format with altitude=99999 (no GPS) works correctly
-- [ ] Test: format with battery=999 (no battery readout) works correctly
-- [ ] Test: checksum matches manual XOR calculation
-- [ ] Test: validate checksum returns true for correct sentence
-- [ ] Test: validate checksum returns false for corrupted sentence
-- [ ] Test: format with null buffer returns error
-- [ ] Test: format with insufficient buffer size returns error
-- [ ] All tests pass in `ceedling test:all`
-
-**Validation**:
-- Run `./scripts/test.sh` — all tests green
-
-**Files to create**:
-- `micro/test/test_lk8ex1.c`
-
----
-
-## Phase 4: LED Indicator
-
-**Objective**: Drive the onboard WS2812 RGB LED to indicate device state (BLE connected/disconnected, WiFi stub).  
-**Estimated Duration**: 1–2 days  
-**Dependencies**: Phase 5 (BLE state callbacks)
-
----
-
-### Task 4.1: WS2812 driver via RMT peripheral
-
-**Description**: Create the `led_indicator` component that drives the WS2812 RGB LED using the ESP32-C3's RMT peripheral.
-
-**Acceptance Criteria**:
-- [ ] Component `led_indicator` created in `micro/components/led_indicator/`
-- [ ] API: `led_indicator_init()`, `led_indicator_set_color(r, g, b)`, `led_indicator_off()`
-- [ ] Uses RMT peripheral (ESP-IDF `led_strip` driver or direct RMT)
-- [ ] GPIO8 (WS2812 data pin on DevKitC-02)
-- [ ] Works correctly with WS2812 timing requirements
-
-**Validation**:
-- Flash firmware, LED lights up with specified color
-
-**Files to create**:
-- `micro/components/led_indicator/CMakeLists.txt`
-- `micro/components/led_indicator/include/led_indicator.h`
-- `micro/components/led_indicator/src/led_indicator.c`
-
-**Notes**: ESP-IDF v5.x has a `led_strip` component — use it if available, or implement directly with RMT.
-
----
-
-### Task 4.2: LED state machine (red/green/blue patterns)
-
-**Description**: Implement a state machine that drives the LED with different blink patterns based on device state.
-
-**Acceptance Criteria**:
-- [ ] LED states: `DISCONNECTED` (red, 100ms on / 1900ms off), `CONNECTED` (green, 100ms on / 4900ms off), `WIFI_ACTIVE` (blue, steady)
-- [ ] FreeRTOS task or software timer drives the blink pattern
-- [ ] API: `led_indicator_set_state(led_state_e state)`
-- [ ] State transitions are immediate (no waiting for current cycle to finish)
-- [ ] Default state on boot: `DISCONNECTED` (red blink)
-
-**Validation**:
-- Boot without BLE connection → red blink (100ms/1900ms)
-- Connect via BLE → green blink (100ms/4900ms)
-- Disconnect → back to red blink
-
----
-
-### Task 4.3: Integration with BLE connection state
-
-**Description**: Register a BLE state callback to automatically change LED state on connect/disconnect.
-
-**Acceptance Criteria**:
-- [ ] BLE connect → LED state = `CONNECTED` (green)
-- [ ] BLE disconnect → LED state = `DISCONNECTED` (red)
-- [ ] Transition is immediate and visible
-
-**Validation**:
-- Connect/disconnect from phone, observe LED color changes
-
----
-
-## Phase 5: Hardware Abstraction
-
-**Objective**: Create a thin abstraction over I2C and define the sensor HAL interface that all sensor drivers will implement.  
-**Estimated Duration**: 2–3 days  
-**Dependencies**: Phase 0 complete
-
----
-
-### Task 5.1: I2C bus driver wrapper
-
-**Description**: Create the `i2c_bus` component — a thin wrapper around ESP-IDF's I2C master driver that simplifies common operations (write, read, write-then-read). This isolates sensor drivers from ESP-IDF's I2C API changes.
-
-**Acceptance Criteria**:
-- [ ] Component `i2c_bus` created in `micro/components/i2c_bus/`
-- [ ] Public API: `i2c_bus_init()`, `i2c_bus_write()`, `i2c_bus_read()`, `i2c_bus_write_read()`, `i2c_bus_deinit()`
-- [ ] All functions return `esp_err_t`
-- [ ] Configurable I2C port, SDA/SCL pins, clock speed via config struct
-- [ ] Header follows project conventions (include guard, `extern "C"`, Doxygen)
-- [ ] Uses ESP-IDF's new I2C master driver (v5.x `i2c_master.h`)
-
-**Validation**:
-- Build succeeds with the new component
-- (Optional) Quick test: init I2C bus, scan for devices, log found addresses
-
-**Files to create**:
-- `micro/components/i2c_bus/CMakeLists.txt`
-- `micro/components/i2c_bus/include/i2c_bus.h`
-- `micro/components/i2c_bus/src/i2c_bus.c`
-- `micro/components/i2c_bus/src/i2c_bus_types.h`
-
-**Notes**:
-- ESP32-C3 has 1 I2C port (I2C_NUM_0).
-- Default pins for DevKitC-02: SDA=GPIO4, SCL=GPIO5 (configurable).
-- Use 100 kHz (standard mode) by default; MS5611 supports up to 400 kHz.
-
----
-
-### Task 5.2: Sensor HAL interface definition
-
-**Description**: Define the `sensor_hal` component — an abstract interface that all sensor drivers must implement. This allows the data pipeline to work with any sensor without knowing its specifics.
-
-**Acceptance Criteria**:
-- [ ] Component `sensor_hal` created in `micro/components/sensor_hal/`
-- [ ] Interface struct `sensor_hal_interface_t` defined with function pointers:
-  - `esp_err_t (*init)(void *ctx, const void *cfg)`
-  - `esp_err_t (*read)(void *ctx)`
-  - `void (*deinit)(void *ctx)`
-  - `int32_t (*get_pressure_pa)(void *ctx)` — returns pressure in Pascals
-  - `int32_t (*get_temperature_cc)(void *ctx)` — returns temperature in centi-Celsius (°C × 100)
-- [ ] Public struct `sensor_hal_t` that wraps the interface + context pointer
-- [ ] Convenience functions: `sensor_hal_init()`, `sensor_hal_read()`, etc. that dispatch through function pointers
-- [ ] Header includes Doxygen documentation
-
-**Validation**:
-- Build succeeds
-- Review: interface is generic enough for MS5611 and future BMP390
-
-**Files to create**:
-- `micro/components/sensor_hal/CMakeLists.txt`
-- `micro/components/sensor_hal/include/sensor_hal.h`
-- `micro/components/sensor_hal/src/sensor_hal.c`
-
-**Notes**:
-- The HAL uses `void *ctx` for the sensor instance and `void *cfg` for configuration to keep it type-agnostic.
-- Each sensor driver will define its own `_t` struct and cast from `void *`.
-- The pipeline task will only interact with `sensor_hal_t`, never with specific sensor types.
-
----
-
-## Phase 6: MS5611 Sensor Driver
-
-**Objective**: Implement a fully functional MS5611 barometric pressure sensor driver with calibration, compensation, and unit tests.  
+**Objective**: Wire up the FreeRTOS task model defined in the architecture: sensor_task reads the sensor at 10 Hz, runs the Kalman filter, and publishes to the shared flight data structure. ble_sender_task reads at 4 Hz, formats LK8EX1, and sends over BLE.  
 **Estimated Duration**: 3–4 days  
-**Dependencies**: Phase 1 complete
+**Dependencies**: Phases 3 (BLE), 6 or 7 (sensor), 8 (Kalman), 2 (LK8EX1)  
+**Architecture Reference**: `firmware-architecture.md` §5 Tasks, §6 Inter-Task Communication, §7 Data Flow
 
 ---
 
-### Task 6.1: MS5611 PROM calibration read
+### Task 9.1: Shared flight data structure and mutex
 
-**Description**: Implement reading the 6 factory calibration coefficients (C1–C6) from the MS5611's PROM via I2C. These are needed for pressure/temperature compensation.
+**Description**: Implement the `shared_flight_data_t` struct and access primitives per architecture §6.1.
 
 **Acceptance Criteria**:
-- [ ] Component `sensor_ms5611` created in `micro/components/sensor_ms5611/`
-- [ ] `sensor_ms5611_init()` reads all 6 PROM coefficients via I2C
-- [ ] Calibration data stored in driver struct
-- [ ] Handles I2C errors (retry once, then return error)
-- [ ] Validates PROM CRC if available
-- [ ] Logs calibration values at INFO level on successful init
+- [ ] `shared_flight_data_t` struct per architecture §6.1: `altitude_m`, `vario_ms`, `pressure_pa`, `temperature_mc`, `reference_pressure_pa`, `timestamp_us`, `sensor_valid`
+- [ ] Mutex created with `xSemaphoreCreateMutex()`
+- [ ] Writer API (sensor_task): `xSemaphoreTake` → write all fields → `xSemaphoreGive`
+- [ ] Reader API (ble_sender): `xSemaphoreTake` → copy struct → `xSemaphoreGive`
+- [ ] Mutex timeout: `pdMS_TO_TICKS(10)` to avoid deadlocks
+- [ ] Defined in a shared header accessible to both tasks
 
 **Validation**:
-- Flash to DevKitC-02 with MS5611 connected, verify calibration values in log output
+- Build succeeds, mutex created in `app_main()`
 
-**Files to create**:
-- `micro/components/sensor_ms5611/CMakeLists.txt`
-- `micro/components/sensor_ms5611/include/sensor_ms5611.h`
-- `micro/components/sensor_ms5611/src/sensor_ms5611.c`
-- `micro/components/sensor_ms5611/src/sensor_ms5611_types.h`
-
-**Notes**:
-- MS5611 I2C address: `0x77` (CSB low) or `0x76` (CSB high). Default: `0x77`.
-- PROM read commands: `0xA0` to `0xAE` (8 words, 16-bit each; C1–C6 are words 1–6).
-- Reset command: `0x1E` — send before PROM read.
+**Files to create/modify**:
+- `micro/main/flight_data.h` (shared struct + mutex extern)
+- `micro/main/main.c` (mutex creation in `app_main()`)
 
 ---
 
-### Task 6.2: MS5611 raw pressure & temperature read
+### Task 9.2: Calibration queue (sensor_task consumer)
 
-**Description**: Implement the ADC conversion and raw data read for pressure (D1) and temperature (D2) from the MS5611.
+**Description**: Implement the `calibration_queue` per architecture §6.3 — a depth-1 queue that routes altitude calibration requests from `config_task` to `sensor_task`.
 
 **Acceptance Criteria**:
-- [ ] Function to start ADC conversion (command + wait for conversion time)
-- [ ] Function to read 24-bit ADC result
-- [ ] Supports configurable OSR (Over-Sampling Ratio): 256, 512, 1024, 2048, 4096
-- [ ] Default OSR: 4096 (highest precision, ~9.04 ms conversion time)
-- [ ] Reads both D1 (pressure) and D2 (temperature) in sequence
-- [ ] Handles I2C read errors
+- [ ] `calibration_request_t` struct: `known_altitude_m` (`float`)
+- [ ] Queue: `xQueueCreate(1, sizeof(calibration_request_t))` — depth 1, overwrite mode
+- [ ] Producer: `config_task` (on `CONFIG_REQUEST_CALIBRATE`)
+- [ ] Consumer: `sensor_task` (non-blocking poll with `xQueueReceive(..., 0)` at start of each cycle)
+- [ ] On receive: `sensor_task` calls `kalman_filter_calibrate()` with known altitude + last pressure reading
+- [ ] After calibration: `config_manager_save()` persists new `reference_pressure_pa`
+- [ ] Queue created in `app_main()` alongside other queues
 
 **Validation**:
-- Flash to hardware, log raw D1 and D2 values, verify they are non-zero and in expected range
+- Send calibration request via BLE → sensor_task processes → altitude now matches known value
+- New P0 persists across reboot
+
+**Files to create/modify**:
+- `micro/main/flight_data.h` (add `calibration_request_t` and queue extern)
+- `micro/main/sensor_task.c` (non-blocking poll at start of loop)
+- `micro/main/config_task.c` (post to calibration_queue)
+- `micro/main/main.c` (queue creation)
+
+---
+
+### Task 9.3: Sensor reader task (10 Hz)
+
+**Description**: Implement `sensor_task_fn` per architecture §5.2, running at 10 Hz.
+
+**Acceptance Criteria**:
+- [ ] `sensor_task` created with Priority 5, stack 4096 bytes (per architecture §5.1)
+- [ ] Loop every 100 ms:
+  1. Check `calibration_queue` for pending calibration (non-blocking poll)
+     → If received: `kalman_filter_calibrate()` + `config_manager_save()` to persist new P0
+  2. `sensor_hal_read(&sensor_data)` — blocks ~18 ms for sensor conversion
+  3. `kalman_filter_update(&state, &cfg, sensor_data.pressure_pa, sensor_data.timestamp_us)`
+  4. `xSemaphoreTake(mutex)` → copy Kalman state + sensor data to `shared_flight_data` → `xSemaphoreGive(mutex)`
+  5. `vTaskDelay(remaining time to hit 100 ms period)`
+- [ ] Handles sensor read errors: skip Kalman update, set `sensor_valid = false` after 3 consecutive failures
+- [ ] Registered with Task Watchdog Timer (TWDT), fed at end of each cycle
+- [ ] TWDT timeout: 5 seconds (per architecture §10.3)
+
+**Validation**:
+- Log output shows sensor reads at 10 Hz
+- Kalman altitude/vario values update continuously
+
+**Files to create/modify**:
+- `micro/main/sensor_task.c`
+- `micro/main/sensor_task.h`
+- `micro/main/main.c` (task creation)
+
+---
+
+### Task 9.4: BLE sender task (4 Hz)
+
+**Description**: Implement `ble_sender_task_fn` per architecture §5.2, running at 4 Hz.
+
+**Acceptance Criteria**:
+- [ ] `ble_sender_task` created with Priority 3, stack 4096 bytes (per architecture §5.1)
+- [ ] Loop every 250 ms:
+  1. `xSemaphoreTake(mutex)` → copy `shared_flight_data` → `xSemaphoreGive(mutex)`
+  2. Build `lk8ex1_data_t` from flight data (convert vario m/s → cm/s, temperature milli-°C → deci-°C)
+  3. `lk8ex1_format(&data, buffer, sizeof(buffer))`
+  4. `ble_nus_send((uint8_t *)buffer, strlen(buffer))`
+  5. `vTaskDelay(remaining time to hit 250 ms period)`
+- [ ] Silently skips send if BLE not connected (`ble_nus_is_connected()` or `ESP_ERR_INVALID_STATE`)
+- [ ] Handles `sensor_valid == false`: sends LK8EX1 with `altitude=99999, vario=0`
+
+**Validation**:
+- Connect with nRF Connect, verify LK8EX1 sentences arriving at ~4 Hz with real sensor data
+
+**Files to create/modify**:
+- `micro/main/ble_sender_task.c`
+- `micro/main/ble_sender_task.h`
+- `micro/main/main.c` (task creation)
+
+---
+
+### Task 9.5: Replace simulated provider with real sensor data
+
+**Description**: Remove the temporary simulated LK8EX1 sender from Phase 3 and use the real pipeline.
+
+**Acceptance Criteria**:
+- [ ] Temporary simulation code in `main.c` removed
+- [ ] `app_main()` orchestrates initialization in correct order:
+  1. `led_indicator_init()` → `LED_STATE_BOOT`
+  2. `sensor_hal_init()`
+  3. `kalman_filter_init()`
+  4. `ble_nus_init()`
+  5. Register BLE state callback → LED
+  6. Create `sensor_task`, `ble_sender_task`
+  7. `led_indicator_set_state(LED_STATE_BLE_DISCONNECTED)`
+- [ ] All tasks running with correct priorities
+
+**Validation**:
+- Boot → sensor reads start → BLE advertises → connect → real LK8EX1 data flows
 
 **Files to modify**:
-- `micro/components/sensor_ms5611/src/sensor_ms5611.c`
-
-**Notes**:
-- Conversion commands: `0x40 + 2*OSR_index` (pressure), `0x50 + 2*OSR_index` (temperature)
-- ADC read command: `0x00` — returns 3 bytes (24-bit value)
-- Conversion time for OSR 4096: ~9.04 ms — use `vTaskDelay(pdMS_TO_TICKS(10))`
-- Total read cycle for both P+T: ~20 ms → allows 10 Hz reads with margin
+- `micro/main/main.c`
 
 ---
 
-### Task 6.3: MS5611 compensation math
+### Task 9.6: End-to-end data flow validation
 
-**Description**: Implement the second-order temperature compensation algorithm from the MS5611 datasheet to convert raw D1/D2 into calibrated pressure (Pa) and temperature (°C × 100).
+**Description**: Validate the complete pipeline from sensor to BLE, matching the timing budget in architecture §7.3.
 
 **Acceptance Criteria**:
-- [ ] Implements the full compensation algorithm per datasheet (including second-order for T < 20°C and T < -15°C)
-- [ ] Output pressure in Pascals (int32_t)
-- [ ] Output temperature in centi-Celsius (int32_t, e.g., 2350 = 23.50°C)
-- [ ] Pure function (no side effects) for easy unit testing
-- [ ] Uses 64-bit intermediate calculations to avoid overflow
+- [ ] Sensor reads at 10 Hz (±5% jitter)
+- [ ] BLE sends at 4 Hz (±5% jitter)
+- [ ] LK8EX1 sentences contain real pressure, altitude, vario, temperature
+- [ ] Total sensor cycle ≤ 20 ms (budget: 18.5 ms per architecture §7.3)
+- [ ] System runs stably for 30+ minutes without crashes, memory leaks, or watchdog resets
+- [ ] Stack high-water marks checked for all tasks (should be >25% remaining)
+- [ ] Free heap monitored (should not decrease over time)
 
 **Validation**:
-- Verify with known test vectors from MS5611 datasheet (Application Note AN520)
-
-**Files to modify**:
-- `micro/components/sensor_ms5611/src/sensor_ms5611.c`
-
-**Notes**:
-Datasheet test vector:
-- C1=40127, C2=36924, C3=23317, C4=23282, C5=33464, C6=28312
-- D1=9085466, D2=8569150
-- Expected: TEMP=2007 (20.07°C), P=100009 (1000.09 mbar = 100009 Pa)
+- Monitor serial output for 30 minutes
+- `uxTaskGetStackHighWaterMark()` for each task
+- `esp_get_free_heap_size()` at boot and after 30 minutes
 
 ---
 
-### Task 6.4: Ceedling unit tests for compensation
+## Phase 10: NVS Configuration
 
-**Description**: Write comprehensive unit tests for the MS5611 compensation math using known test vectors.
-
-**Acceptance Criteria**:
-- [ ] Test file `micro/test/test_sensor_ms5611.c` exists
-- [ ] Test: datasheet reference vector produces expected P and T values
-- [ ] Test: second-order compensation activates for T < 20°C
-- [ ] Test: second-order compensation activates for T < -15°C
-- [ ] Test: init with null parameters returns error
-- [ ] All tests pass with `ceedling test:all`
-
-**Validation**:
-- Run `./scripts/test.sh` — all tests green
-
-**Files to create**:
-- `micro/test/test_sensor_ms5611.c`
-
-**Notes**: Mock the I2C layer with CMock. The compensation math should be in a static function that can be tested by calling the public `read` function with mocked I2C responses.
-
----
-
-### Task 6.5: Integration test on hardware
-
-**Description**: Run the MS5611 driver on actual hardware and verify readings are reasonable.
-
-**Acceptance Criteria**:
-- [ ] Pressure readings are in the range 30000–110000 Pa (300–1100 mbar)
-- [ ] Temperature readings are in a reasonable range (e.g., 15–35°C indoors)
-- [ ] Readings are stable (±10 Pa over 10 seconds at rest)
-- [ ] 10 Hz read rate achieved without I2C errors
-- [ ] Log output shows formatted pressure and temperature values
-
-**Validation**:
-- Flash firmware, observe sensor readings in serial monitor for 60 seconds
-- Compare pressure reading with known altitude / weather station data
-
-**Files to modify**:
-- `micro/main/main.c` (temporary test loop, will be replaced by data pipeline)
-
----
-
-## Phase 7: Kalman Filter
-
-**Objective**: Implement a 2-state Kalman filter (altitude + vario) to smooth pressure readings and derive altitude and vertical speed.  
-**Estimated Duration**: 2–3 days  
-**Dependencies**: Phase 2 complete (compensation math for test data)
-
----
-
-### Task 7.1: 2-state Kalman filter implementation
-
-**Description**: Implement a 2-state Kalman filter for barometric altitude and vertical speed (vario). The state vector is `[altitude, vario]`. The filter takes pressure-derived altitude as input and outputs both smoothed altitude and estimated vertical speed.
-
-**Acceptance Criteria**:
-- [ ] Component `kalman_filter` created in `micro/components/kalman_filter/`
-- [ ] State struct: `kalman_state_t` with 2-element state vector `[altitude, vario]`, 2x2 covariance matrix, process noise (Q), measurement noise (R)
-- [ ] API: `kalman_init(state, Q, R, initial_altitude)`, `kalman_update(state, measured_altitude, dt)` → filtered altitude + vario
-- [ ] Pure C, no ESP-IDF dependencies (fully testable on host)
-- [ ] Configurable Q and R parameters for tuning
-
-**Validation**:
-- Unit tests with synthetic data show smoothing behavior and correct vario derivation
-
-**Files to create**:
-- `micro/components/kalman_filter/CMakeLists.txt`
-- `micro/components/kalman_filter/include/kalman_filter.h`
-- `micro/components/kalman_filter/src/kalman_filter.c`
-
-**Notes**:
-- State vector: `x = [altitude, vario]`. Prediction uses constant-velocity model.
-- Measurement: altitude derived from pressure (only altitude is measured, vario is estimated).
-- Reasonable starting values: Q=0.01, R=0.5 (tune with real sensor data).
-
----
-
-### Task 7.2: Altitude calculation from pressure
-
-**Description**: Implement the barometric altitude formula to convert filtered pressure to altitude in meters.
-
-**Acceptance Criteria**:
-- [ ] Function: `float altitude_from_pressure(int32_t pressure_pa, int32_t reference_pressure_pa)` → altitude in meters
-- [ ] Uses the international barometric formula: `altitude = 44330 * (1 - (P/P0)^(1/5.255))`
-- [ ] Reference pressure configurable (default: 101325 Pa = sea level)
-- [ ] Pure function, no side effects
-
-**Validation**:
-- Known test: 101325 Pa at sea level → 0 m
-- Known test: 89876 Pa → ~1000 m
-
-**Files to modify**:
-- `micro/components/kalman_filter/src/kalman_filter.c`
-- `micro/components/kalman_filter/include/kalman_filter.h`
-
----
-
-### Task 7.3: Vario (vertical speed) derivation
-
-**Description**: Calculate vertical speed (vario) from the rate of change of filtered altitude.
-
-**Acceptance Criteria**:
-- [ ] Function computes vario as `(altitude_current - altitude_previous) / dt`
-- [ ] Output in cm/s (integer, as required by LK8EX1)
-- [ ] Handles first sample gracefully (vario = 0)
-- [ ] Optionally applies a low-pass filter to vario to reduce noise
-
-**Validation**:
-- Synthetic test: constant altitude → vario = 0
-- Synthetic test: linearly increasing altitude → constant positive vario
-
-**Files to modify**:
-- `micro/components/kalman_filter/src/kalman_filter.c`
-- `micro/components/kalman_filter/include/kalman_filter.h`
-
----
-
-### Task 7.4: Ceedling unit tests with synthetic data
-
-**Description**: Write unit tests for the Kalman filter, altitude calculation, and vario derivation.
-
-**Acceptance Criteria**:
-- [ ] Test: Kalman filter converges to true value with noisy input
-- [ ] Test: Kalman filter with constant input returns same value
-- [ ] Test: altitude formula produces known results for known pressures
-- [ ] Test: vario = 0 for constant altitude
-- [ ] Test: vario correct sign for ascending/descending
-- [ ] Test: init with null state returns error
-- [ ] All tests pass in `ceedling test:all`
-
-**Validation**:
-- Run `./scripts/test.sh` — all tests green
-
-**Files to create**:
-- `micro/test/test_kalman_filter.c`
-
----
-
-## Phase 4: LK8EX1 Protocol
-
-**Objective**: Implement the LK8EX1 NMEA sentence formatter with checksum calculation.  
-**Estimated Duration**: 1–2 days  
-**Dependencies**: Phase 3 (for understanding the data fields)
-
----
-
-### Task 3.1: LK8EX1 data abstraction layer
-
-**Description**: Create the `lk8ex1` component that formats flight data into an LK8EX1 NMEA sentence string.
-
-**Acceptance Criteria**:
-- [ ] Component `lk8ex1` created in `micro/components/lk8ex1/`
-- [ ] Input struct: `lk8ex1_data_t` with fields: `pressure_pa`, `altitude_m` (or 99999), `vario_cm_s`, `temperature_dc` (°C×10), `battery_mv` (or 999)
-- [ ] Output function: `lk8ex1_format(data, buffer, buffer_size)` → `esp_err_t`
-- [ ] Sentence format: `$LK8EX1,pressure,altitude,vario,temperature,battery*XX\r\n`
-- [ ] Checksum: XOR of chars between `$` and `*` (exclusive), 2-digit uppercase hex
-- [ ] Buffer size check to prevent overflow
-- [ ] Pure C, no ESP-IDF dependencies (testable on host)
-
-**Validation**:
-- Unit tests verify correct output for known inputs
-
-**Files to create**:
-- `micro/components/lk8ex1/CMakeLists.txt`
-- `micro/components/lk8ex1/include/lk8ex1.h`
-- `micro/components/lk8ex1/src/lk8ex1.c`
-
----
-
-### Task 3.2: NMEA checksum calculator
-
-**Description**: Implement a reusable NMEA checksum function (XOR of characters between `$` and `*`).
-
-**Acceptance Criteria**:
-- [ ] Function: `uint8_t nmea_checksum(const char *sentence)` — computes XOR checksum
-- [ ] Validation function: `bool nmea_validate_checksum(const char *sentence)` — checks existing checksum
-- [ ] Handles edge cases: null input, missing `$` or `*`
-
-**Validation**:
-- Unit tests with known NMEA sentences
-
-**Files to modify**:
-- `micro/components/lk8ex1/src/lk8ex1.c`
-
-**Notes**: The checksum function can also be used by the app-side parser for validation.
-
----
-
-### Task 3.3: LK8EX1 sentence formatter
-
-**Description**: Create the `lk8ex1` component that formats flight data into an LK8EX1 NMEA sentence string.
-
-**Acceptance Criteria**:
-- [ ] Component `lk8ex1` created in `micro/components/lk8ex1/`
-- [ ] Input struct: `lk8ex1_data_t` with fields: `pressure_pa`, `altitude_m` (or 99999), `vario_cm_s`, `temperature_dc` (°C×10), `battery_mv` (or 999)
-- [ ] Output function: `lk8ex1_format(data, buffer, buffer_size)` → `esp_err_t`
-- [ ] Sentence format: `$LK8EX1,pressure,altitude,vario,temperature,battery*XX\r\n`
-- [ ] Checksum: XOR of chars between `$` and `*` (exclusive), 2-digit uppercase hex
-- [ ] Buffer size check to prevent overflow
-- [ ] Pure C, no ESP-IDF dependencies (testable on host)
-
-**Validation**:
-- Unit tests verify correct output for known inputs
-
-**Files to create**:
-- `micro/components/lk8ex1/CMakeLists.txt`
-- `micro/components/lk8ex1/include/lk8ex1.h`
-- `micro/components/lk8ex1/src/lk8ex1.c`
-
----
-
-### Task 3.4: Simulated data provider
-
-**Description**: Provide simulated flight data for testing.
-
-**Acceptance Criteria**:
-- [ ] Function to generate random or patterned data
-- [ ] Data rate: 10 Hz (matches sensor read rate)
-- [ ] Data range: realistic (e.g., 30000–110000 Pa for pressure)
-- [ ] Data format: matches LK8EX1 requirements
-
-**Validation**:
-- Verify with known test vectors from MS5611 datasheet (Application Note AN520)
-
-**Files to modify**:
-- `micro/components/lk8ex1/src/lk8ex1.c`
-
----
-
-### Task 3.5: BLE + LK8EX1 integration (send simulated frames)
-
-**Description**: Send simulated LK8EX1 frames over BLE.
-
-**Acceptance Criteria**:
-- [ ] Function to send simulated frames
-- [ ] Frames sent at 4 Hz (matches BLE TX rate)
-- [ ] Frames contain valid LK8EX1 data
-- [ ] Frames are received correctly
-
-**Validation**:
-- Receive LK8EX1 sentences in nRF Connect at ~4 Hz rate
-
-**Files to modify**:
-- `micro/main/main.c` (temporary: send simulated LK8EX1 every 250 ms)
-
----
-
-### Task 3.6: Ceedling unit tests
-
-**Description**: Write unit tests for LK8EX1 formatting and checksum.
-
-**Acceptance Criteria**:
-- [ ] Test: format with typical values produces correct sentence
-- [ ] Test: format with altitude=99999 (no GPS) works correctly
-- [ ] Test: format with battery=999 (no battery readout) works correctly
-- [ ] Test: checksum matches manual XOR calculation
-- [ ] Test: validate checksum returns true for correct sentence
-- [ ] Test: validate checksum returns false for corrupted sentence
-- [ ] Test: format with null buffer returns error
-- [ ] Test: format with insufficient buffer size returns error
-- [ ] All tests pass in `ceedling test:all`
-
-**Validation**:
-- Run `./scripts/test.sh` — all tests green
-
-**Files to create**:
-- `micro/test/test_lk8ex1.c`
-
----
-
-## Phase 4: LED Indicator
-
-**Objective**: Drive the onboard WS2812 RGB LED to indicate device state (BLE connected/disconnected, WiFi stub).  
-**Estimated Duration**: 1–2 days  
-**Dependencies**: Phase 5 (BLE state callbacks)
-
----
-
-### Task 4.1: WS2812 driver via RMT peripheral
-
-**Description**: Create the `led_indicator` component that drives the WS2812 RGB LED using the ESP32-C3's RMT peripheral.
-
-**Acceptance Criteria**:
-- [ ] Component `led_indicator` created in `micro/components/led_indicator/`
-- [ ] API: `led_indicator_init()`, `led_indicator_set_color(r, g, b)`, `led_indicator_off()`
-- [ ] Uses RMT peripheral (ESP-IDF `led_strip` driver or direct RMT)
-- [ ] GPIO8 (WS2812 data pin on DevKitC-02)
-- [ ] Works correctly with WS2812 timing requirements
-
-**Validation**:
-- Flash firmware, LED lights up with specified color
-
-**Files to create**:
-- `micro/components/led_indicator/CMakeLists.txt`
-- `micro/components/led_indicator/include/led_indicator.h`
-- `micro/components/led_indicator/src/led_indicator.c`
-
-**Notes**: ESP-IDF v5.x has a `led_strip` component — use it if available, or implement directly with RMT.
-
----
-
-### Task 4.2: LED state machine (red/green/blue patterns)
-
-**Description**: Implement a state machine that drives the LED with different blink patterns based on device state.
-
-**Acceptance Criteria**:
-- [ ] LED states: `DISCONNECTED` (red, 100ms on / 1900ms off), `CONNECTED` (green, 100ms on / 4900ms off), `WIFI_ACTIVE` (blue, steady)
-- [ ] FreeRTOS task or software timer drives the blink pattern
-- [ ] API: `led_indicator_set_state(led_state_e state)`
-- [ ] State transitions are immediate (no waiting for current cycle to finish)
-- [ ] Default state on boot: `DISCONNECTED` (red blink)
-
-**Validation**:
-- Boot without BLE connection → red blink (100ms/1900ms)
-- Connect via BLE → green blink (100ms/4900ms)
-- Disconnect → back to red blink
-
----
-
-### Task 4.3: Integration with BLE connection state
-
-**Description**: Register a BLE state callback to automatically change LED state on connect/disconnect.
-
-**Acceptance Criteria**:
-- [ ] BLE connect → LED state = `CONNECTED` (green)
-- [ ] BLE disconnect → LED state = `DISCONNECTED` (red)
-- [ ] Transition is immediate and visible
-
-**Validation**:
-- Connect/disconnect from phone, observe LED color changes
-
----
-
-## Phase 5: Hardware Abstraction
-
-**Objective**: Create a thin abstraction over I2C and define the sensor HAL interface that all sensor drivers will implement.  
-**Estimated Duration**: 2–3 days  
-**Dependencies**: Phase 0 complete
-
----
-
-### Task 5.1: I2C bus driver wrapper
-
-**Description**: Create the `i2c_bus` component — a thin wrapper around ESP-IDF's I2C master driver that simplifies common operations (write, read, write-then-read). This isolates sensor drivers from ESP-IDF's I2C API changes.
-
-**Acceptance Criteria**:
-- [ ] Component `i2c_bus` created in `micro/components/i2c_bus/`
-- [ ] Public API: `i2c_bus_init()`, `i2c_bus_write()`, `i2c_bus_read()`, `i2c_bus_write_read()`, `i2c_bus_deinit()`
-- [ ] All functions return `esp_err_t`
-- [ ] Configurable I2C port, SDA/SCL pins, clock speed via config struct
-- [ ] Header follows project conventions (include guard, `extern "C"`, Doxygen)
-- [ ] Uses ESP-IDF's new I2C master driver (v5.x `i2c_master.h`)
-
-**Validation**:
-- Build succeeds with the new component
-- (Optional) Quick test: init I2C bus, scan for devices, log found addresses
-
-**Files to create**:
-- `micro/components/i2c_bus/CMakeLists.txt`
-- `micro/components/i2c_bus/include/i2c_bus.h`
-- `micro/components/i2c_bus/src/i2c_bus.c`
-- `micro/components/i2c_bus/src/i2c_bus_types.h`
-
-**Notes**:
-- ESP32-C3 has 1 I2C port (I2C_NUM_0).
-- Default pins for DevKitC-02: SDA=GPIO4, SCL=GPIO5 (configurable).
-- Use 100 kHz (standard mode) by default; MS5611 supports up to 400 kHz.
-
----
-
-### Task 5.2: Sensor HAL interface definition
-
-**Description**: Define the `sensor_hal` component — an abstract interface that all sensor drivers must implement. This allows the data pipeline to work with any sensor without knowing its specifics.
-
-**Acceptance Criteria**:
-- [ ] Component `sensor_hal` created in `micro/components/sensor_hal/`
-- [ ] Interface struct `sensor_hal_interface_t` defined with function pointers:
-  - `esp_err_t (*init)(void *ctx, const void *cfg)`
-  - `esp_err_t (*read)(void *ctx)`
-  - `void (*deinit)(void *ctx)`
-  - `int32_t (*get_pressure_pa)(void *ctx)` — returns pressure in Pascals
-  - `int32_t (*get_temperature_cc)(void *ctx)` — returns temperature in centi-Celsius (°C × 100)
-- [ ] Public struct `sensor_hal_t` that wraps the interface + context pointer
-- [ ] Convenience functions: `sensor_hal_init()`, `sensor_hal_read()`, etc. that dispatch through function pointers
-- [ ] Header includes Doxygen documentation
-
-**Validation**:
-- Build succeeds
-- Review: interface is generic enough for MS5611 and future BMP390
-
-**Files to create**:
-- `micro/components/sensor_hal/CMakeLists.txt`
-- `micro/components/sensor_hal/include/sensor_hal.h`
-- `micro/components/sensor_hal/src/sensor_hal.c`
-
-**Notes**:
-- The HAL uses `void *ctx` for the sensor instance and `void *cfg` for configuration to keep it type-agnostic.
-- Each sensor driver will define its own `_t` struct and cast from `void *`.
-- The pipeline task will only interact with `sensor_hal_t`, never with specific sensor types.
-
----
-
-## Phase 6: MS5611 Sensor Driver
-
-**Objective**: Implement a fully functional MS5611 barometric pressure sensor driver with calibration, compensation, and unit tests.  
+**Objective**: Implement persistent device configuration with NVS storage and expose a BLE Config Service for remote configuration.  
 **Estimated Duration**: 3–4 days  
-**Dependencies**: Phase 1 complete
+**Dependencies**: Phase 3 (BLE NUS for GATT server), Phase 9 (data pipeline for applying config)  
+**Architecture Reference**: `firmware-architecture.md` §4.8 `config_manager`, `ble_protocol.md` §Config Service
 
 ---
 
-### Task 6.1: MS5611 PROM calibration read
+### Task 10.1: Config schema definition and defaults
 
-**Description**: Implement reading the 6 factory calibration coefficients (C1–C6) from the MS5611's PROM via I2C. These are needed for pressure/temperature compensation.
+**Description**: Define the `device_config_t` struct and default values per architecture §4.8.
 
 **Acceptance Criteria**:
-- [ ] Component `sensor_ms5611` created in `micro/components/sensor_ms5611/`
-- [ ] `sensor_ms5611_init()` reads all 6 PROM coefficients via I2C
-- [ ] Calibration data stored in driver struct
-- [ ] Handles I2C errors (retry once, then return error)
-- [ ] Validates PROM CRC if available
-- [ ] Logs calibration values at INFO level on successful init
+- [ ] Component `config_manager` created in `micro/components/config_manager/`
+- [ ] `device_config_t` struct per architecture: `sensor_rate_hz` (10), `ble_tx_rate_hz` (4), `kalman_q` (0.01), `kalman_r` (0.5), `reference_pressure_pa` (101325.0), `device_name` ("FlyInPeace"), `wifi_enabled` (false)
+- [ ] `const device_config_t *config_manager_get_defaults(void)` returns pointer to static defaults
+- [ ] Validation rules per architecture: `sensor_rate_hz` ∈ [1,100], `ble_tx_rate_hz` ∈ [1,50], etc.
+- [ ] Internal validation function: returns `ESP_ERR_INVALID_ARG` for out-of-range values
 
 **Validation**:
-- Flash to DevKitC-02 with MS5611 connected, verify calibration values in log output
+- Unit tests verify defaults are correct and validation rejects invalid values
 
 **Files to create**:
-- `micro/components/sensor_ms5611/CMakeLists.txt`
-- `micro/components/sensor_ms5611/include/sensor_ms5611.h`
-- `micro/components/sensor_ms5611/src/sensor_ms5611.c`
-- `micro/components/sensor_ms5611/src/sensor_ms5611_types.h`
-
-**Notes**:
-- MS5611 I2C address: `0x77` (CSB low) or `0x76` (CSB high). Default: `0x77`.
-- PROM read commands: `0xA0` to `0xAE` (8 words, 16-bit each; C1–C6 are words 1–6).
-- Reset command: `0x1E` — send before PROM read.
+- `micro/components/config_manager/CMakeLists.txt`
+- `micro/components/config_manager/include/config_manager.h`
+- `micro/components/config_manager/src/config_manager.c`
 
 ---
 
-### Task 6.2: MS5611 raw pressure & temperature read
+### Task 10.2: NVS read/write with validation
 
-**Description**: Implement the ADC conversion and raw data read for pressure (D1) and temperature (D2) from the MS5611.
+**Description**: Implement persistent configuration storage in NVS.
 
 **Acceptance Criteria**:
-- [ ] Function to start ADC conversion (command + wait for conversion time)
-- [ ] Function to read 24-bit ADC result
-- [ ] Supports configurable OSR (Over-Sampling Ratio): 256, 512, 1024, 2048, 4096
-- [ ] Default OSR: 4096 (highest precision, ~9.04 ms conversion time)
-- [ ] Reads both D1 (pressure) and D2 (temperature) in sequence
-- [ ] Handles I2C read errors
+- [ ] `esp_err_t config_manager_init(void)` — opens NVS namespace `"fip_config"`, writes defaults if no config exists
+- [ ] `esp_err_t config_manager_load(device_config_t *config)` — reads all fields; uses default for any field with read error
+- [ ] `esp_err_t config_manager_save(const device_config_t *config)` — validates all fields before writing; returns `ESP_ERR_INVALID_ARG` on failure; does NOT apply partial writes
+- [ ] `esp_err_t config_manager_reset_defaults(void)` — overwrites NVS with defaults
+- [ ] Thread-safe: internal mutex protects NVS access
 
 **Validation**:
-- Flash to hardware, log raw D1 and D2 values, verify they are non-zero and in expected range
+- Save config, reboot, load config — values persist
+- Save invalid config → returns error, NVS unchanged
 
 **Files to modify**:
-- `micro/components/sensor_ms5611/src/sensor_ms5611.c`
-
-**Notes**:
-- Conversion commands: `0x40 + 2*OSR_index` (pressure), `0x50 + 2*OSR_index` (temperature)
-- ADC read command: `0x00` — returns 3 bytes (24-bit value)
-- Conversion time for OSR 4096: ~9.04 ms — use `vTaskDelay(pdMS_TO_TICKS(10))`
-- Total read cycle for both P+T: ~20 ms → allows 10 Hz reads with margin
+- `micro/components/config_manager/src/config_manager.c`
 
 ---
 
-### Task 6.3: MS5611 compensation math
+### Task 10.3: BLE Config Service GATT (read/write characteristics)
 
-**Description**: Implement the second-order temperature compensation algorithm from the MS5611 datasheet to convert raw D1/D2 into calibrated pressure (Pa) and temperature (°C × 100).
+**Description**: Add the Config Service to the BLE GATT server per `ble_protocol.md`.
 
 **Acceptance Criteria**:
-- [ ] Implements the full compensation algorithm per datasheet (including second-order for T < 20°C and T < -15°C)
-- [ ] Output pressure in Pascals (int32_t)
-- [ ] Output temperature in centi-Celsius (int32_t, e.g., 2350 = 23.50°C)
-- [ ] Pure function (no side effects) for easy unit testing
-- [ ] Uses 64-bit intermediate calculations to avoid overflow
+- [ ] Config Service GATT registered alongside NUS in `ble_nus_init()`
+- [ ] Config read characteristic: returns current `device_config_t` as JSON (includes `reference_pressure_pa`)
+- [ ] Config write characteristic: accepts JSON payload, parses, validates, saves
+- [ ] Write handler detects `"action": "calibrate"` payloads per `ble_protocol.md` §Calibrate Action
+  - [ ] Parses `altitude_m` from JSON, validates range [-500, 10000]
+  - [ ] Posts `CONFIG_REQUEST_CALIBRATE` (with `altitude_m` in payload) to config queue
+- [ ] Regular config writes (without `action` field) post `CONFIG_REQUEST_WRITE` to config queue
+- [ ] Write response includes success/error status
 
 **Validation**:
-- Verify with known test vectors from MS5611 datasheet (Application Note AN520)
+- Read config via nRF Connect → JSON with current values including `reference_pressure_pa`
+- Write config via nRF Connect → values saved and applied
+- Write `{"action": "calibrate", "altitude_m": 450}` via nRF Connect → ack returned, altitude updates in LK8EX1 stream
 
 **Files to modify**:
-- `micro/components/sensor_ms5611/src/sensor_ms5611.c`
+- `micro/components/ble_nus/src/ble_nus.c` (add Config GATT service)
+- `micro/components/ble_nus/include/ble_nus.h` (config service types)
 
-**Notes**:
-Datasheet test vector:
-- C1=40127, C2=36924, C3=23317, C4=23282, C5=33464, C6=28312
-- D1=9085466, D2=8569150
-- Expected: TEMP=2007 (20.07°C), P=100009 (1000.09 mbar = 100009 Pa)
+**Notes**: Config Service UUID defined in `ble_protocol.md` §Config Service.
 
 ---
 
-### Task 6.4: Ceedling unit tests for compensation
+### Task 10.4: Config task (event-driven)
 
-**Description**: Write comprehensive unit tests for the MS5611 compensation math using known test vectors.
+**Description**: Implement the `config_task` per architecture §5.2 — event-driven via queue.
 
 **Acceptance Criteria**:
-- [ ] Test file `micro/test/test_sensor_ms5611.c` exists
-- [ ] Test: datasheet reference vector produces expected P and T values
-- [ ] Test: second-order compensation activates for T < 20°C
-- [ ] Test: second-order compensation activates for T < -15°C
-- [ ] Test: init with null parameters returns error
-- [ ] All tests pass with `ceedling test:all`
+- [ ] `config_task` created with Priority 2, stack 2048 bytes
+- [ ] Blocks on `xQueueReceive(config_queue, &request, portMAX_DELAY)`
+- [ ] Handles request types per architecture §6.2: `CONFIG_REQUEST_READ`, `CONFIG_REQUEST_WRITE`, `CONFIG_REQUEST_RESET`, `CONFIG_REQUEST_CALIBRATE`
+- [ ] On `CONFIG_REQUEST_WRITE`: validate → save → apply changes to running system (e.g., update Kalman Q/R, BLE device name)
+- [ ] On `CONFIG_REQUEST_RESET`: reset defaults → restart system
+- [ ] On `CONFIG_REQUEST_CALIBRATE`: extract known altitude from payload → post to `calibration_queue` (consumed by `sensor_task`) → send ack
+- [ ] Queue: `xQueueCreate(4, sizeof(config_request_t))`
 
 **Validation**:
-- Run `./scripts/test.sh` — all tests green
+- Write config via BLE → config_task processes → values applied and persisted
 
-**Files to create**:
-- `micro/test/test_sensor_ms5611.c`
-
-**Notes**: Mock the I2C layer with CMock. The compensation math should be in a static function that can be tested by calling the public `read` function with mocked I2C responses.
+**Files to create/modify**:
+- `micro/main/config_task.c`
+- `micro/main/config_task.h`
+- `micro/main/main.c` (task + queue creation)
 
 ---
 
-### Task 6.5: Integration test on hardware
+### Task 10.5: Ceedling unit tests for config validation
 
-**Description**: Run the MS5611 driver on actual hardware and verify readings are reasonable.
+**Description**: Write unit tests for config validation logic.
 
 **Acceptance Criteria**:
-- [ ] Pressure readings are in the range 30000–110000 Pa (300–1100 mbar)
-- [ ] Temperature readings are in a reasonable range (e.g., 15–35°C indoors)
-- [ ] Readings are stable (±10 Pa over 10 seconds at rest)
-- [ ] 10 Hz read rate achieved without I2C errors
-- [ ] Log output shows formatted pressure and temperature values
-
-**Validation**:
-- Flash firmware, observe sensor readings in serial monitor for 60 seconds
-- Compare pressure reading with known altitude / weather station data
-
-**Files to modify**:
-- `micro/main/main.c` (temporary test loop, will be replaced by data pipeline)
-
----
-
-## Phase 7: Kalman Filter
-
-**Objective**: Implement a 2-state Kalman filter (altitude + vario) to smooth pressure readings and derive altitude and vertical speed.  
-**Estimated Duration**: 2–3 days  
-**Dependencies**: Phase 2 complete (compensation math for test data)
-
----
-
-### Task 7.1: 2-state Kalman filter implementation
-
-**Description**: Implement a 2-state Kalman filter for barometric altitude and vertical speed (vario). The state vector is `[altitude, vario]`. The filter takes pressure-derived altitude as input and outputs both smoothed altitude and estimated vertical speed.
-
-**Acceptance Criteria**:
-- [ ] Component `kalman_filter` created in `micro/components/kalman_filter/`
-- [ ] State struct: `kalman_state_t` with 2-element state vector `[altitude, vario]`, 2x2 covariance matrix, process noise (Q), measurement noise (R)
-- [ ] API: `kalman_init(state, Q, R, initial_altitude)`, `kalman_update(state, measured_altitude, dt)` → filtered altitude + vario
-- [ ] Pure C, no ESP-IDF dependencies (fully testable on host)
-- [ ] Configurable Q and R parameters for tuning
-
-**Validation**:
-- Unit tests with synthetic data show smoothing behavior and correct vario derivation
-
-**Files to create**:
-- `micro/components/kalman_filter/CMakeLists.txt`
-- `micro/components/kalman_filter/include/kalman_filter.h`
-- `micro/components/kalman_filter/src/kalman_filter.c`
-
-**Notes**:
-- State vector: `x = [altitude, vario]`. Prediction uses constant-velocity model.
-- Measurement: altitude derived from pressure (only altitude is measured, vario is estimated).
-- Reasonable starting values: Q=0.01, R=0.5 (tune with real sensor data).
-
----
-
-### Task 7.2: Altitude calculation from pressure
-
-**Description**: Implement the barometric altitude formula to convert filtered pressure to altitude in meters.
-
-**Acceptance Criteria**:
-- [ ] Function: `float altitude_from_pressure(int32_t pressure_pa, int32_t reference_pressure_pa)` → altitude in meters
-- [ ] Uses the international barometric formula: `altitude = 44330 * (1 - (P/P0)^(1/5.255))`
-- [ ] Reference pressure configurable (default: 101325 Pa = sea level)
-- [ ] Pure function, no side effects
-
-**Validation**:
-- Known test: 101325 Pa at sea level → 0 m
-- Known test: 89876 Pa → ~1000 m
-
-**Files to modify**:
-- `micro/components/kalman_filter/src/kalman_filter.c`
-- `micro/components/kalman_filter/include/kalman_filter.h`
-
----
-
-### Task 7.3: Vario (vertical speed) derivation
-
-**Description**: Calculate vertical speed (vario) from the rate of change of filtered altitude.
-
-**Acceptance Criteria**:
-- [ ] Function computes vario as `(altitude_current - altitude_previous) / dt`
-- [ ] Output in cm/s (integer, as required by LK8EX1)
-- [ ] Handles first sample gracefully (vario = 0)
-- [ ] Optionally applies a low-pass filter to vario to reduce noise
-
-**Validation**:
-- Synthetic test: constant altitude → vario = 0
-- Synthetic test: linearly increasing altitude → constant positive vario
-
-**Files to modify**:
-- `micro/components/kalman_filter/src/kalman_filter.c`
-- `micro/components/kalman_filter/include/kalman_filter.h`
-
----
-
-### Task 7.4: Ceedling unit tests with synthetic data
-
-**Description**: Write unit tests for the Kalman filter, altitude calculation, and vario derivation.
-
-**Acceptance Criteria**:
-- [ ] Test: Kalman filter converges to true value with noisy input
-- [ ] Test: Kalman filter with constant input returns same value
-- [ ] Test: altitude formula produces known results for known pressures
-- [ ] Test: vario = 0 for constant altitude
-- [ ] Test: vario correct sign for ascending/descending
-- [ ] Test: init with null state returns error
+- [ ] Test file `micro/test/test_config_manager.c` exists
+- [ ] Test: defaults are within valid ranges
+- [ ] Test: `sensor_rate_hz = 0` rejected
+- [ ] Test: `sensor_rate_hz = 101` rejected
+- [ ] Test: `reference_pressure_pa = 79999` rejected
+- [ ] Test: `reference_pressure_pa = 120001` rejected
+- [ ] Test: `kalman_q = 0` rejected
+- [ ] Test: `device_name` empty rejected
+- [ ] Test: `device_name` > 20 chars rejected
+- [ ] Test: all valid values accepted
 - [ ] All tests pass in `ceedling test:all`
 
 **Validation**:
 - Run `./scripts/test.sh` — all tests green
 
 **Files to create**:
-- `micro/test/test_kalman_filter.c`
+- `micro/test/test_config_manager.c`
 
 ---
 
-## Phase 4: LK8EX1 Protocol
+## Phase 11: Power Optimization
 
-**Objective**: Implement the LK8EX1 NMEA sentence formatter with checksum calculation.  
-**Estimated Duration**: 1–2 days  
-**Dependencies**: Phase 3 (for understanding the data fields)
-
----
-
-### Task 3.1: LK8EX1 data abstraction layer
-
-**Description**: Create the `lk8ex1` component that formats flight data into an LK8EX1 NMEA sentence string.
-
-**Acceptance Criteria**:
-- [ ] Component `lk8ex1` created in `micro/components/lk8ex1/`
-- [ ] Input struct: `lk8ex1_data_t` with fields: `pressure_pa`, `altitude_m` (or 99999), `vario_cm_s`, `temperature_dc` (°C×10), `battery_mv` (or 999)
-- [ ] Output function: `lk8ex1_format(data, buffer, buffer_size)` → `esp_err_t`
-- [ ] Sentence format: `$LK8EX1,pressure,altitude,vario,temperature,battery*XX\r\n`
-- [ ] Checksum: XOR of chars between `$` and `*` (exclusive), 2-digit uppercase hex
-- [ ] Buffer size check to prevent overflow
-- [ ] Pure C, no ESP-IDF dependencies (testable on host)
-
-**Validation**:
-- Unit tests verify correct output for known inputs
-
-**Files to create**:
-- `micro/components/lk8ex1/CMakeLists.txt`
-- `micro/components/lk8ex1/include/lk8ex1.h`
-- `micro/components/lk8ex1/src/lk8ex1.c`
-
----
-
-### Task 3.2: NMEA checksum calculator
-
-**Description**: Implement a reusable NMEA checksum function (XOR of characters between `$` and `*`).
-
-**Acceptance Criteria**:
-- [ ] Function: `uint8_t nmea_checksum(const char *sentence)` — computes XOR checksum
-- [ ] Validation function: `bool nmea_validate_checksum(const char *sentence)` — checks existing checksum
-- [ ] Handles edge cases: null input, missing `$` or `*`
-
-**Validation**:
-- Unit tests with known NMEA sentences
-
-**Files to modify**:
-- `micro/components/lk8ex1/src/lk8ex1.c`
-
-**Notes**: The checksum function can also be used by the app-side parser for validation.
-
----
-
-### Task 3.3: LK8EX1 sentence formatter
-
-**Description**: Create the `lk8ex1` component that formats flight data into an LK8EX1 NMEA sentence string.
-
-**Acceptance Criteria**:
-- [ ] Component `lk8ex1` created in `micro/components/lk8ex1/`
-- [ ] Input struct: `lk8ex1_data_t` with fields: `pressure_pa`, `altitude_m` (or 99999), `vario_cm_s`, `temperature_dc` (°C×10), `battery_mv` (or 999)
-- [ ] Output function: `lk8ex1_format(data, buffer, buffer_size)` → `esp_err_t`
-- [ ] Sentence format: `$LK8EX1,pressure,altitude,vario,temperature,battery*XX\r\n`
-- [ ] Checksum: XOR of chars between `$` and `*` (exclusive), 2-digit uppercase hex
-- [ ] Buffer size check to prevent overflow
-- [ ] Pure C, no ESP-IDF dependencies (testable on host)
-
-**Validation**:
-- Unit tests verify correct output for known inputs
-
-**Files to create**:
-- `micro/components/lk8ex1/CMakeLists.txt`
-- `micro/components/lk8ex1/include/lk8ex1.h`
-- `micro/components/lk8ex1/src/lk8ex1.c`
-
----
-
-### Task 3.4: Simulated data provider
-
-**Description**: Provide simulated flight data for testing.
-
-**Acceptance Criteria**:
-- [ ] Function to generate random or patterned data
-- [ ] Data rate: 10 Hz (matches sensor read rate)
-- [ ] Data range: realistic (e.g., 30000–110000 Pa for pressure)
-- [ ] Data format: matches LK8EX1 requirements
-
-**Validation**:
-- Verify with known test vectors from MS5611 datasheet (Application Note AN520)
-
-**Files to modify**:
-- `micro/components/lk8ex1/src/lk8ex1.c`
-
----
-
-### Task 3.5: BLE + LK8EX1 integration (send simulated frames)
-
-**Description**: Send simulated LK8EX1 frames over BLE.
-
-**Acceptance Criteria**:
-- [ ] Function to send simulated frames
-- [ ] Frames sent at 4 Hz (matches BLE TX rate)
-- [ ] Frames contain valid LK8EX1 data
-- [ ] Frames are received correctly
-
-**Validation**:
-- Receive LK8EX1 sentences in nRF Connect at ~4 Hz rate
-
-**Files to modify**:
-- `micro/main/main.c` (temporary: send simulated LK8EX1 every 250 ms)
-
----
-
-### Task 3.6: Ceedling unit tests
-
-**Description**: Write unit tests for LK8EX1 formatting and checksum.
-
-**Acceptance Criteria**:
-- [ ] Test: format with typical values produces correct sentence
-- [ ] Test: format with altitude=99999 (no GPS) works correctly
-- [ ] Test: format with battery=999 (no battery readout) works correctly
-- [ ] Test: checksum matches manual XOR calculation
-- [ ] Test: validate checksum returns true for correct sentence
-- [ ] Test: validate checksum returns false for corrupted sentence
-- [ ] Test: format with null buffer returns error
-- [ ] Test: format with insufficient buffer size returns error
-- [ ] All tests pass in `ceedling test:all`
-
-**Validation**:
-- Run `./scripts/test.sh` — all tests green
-
-**Files to create**:
-- `micro/test/test_lk8ex1.c`
-
----
-
-## Phase 4: LED Indicator
-
-**Objective**: Drive the onboard WS2812 RGB LED to indicate device state (BLE connected/disconnected, WiFi stub).  
-**Estimated Duration**: 1–2 days  
-**Dependencies**: Phase 5 (BLE state callbacks)
-
----
-
-### Task 4.1: WS2812 driver via RMT peripheral
-
-**Description**: Create the `led_indicator` component that drives the WS2812 RGB LED using the ESP32-C3's RMT peripheral.
-
-**Acceptance Criteria**:
-- [ ] Component `led_indicator` created in `micro/components/led_indicator/`
-- [ ] API: `led_indicator_init()`, `led_indicator_set_color(r, g, b)`, `led_indicator_off()`
-- [ ] Uses RMT peripheral (ESP-IDF `led_strip` driver or direct RMT)
-- [ ] GPIO8 (WS2812 data pin on DevKitC-02)
-- [ ] Works correctly with WS2812 timing requirements
-
-**Validation**:
-- Flash firmware, LED lights up with specified color
-
-**Files to create**:
-- `micro/components/led_indicator/CMakeLists.txt`
-- `micro/components/led_indicator/include/led_indicator.h`
-- `micro/components/led_indicator/src/led_indicator.c`
-
-**Notes**: ESP-IDF v5.x has a `led_strip` component — use it if available, or implement directly with RMT.
-
----
-
-### Task 4.2: LED state machine (red/green/blue patterns)
-
-**Description**: Implement a state machine that drives the LED with different blink patterns based on device state.
-
-**Acceptance Criteria**:
-- [ ] LED states: `DISCONNECTED` (red, 100ms on / 1900ms off), `CONNECTED` (green, 100ms on / 4900ms off), `WIFI_ACTIVE` (blue, steady)
-- [ ] FreeRTOS task or software timer drives the blink pattern
-- [ ] API: `led_indicator_set_state(led_state_e state)`
-- [ ] State transitions are immediate (no waiting for current cycle to finish)
-- [ ] Default state on boot: `DISCONNECTED` (red blink)
-
-**Validation**:
-- Boot without BLE connection → red blink (100ms/1900ms)
-- Connect via BLE → green blink (100ms/4900ms)
-- Disconnect → back to red blink
-
----
-
-### Task 4.3: Integration with BLE connection state
-
-**Description**: Register a BLE state callback to automatically change LED state on connect/disconnect.
-
-**Acceptance Criteria**:
-- [ ] BLE connect → LED state = `CONNECTED` (green)
-- [ ] BLE disconnect → LED state = `DISCONNECTED` (red)
-- [ ] Transition is immediate and visible
-
-**Validation**:
-- Connect/disconnect from phone, observe LED color changes
-
----
-
-## Phase 5: Hardware Abstraction
-
-**Objective**: Create a thin abstraction over I2C and define the sensor HAL interface that all sensor drivers will implement.  
+**Objective**: Optimize power consumption for battery operation using light-sleep, BLE interval tuning, and peripheral gating.  
 **Estimated Duration**: 2–3 days  
-**Dependencies**: Phase 0 complete
+**Dependencies**: Phase 9 (data pipeline running), Phase 10 (config for tuning)  
+**Architecture Reference**: `firmware-architecture.md` §4.9 `power_manager`, §7.3 Timing Budget
 
 ---
 
-### Task 5.1: I2C bus driver wrapper
+### Task 11.1: Light-sleep between sensor reads
 
-**Description**: Create the `i2c_bus` component — a thin wrapper around ESP-IDF's I2C master driver that simplifies common operations (write, read, write-then-read). This isolates sensor drivers from ESP-IDF's I2C API changes.
+**Description**: Enable automatic light-sleep using ESP-IDF power management.
 
 **Acceptance Criteria**:
-- [ ] Component `i2c_bus` created in `micro/components/i2c_bus/`
-- [ ] Public API: `i2c_bus_init()`, `i2c_bus_write()`, `i2c_bus_read()`, `i2c_bus_write_read()`, `i2c_bus_deinit()`
-- [ ] All functions return `esp_err_t`
-- [ ] Configurable I2C port, SDA/SCL pins, clock speed via config struct
-- [ ] Header follows project conventions (include guard, `extern "C"`, Doxygen)
-- [ ] Uses ESP-IDF's new I2C master driver (v5.x `i2c_master.h`)
+- [ ] Component `power_manager` created in `micro/components/power_manager/`
+- [ ] `esp_err_t power_manager_init(void)` — configures `esp_pm_configure()` with `light_sleep_enable = true`
+- [ ] `esp_err_t power_manager_enable_light_sleep(bool enable)` — dynamically toggles automatic light-sleep
+- [ ] FreeRTOS tickless idle handles the sleep/wake cycle when PM is enabled
+- [ ] System enters light-sleep during ~81.5 ms idle gap per sensor cycle (per architecture §7.3 timing budget)
+- [ ] Light-sleep does not interfere with BLE advertising or connections
 
 **Validation**:
-- Build succeeds with the new component
-- (Optional) Quick test: init I2C bus, scan for devices, log found addresses
+- Verify with power meter: current drops significantly during sleep periods
+- System still responds to BLE connections during light-sleep
 
 **Files to create**:
-- `micro/components/i2c_bus/CMakeLists.txt`
-- `micro/components/i2c_bus/include/i2c_bus.h`
-- `micro/components/i2c_bus/src/i2c_bus.c`
-- `micro/components/i2c_bus/src/i2c_bus_types.h`
-
-**Notes**:
-- ESP32-C3 has 1 I2C port (I2C_NUM_0).
-- Default pins for DevKitC-02: SDA=GPIO4, SCL=GPIO5 (configurable).
-- Use 100 kHz (standard mode) by default; MS5611 supports up to 400 kHz.
+- `micro/components/power_manager/CMakeLists.txt`
+- `micro/components/power_manager/include/power_manager.h`
+- `micro/components/power_manager/src/power_manager.c`
 
 ---
 
-### Task 5.2: Sensor HAL interface definition
+### Task 11.2: BLE connection interval optimization
 
-**Description**: Define the `sensor_hal` component — an abstract interface that all sensor drivers must implement. This allows the data pipeline to work with any sensor without knowing its specifics.
+**Description**: Optimize BLE connection parameters to reduce radio-on time while maintaining acceptable latency.
 
 **Acceptance Criteria**:
-- [ ] Component `sensor_hal` created in `micro/components/sensor_hal/`
-- [ ] Interface struct `sensor_hal_interface_t` defined with function pointers:
-  - `esp_err_t (*init)(void *ctx, const void *cfg)`
-  - `esp_err_t (*read)(void *ctx)`
-  - `void (*deinit)(void *ctx)`
-  - `int32_t (*get_pressure_pa)(void *ctx)` — returns pressure in Pascals
-  - `int32_t (*get_temperature_cc)(void *ctx)` — returns temperature in centi-Celsius (°C × 100)
-- [ ] Public struct `sensor_hal_t` that wraps the interface + context pointer
-- [ ] Convenience functions: `sensor_hal_init()`, `sensor_hal_read()`, etc. that dispatch through function pointers
-- [ ] Header includes Doxygen documentation
+- [ ] Request connection interval: 200–400 ms (lower power than default 30 ms)
+- [ ] Slave latency: 0 (respond to every connection event)
+- [ ] Supervision timeout: 4000 ms
+- [ ] Connection parameter update request sent after connection established
+- [ ] Verify data still arrives at 4 Hz (BLE sender rate)
 
 **Validation**:
-- Build succeeds
-- Review: interface is generic enough for MS5611 and future BMP390
+- `ble_gap_conn_params_update()` succeeds without errors
+- Data rate unaffected
+
+**Files to modify**:
+- `micro/components/ble_nus/src/ble_nus.c` (connection parameter negotiation)
+
+---
+
+### Task 11.3: Peripheral power gating
+
+**Description**: Disable unused peripherals to reduce baseline power consumption.
+
+**Acceptance Criteria**:
+- [ ] WiFi radio disabled when not in use (`wifi_enabled == false` in config)
+- [ ] `esp_err_t power_manager_get_battery_mv(uint16_t *battery_mv)` — reads battery via ADC (or returns 999 if no ADC in MVP)
+- [ ] Unused GPIO pins set to input with pull-down to prevent floating
+- [ ] I2C bus only active during sensor reads (optional: release between reads)
+
+**Validation**:
+- Verify baseline current with unused peripherals disabled
+
+**Files to modify**:
+- `micro/components/power_manager/src/power_manager.c`
+
+---
+
+### Task 11.4: Power consumption measurement & logging
+
+**Description**: Measure and document power consumption in various states.
+
+**Acceptance Criteria**:
+- [ ] Measure current in: BLE advertising, BLE connected idle, BLE connected + sensor reads, light-sleep
+- [ ] Document results in a power budget table
+- [ ] Estimate battery life for target battery capacity (e.g., 500 mAh → 8+ hours target)
+- [ ] Identify any unexpected power drains
+
+**Validation**:
+- Power budget documented
+- Battery life estimate meets 8+ hour target
 
 **Files to create**:
-- `micro/components/sensor_hal/CMakeLists.txt`
-- `micro/components/sensor_hal/include/sensor_hal.h`
+- `docs/power-budget.md` (measurement results and analysis)
+
+---
+
+## Phase 12: Integration & Validation
+
+**Objective**: Full system validation with real-world testing, long-duration stability, and edge case coverage.  
+**Estimated Duration**: 2–3 days  
+**Dependencies**: All previous phases complete
+
+---
+
+### Task 12.1: End-to-end test with XCTrack
+
+**Description**: Validate the complete system with XCTrack (the target variometer app for paragliding).
+
+**Acceptance Criteria**:
+- [ ] XCTrack detects "FlyInPeace" as a vario sensor source
+- [ ] XCTrack receives and parses LK8EX1 sentences correctly
+- [ ] Altitude display in XCTrack matches expected value (±10 m at known altitude)
+- [ ] Vario display responds to pressure changes (blow on sensor → positive reading)
+- [ ] No data gaps or parsing errors in XCTrack logs
+
+**Validation**:
+- Run XCTrack with FlyInPeace connected for 15+ minutes
+- Screenshot/document XCTrack readings
+
+---
+
+### Task 12.2: Long-duration stability test (8+ hours)
+
+**Description**: Run the system for extended duration to verify stability.
+
+**Acceptance Criteria**:
+- [ ] System runs for 8+ hours without crashes, reboots, or watchdog resets
+- [ ] No memory leaks (free heap stable over time)
+- [ ] BLE connection remains stable (or re-establishes after disconnect)
+- [ ] Sensor readings remain consistent (no drift or failures)
+- [ ] Stack high-water marks remain safe (>25% remaining)
+
+**Validation**:
+- Serial monitor log captured for full duration
+- Heap and stack metrics at start, 1h, 4h, 8h
+
+---
+
+### Task 12.3: Power consumption budget verification
+
+**Description**: Verify actual power consumption meets the design budget from Phase 11.
+
+**Acceptance Criteria**:
+- [ ] Actual current draw matches documented power budget (±20%)
+- [ ] Battery life meets target (8+ hours on target battery)
+- [ ] Light-sleep activation confirmed via power measurement
+
+**Validation**:
+- Run on battery for full duration test
+- Document actual vs expected power consumption
+
+---
+
+### Task 12.4: Edge case testing (BLE disconnect/reconnect, sensor errors)
+
+**Description**: Test error handling and recovery scenarios.
+
+**Acceptance Criteria**:
+- [ ] BLE disconnect → advertising restarts → reconnection works
+- [ ] Rapid connect/disconnect cycles (10x) → no crashes
+- [ ] Sensor I2C error (e.g., disconnect sensor briefly) → `sensor_valid = false` → LED shows `ERROR` → sensor reconnect → recovery
+- [ ] NVS full/corrupt → defaults applied, system runs
+- [ ] OOM scenario: verify graceful handling
+- [ ] Multiple phones scanning simultaneously → no crash
+
+**Validation**:
+- Document each test case result (pass/fail)
+
+---
+
+## Phase 13: Documentation & Cleanup
+
+**Objective**: Final documentation, code cleanup, and preparation for ongoing development.  
+**Estimated Duration**: 1–2 days  
+**Dependencies**: Phase 12 complete
+
+---
+
+### Task 13.1: Firmware README with build/flash instructions
+
+**Description**: Write a comprehensive README for the firmware directory.
+
+**Acceptance Criteria**:
+- [ ] `micro/README.md` includes:
+  - Project overview and architecture summary
+  - Prerequisites (ESP-IDF version, Python, tools)
+  - Build instructions (`idf.py build`)
+  - Flash instructions (`./scripts/flash.sh`)
+  - Monitor instructions (`./scripts/monitor.sh`)
+  - Sensor selection via `idf.py menuconfig`
+  - Test instructions (`./scripts/test.sh`)
+  - Troubleshooting (common errors)
+
+**Validation**:
+- A new developer can follow README to build, flash, and run
+
+**Files to create**:
+- `micro/README.md`
+
+---
+
+### Task 13.2: Component API documentation
+
+**Description**: Ensure all public headers have complete Doxygen documentation.
+
+**Acceptance Criteria**:
+- [ ] All public functions in all component headers have Doxygen `@brief`, `@param`, `@return`
+- [ ] All public structs have field documentation
+- [ ] All enums have value documentation
+- [ ] No undocumented public symbols
+
+**Validation**:
+- Review all `include/*.h` files
+
+---
+
+### Task 13.3: Architecture diagram update (Mermaid)
+
+**Description**: Update the architecture document with final Mermaid diagrams reflecting the actual implementation.
+
+**Acceptance Criteria**:
+- [ ] Component dependency diagram matches actual `REQUIRES` in CMakeLists.txt files
+- [ ] Data flow diagram matches actual task implementation
+- [ ] State machine diagrams match actual code behavior
+- [ ] Any deviations from original architecture documented with rationale
+
+**Validation**:
+- Diagrams render correctly in GitHub Markdown
+
+**Files to modify**:
+- `docs/architecture/firmware-architecture.md`
+
+---
+
+### Task 13.4: Code review pass (Boy Scout Rule)
+
+**Description**: Final code review and cleanup following the Boy Scout Rule ("leave the code cleaner than you found it").
+
+**Acceptance Criteria**:
+- [ ] All `TODO` and `FIXME` comments resolved or tracked as issues
+- [ ] Code formatted with `.clang-format` (`./scripts/format.sh`)
+- [ ] No compiler warnings with `-Wall -Wextra -Werror`
+- [ ] No unused includes, variables, or functions
+- [ ] Consistent naming conventions across all components
+- [ ] All magic numbers replaced with named constants
+- [ ] All temporary test code removed from `main.c`
+
+**Validation**:
+- Clean build with no warnings
+- `./scripts/test.sh` — all tests pass
+- Code review checklist completed

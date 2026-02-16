@@ -358,6 +358,7 @@ typedef struct kalman_cfg_s
     float q_altitude;          // Process noise for altitude (default: 0.01)
     float q_vario;             // Process noise for vario (default: 0.01)
     float r_measurement;       // Measurement noise (default: 0.5)
+    float reference_pressure_pa; // QNH reference pressure (default: 101325.0)
 } kalman_cfg_t;
 
 typedef struct kalman_state_s
@@ -373,18 +374,29 @@ esp_err_t kalman_filter_init(kalman_state_t *state, const kalman_cfg_t *cfg);
 esp_err_t kalman_filter_update(kalman_state_t *state, const kalman_cfg_t *cfg,
                                float pressure_pa, int64_t timestamp_us);
 esp_err_t kalman_filter_reset(kalman_state_t *state);
+
+/// Calibrate the reference pressure (QNH) so that the barometric altitude
+/// matches a known altitude. Computes P0 from the current pressure reading
+/// and the user-supplied altitude using the inverse barometric formula.
+esp_err_t kalman_filter_calibrate(kalman_cfg_t *cfg, kalman_state_t *state,
+                                  float known_altitude_m, float current_pressure_pa);
 ```
 
 **Contract**:
 - `init()` sets initial state: altitude = 0, vario = 0, covariance = identity.
-- `update()` performs predict + correct step. Converts pressure to altitude internally using barometric formula. Computes dt from timestamps.
+- `update()` performs predict + correct step. Converts pressure to altitude internally using the barometric formula with `cfg->reference_pressure_pa` as $P_0$. Computes dt from timestamps.
 - If `!initialized`, first call sets altitude from pressure and marks initialized (no predict step).
 - `reset()` clears state (e.g., after sensor error or config change).
+- `calibrate()` computes a new $P_0$ from a known altitude and current pressure using the inverse barometric formula, stores it in `cfg->reference_pressure_pa`, and resets the filter state so the next update adopts the corrected baseline immediately. Returns `ESP_ERR_INVALID_ARG` if `known_altitude_m` is outside [-500, 10000] m or `current_pressure_pa` is outside [20000, 120000] Pa.
 - All math uses `float` (ESP32-C3 has no FPU; `float` is faster than `double` in software).
 
 **Barometric formula** (ISA standard atmosphere):
 $$h = 44330 \times \left(1 - \left(\frac{P}{P_0}\right)^{0.1903}\right)$$
-Where $P_0 = 101325$ Pa (sea level reference).
+Where $P_0$ = `reference_pressure_pa` (default: 101325 Pa, sea level standard pressure).
+
+**Inverse barometric formula** (used by `calibrate()`):
+$$P_0 = \frac{P}{\left(1 - \frac{h}{44330}\right)^{5.255}}$$
+Given a known altitude $h$ and current pressure $P$, this derives the reference pressure $P_0$ (QNH) that makes the barometric formula output match $h$.
 
 ---
 
@@ -416,7 +428,10 @@ bool      lk8ex1_validate(const char *sentence);
 - `validate()` parses sentence, computes checksum, compares with embedded checksum.
 - All integer formatting; no floating-point operations.
 
-**Example output**: `$LK8EX1,101325,99999,50,235,999*18\r\n`
+**Example output** (uncalibrated): `$LK8EX1,101325,99999,50,235,999*18\r\n`  
+**Example output** (calibrated, altitude = 452 m): `$LK8EX1,101325,452,50,235,999*XX\r\n`
+
+> When altitude calibration is active (`reference_pressure_pa ≠ 101325`), the `altitude_m` field contains the Kalman-filtered calibrated altitude instead of `99999`.
 
 ---
 
@@ -499,6 +514,7 @@ typedef struct device_config_s
     uint8_t  ble_tx_rate_hz;       // BLE send rate (default: 4)
     float    kalman_q;             // Kalman process noise (default: 0.01)
     float    kalman_r;             // Kalman measurement noise (default: 0.5)
+    float    reference_pressure_pa; // QNH reference pressure (default: 101325.0)
     char     device_name[21];      // BLE device name (default: "FlyInPeace")
     bool     wifi_enabled;         // WiFi enable flag (default: false)
 } device_config_t;
@@ -515,7 +531,7 @@ const device_config_t *config_manager_get_defaults(void);
 - `load()` reads all config fields from NVS. On any read error, uses default value for that field.
 - `save()` validates all fields before writing. Returns `ESP_ERR_INVALID_ARG` if validation fails.
 - Thread-safe: internal mutex protects NVS access.
-- Validation rules: `sensor_rate_hz` ∈ [1, 100], `ble_tx_rate_hz` ∈ [1, 50], `kalman_q` ∈ [0.001, 10.0], `kalman_r` ∈ [0.01, 100.0], `device_name` length ∈ [1, 20].
+- Validation rules: `sensor_rate_hz` ∈ [1, 100], `ble_tx_rate_hz` ∈ [1, 50], `kalman_q` ∈ [0.001, 10.0], `kalman_r` ∈ [0.01, 100.0], `reference_pressure_pa` ∈ [80000.0, 120000.0], `device_name` length ∈ [1, 20].
 
 ---
 
@@ -561,13 +577,18 @@ esp_err_t power_manager_get_battery_mv(uint16_t *battery_mv);
 
 ```
 loop (every 100 ms):
-    1. sensor_hal_read(&sensor_data)
-    2. kalman_filter_update(&state, &cfg, sensor_data.pressure_pa, sensor_data.timestamp_us)
-    3. Copy kalman_state to shared_flight_data (protected by mutex)
-    4. vTaskDelay(remaining time to hit 100 ms period)
+    1. Check calibration_queue for pending calibration request (non-blocking)
+       → If received: kalman_filter_calibrate(&cfg, &state, known_alt, last_pressure)
+                       config_manager_save() (persist new reference_pressure_pa)
+    2. sensor_hal_read(&sensor_data)
+    3. kalman_filter_update(&state, &cfg, sensor_data.pressure_pa, sensor_data.timestamp_us)
+    4. Copy kalman_state to shared_flight_data (protected by mutex)
+    5. vTaskDelay(remaining time to hit 100 ms period)
 ```
 
 This is the highest-priority application task because sensor timing accuracy directly affects Kalman filter quality.
+
+> **Altitude calibration flow**: The calibration request arrives via BLE → `config_task` → `calibration_queue` → `sensor_task`. The `sensor_task` executes the calibration in its own context because it owns the `kalman_cfg_t` and `kalman_state_t` — no mutex contention on the filter state.
 
 #### ble_sender_task (Priority 3)
 
@@ -596,9 +617,12 @@ loop (every 100 ms):
 loop:
     1. xQueueReceive(config_queue, &request, portMAX_DELAY)  // blocks until event
     2. Switch on request type:
-       - CONFIG_READ:  config_manager_load() → send response via BLE Config char
-       - CONFIG_WRITE: validate → config_manager_save() → apply → send ack
-       - CONFIG_RESET: config_manager_reset_defaults() → restart
+       - CONFIG_READ:      config_manager_load() → send response via BLE Config char
+       - CONFIG_WRITE:     validate → config_manager_save() → apply → send ack
+       - CONFIG_RESET:     config_manager_reset_defaults() → restart
+       - CONFIG_CALIBRATE: extract known_altitude_m from data
+                           → post to calibration_queue (consumed by sensor_task)
+                           → send ack via BLE Config char
 ```
 
 ### 5.3 Task Timing Diagram (1-second window)
@@ -646,10 +670,11 @@ The primary data exchange between `sensor_task` and `ble_sender_task` uses a mut
 ```c
 typedef struct shared_flight_data_s
 {
-    float    altitude_m;       // From Kalman filter
+    float    altitude_m;       // From Kalman filter (calibrated if P0 adjusted)
     float    vario_ms;         // From Kalman filter (m/s)
     int32_t  pressure_pa;      // Last raw pressure
     int32_t  temperature_mc;   // Last raw temperature (milli-Celsius)
+    float    reference_pressure_pa; // Current QNH (101325.0 if uncalibrated)
     int64_t  timestamp_us;     // Timestamp of last sensor read
     bool     sensor_valid;     // false if last read failed
 } shared_flight_data_t;
@@ -667,6 +692,7 @@ typedef enum config_request_type_e
     CONFIG_REQUEST_READ,
     CONFIG_REQUEST_WRITE,
     CONFIG_REQUEST_RESET,
+    CONFIG_REQUEST_CALIBRATE,  // Altitude calibration: data contains known altitude (float, 4 bytes)
 } config_request_type_e;
 
 typedef struct config_request_s
@@ -681,15 +707,34 @@ typedef struct config_request_s
 // Consumer: config_task
 ```
 
-### 6.3 LED State (Atomic / Direct Call)
+### 6.3 Calibration Queue (sensor_task consumer)
+
+```c
+typedef struct calibration_request_s
+{
+    float known_altitude_m;    // User-supplied known altitude in meters
+} calibration_request_t;
+
+// Queue: xQueueCreate(1, sizeof(calibration_request_t))  — depth 1, overwrite
+// Producer: config_task (on CONFIG_REQUEST_CALIBRATE)
+// Consumer: sensor_task (non-blocking poll at start of each cycle)
+```
+
+Why a separate queue instead of acting directly in `config_task`? The calibration calls
+`kalman_filter_calibrate()` which modifies `kalman_cfg_t` and `kalman_state_t`. These are
+owned exclusively by `sensor_task` — routing the request through a queue avoids shared
+mutable state and eliminates the need for a second mutex.
+
+### 6.4 LED State (Atomic / Direct Call)
 
 LED state is set via `led_indicator_set_state()` which internally posts to a small queue (depth 1, overwrite mode). The LED task consumes the state and manages the blinking pattern. No mutex needed — the API is designed to be called from any context.
 
-### 6.4 Communication Map
+### 6.5 Communication Map
 
 ```mermaid
 graph TB
     subgraph "sensor_task (10 Hz)"
+        S0[check calibration_queue]
         S1[sensor_hal_read]
         S2[kalman_filter_update]
     end
@@ -701,17 +746,20 @@ graph TB
 
     subgraph "config_task (event)"
         C1[config_manager_load/save]
+        C2[forward calibration]
     end
 
     subgraph "led_task (10 Hz)"
         L1[led pattern update]
     end
 
+    S0 --> S1
     S1 --> S2
     S2 -->|mutex: shared_flight_data| B1
     B1 --> B2
 
     BLE_RX[BLE Config Write CB] -->|queue: config_request| C1
+    C2 -->|queue: calibration_request| S0
     BLE_STATE[BLE State CB] -->|set_state| L1
 ```
 
@@ -738,6 +786,7 @@ graph TB
                               │ vario_ms           │
                               │ pressure_pa        │
                               │ temperature_mc     │
+                              │ reference_pressure │
                               │ timestamp_us       │
                               └────────────────────┘
                                   (mutex-protected)
@@ -750,9 +799,9 @@ graph TB
 | I2C raw ADC | `uint32_t` (24-bit) | MS5611: D1=6465444, D2=8077636; BMP390: similar range |
 | Compensated pressure | `int32_t` (Pa) | 101325 |
 | Compensated temperature | `int32_t` (milli-°C) | 23500 (= 23.5°C) |
-| Kalman altitude | `float` (m) | 452.3 |
+| Kalman altitude | `float` (m) | 452.3 (calibrated) or relative to P0 |
 | Kalman vario | `float` (m/s) | 0.50 |
-| LK8EX1 sentence | `char[64]` | `$LK8EX1,101325,99999,50,235,999*18\r\n` |
+| LK8EX1 sentence | `char[64]` | `$LK8EX1,101325,452,50,235,999*XX\r\n` |
 | BLE NUS TX | `uint8_t[]` | UTF-8 bytes of sentence |
 
 ### 7.3 Timing Budget per Cycle
@@ -881,6 +930,7 @@ stateDiagram-v2
 | `sensor_bmp390` | I2C NACK/timeout | Same strategy as MS5611: retry once, then error. 3 consecutive failures → `sensor_valid = false`. |
 | `sensor_bmp390` | Chip ID mismatch | Return `ESP_ERR_NOT_FOUND` on init. Log error with expected vs actual chip ID. |
 | `kalman_filter` | Invalid input (NaN, extreme values) | Skip update, keep previous state. Log warning. |
+| `kalman_filter` | Calibrate with out-of-range altitude/pressure | Return `ESP_ERR_INVALID_ARG`. Keep current P0. Log warning. |
 | `lk8ex1` | Buffer too small | Return `ESP_ERR_INVALID_SIZE`. Never write past buffer. |
 | `ble_nus` | Send while not connected | Return `ESP_ERR_INVALID_STATE`. Caller skips silently. |
 | `ble_nus` | Send while CCCD not subscribed | Return `ESP_ERR_INVALID_STATE`. |
