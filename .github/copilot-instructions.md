@@ -8,6 +8,12 @@ This is a battery-powered IoT variometer (vario) for paragliding / free-flight s
 - **app/**: Android companion app (Flutter with Dart, flutter_blue_plus for BLE)
 - **docs/**: Roadmaps (`roadmap.micro.md`, `roadmap.app.md`) and architecture documentation
 
+## Intructions for the IA
+
+Remember that I am an embbed developer expert. Ask me if you have any doubts.
+
+Load agents, prompts and instructions from the `.github/`.
+
 ## Master Reference
 
 Read `.github/PRE-PROMPT.md` for full project scope, constraints, and style guide.

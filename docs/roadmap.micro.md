@@ -17,10 +17,10 @@
   - [x] Task 0.5: Configure `sdkconfig.defaults` for ESP32-C3 + NimBLE
   - [x] Task 0.6: Verify "Hello World" builds, flashes, and runs
   - [x] Task 0.7: Create ESP-IDF environment activation script
-- [ ] **Phase 1: Software Architecture Design**
-  - [ ] Task 1.1: System architecture document
-  - [ ] Task 1.2: Component interface contracts
-  - [ ] Task 1.3: FreeRTOS task model and data flow design
+- [x] **Phase 1: Software Architecture Design**
+  - [x] Task 1.1: System architecture document
+  - [x] Task 1.2: Component interface contracts
+  - [x] Task 1.3: FreeRTOS task model and data flow design
 - [ ] **Phase 2: BLE NUS Service**
   - [ ] Task 2.1: NimBLE initialization and GAP configuration
   - [ ] Task 2.2: NUS GATT service registration
@@ -280,9 +280,9 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Description**: Create a document that outlines the overall system architecture, including tasks, queues, components, and data flow.
 
 **Acceptance Criteria**:
-- [ ] Document exists with clear structure and diagrams
-- [ ] Covers all components and their interactions
-- [ ] Includes timing diagrams and resource allocation
+- [x] Document exists with clear structure and diagrams
+- [x] Covers all components and their interactions
+- [x] Includes timing diagrams and resource allocation
 
 **Validation**:
 - Review: architecture is clear and comprehensive
@@ -297,8 +297,8 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Description**: Define the interfaces that all components must implement.
 
 **Acceptance Criteria**:
-- [ ] Interface contracts defined in `docs/architecture/ble_protocol.md`
-- [ ] Each component has a brief description in its header
+- [x] Interface contracts defined in `docs/architecture/ble_protocol.md`
+- [x] Each component has a brief description in its header
 
 **Validation**:
 - Review: contracts are clear and sufficient
@@ -313,8 +313,8 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Description**: Define the FreeRTOS task model and data flow.
 
 **Acceptance Criteria**:
-- [ ] Task model defined in `docs/architecture/firmware-architecture.md`
-- [ ] Data flow diagrams included
+- [x] Task model defined in `docs/architecture/firmware-architecture.md`
+- [x] Data flow diagrams included
 
 **Validation**:
 - Review: model is clear and realistic

@@ -1,10 +1,12 @@
 # BLE Protocol Specification — ESP Fly-in-Peace
 
-> Last updated: 2026-02-15
+> Last updated: 2026-02-16
 
 ## Overview
 
-The ESP Fly-in-Peace device exposes two BLE GATT services:
+The ESP Fly-in-Peace device exposes two BLE GATT services via the `ble_nus` component
+(`micro/components/ble_nus/`). This component encapsulates all NimBLE stack management,
+GAP advertising, and GATT service registration.
 
 1. **NUS (Nordic UART Service)** — Streams LK8EX1 flight data via notifications (XCTrack compatible)
 2. **Config Service** — Device configuration read/write (separate GATT service)
@@ -165,6 +167,85 @@ Client (App/XCTrack)                    Device (ESP32-C3)
 | Device Info | `0000ABC1-0000-1000-8000-00805F9B34FB` |
 | Config Read | `0000ABC2-0000-1000-8000-00805F9B34FB` |
 | Config Write | `0000ABC3-0000-1000-8000-00805F9B34FB` |
+
+---
+
+## 7. Firmware C Interface Contract
+
+The `ble_nus` component provides a single public header (`ble_nus.h`) that exposes the
+following API. All BLE internals (GATT tables, GAP callbacks, NimBLE host task) are
+encapsulated and not exposed.
+
+### 7.1 Types
+
+```c
+/// Callback invoked when data is received on NUS RX characteristic
+typedef void (*ble_nus_rx_cb_t)(const uint8_t *data, uint16_t len);
+
+/// Callback invoked on BLE connection state changes
+typedef void (*ble_nus_state_cb_t)(bool connected, uint16_t conn_handle);
+
+/// BLE NUS initialization configuration
+typedef struct ble_nus_cfg_s
+{
+    const char *device_name;       // Advertised device name (max 20 chars, default: "FlyInPeace")
+    uint16_t    adv_interval_ms;   // Advertising interval in ms (default: 100)
+} ble_nus_cfg_t;
+```
+
+### 7.2 Public API
+
+```c
+/// Initialize NimBLE stack, register NUS + Config GATT services, start advertising.
+/// Must be called once from app_main() before any other ble_nus function.
+esp_err_t ble_nus_init(const ble_nus_cfg_t *cfg);
+
+/// Deinitialize BLE stack. Stops advertising, disconnects clients, frees resources.
+esp_err_t ble_nus_deinit(void);
+
+/// Send data via NUS TX notification.
+/// Returns ESP_ERR_INVALID_STATE if not connected or CCCD not subscribed.
+/// Fragments data if payload exceeds (MTU - 3). Thread-safe.
+esp_err_t ble_nus_send(const uint8_t *data, uint16_t len);
+
+/// Returns true if a BLE client is currently connected. Thread-safe (atomic read).
+bool ble_nus_is_connected(void);
+
+/// Register callback for NUS RX data (client → device writes).
+/// Only one callback supported. Passing NULL unregisters.
+void ble_nus_register_rx_callback(ble_nus_rx_cb_t callback);
+
+/// Register callback for BLE connection state changes (connect/disconnect).
+/// Only one callback supported. Passing NULL unregisters.
+void ble_nus_register_state_callback(ble_nus_state_cb_t callback);
+```
+
+### 7.3 Error Codes
+
+| Return Code | Condition |
+|-------------|-----------|
+| `ESP_OK` | Operation succeeded |
+| `ESP_ERR_INVALID_ARG` | NULL pointer for required parameter |
+| `ESP_ERR_INVALID_STATE` | `send()` called when not connected or not subscribed |
+| `ESP_ERR_NO_MEM` | NimBLE memory pool exhausted |
+| `ESP_FAIL` | NimBLE host or GATT registration failure |
+
+### 7.4 Threading Model
+
+- `ble_nus_init()` / `ble_nus_deinit()` — call from `app_main()` only (not thread-safe).
+- `ble_nus_send()` — thread-safe, can be called from any FreeRTOS task.
+- `ble_nus_is_connected()` — thread-safe (atomic read of `_Atomic bool`).
+- Callbacks (`rx_cb`, `state_cb`) are invoked from the NimBLE host task context. Keep handlers short and non-blocking.
+
+### 7.5 Config Service GATT Interface
+
+The Config Service is registered internally by `ble_nus_init()`. It interacts with `config_manager` via a config request queue (see [firmware-architecture.md](firmware-architecture.md) §6.2).
+
+| Operation | Trigger | Internal Action |
+|-----------|---------|-----------------|
+| Device Info read | Client reads `0xABC1` | Build JSON from fw version + battery |
+| Config read | Client reads `0xABC2` | `config_manager_load()` → JSON response |
+| Config write | Client writes `0xABC3` | Post `CONFIG_REQUEST_WRITE` to config queue |
 
 ---
 
