@@ -16,7 +16,7 @@
   - [x] Task 0.4: Create build/flash/test/monitor scripts
   - [x] Task 0.5: Configure `sdkconfig.defaults` for ESP32-C3 + NimBLE
   - [x] Task 0.6: Verify "Hello World" builds, flashes, and runs
-  - [ ] Task 0.7: Create ESP-IDF environment activation script
+  - [x] Task 0.7: Create ESP-IDF environment activation script
 - [ ] **Phase 1: Hardware Abstraction**
   - [ ] Task 1.1: I2C bus driver wrapper
   - [ ] Task 1.2: Sensor HAL interface definition
@@ -236,13 +236,13 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 - Deactivate: `idf_deactivate`
 
 **Acceptance Criteria**:
-- [ ] `micro/scripts/env.sh` exists and is sourceable (not executable directly)
-- [ ] Sourcing it activates the ESP-IDF environment (adds `idf.py` to PATH)
-- [ ] Defines an `idf_deactivate` function that restores the original PATH/environment
-- [ ] Prints a colored status message indicating activation/deactivation
-- [ ] Is idempotent — sourcing twice does not duplicate PATH entries
-- [ ] Detects ESP-IDF installation path automatically or uses `IDF_PATH` if set
-- [ ] All existing scripts (`build.sh`, `flash.sh`, etc.) work after sourcing
+- [x] `micro/scripts/env.sh` exists and is sourceable (not executable directly)
+- [x] Sourcing it activates the ESP-IDF environment (adds `idf.py` to PATH)
+- [x] Defines an `idf_deactivate` function that restores the original PATH/environment
+- [x] Prints a colored status message indicating activation/deactivation
+- [x] Is idempotent — sourcing twice does not duplicate PATH entries
+- [x] Detects ESP-IDF installation path automatically or uses `IDF_PATH` if set
+- [x] All existing scripts (`build.sh`, `flash.sh`, etc.) work after sourcing
 
 **Validation**:
 - Open a fresh terminal, `source ./scripts/env.sh`, run `idf.py --version`
