@@ -90,6 +90,23 @@
 
 ---
 
+## Cross-Phase Rule — `conductor-model-hardware`
+
+**Mandatory scope**: all implementation phases (`0`, `2` to `12`).
+
+For every module/component implemented in those phases:
+
+- **Conductor**: orchestration, lifecycle, error mapping, retries, timing.
+- **Model**: pure logic/state (deterministic and testable without ESP-IDF dependencies).
+- **Hardware**: platform adapters and peripheral/driver calls.
+
+**Phase completion gate**:
+- No implementation phase is considered complete if new module code violates this split.
+- Validation must include functional checks **after** refactorization to this pattern.
+- The module checklist in `docs/architecture/conductor-model-hardware-template.md` must be applied.
+
+---
+
 ## Phase 0: Project Bootstrap
 
 **Objective**: Set up a working ESP-IDF project that compiles, flashes, and runs a "Hello World" on the ESP32-C3-DevKitC-02.  
@@ -296,6 +313,7 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 - [x] Document exists with clear structure and diagrams
 - [x] Covers all components and their interactions
 - [x] Includes timing diagrams and resource allocation
+- [x] Defines `conductor-model-hardware` pattern and module responsibilities
 
 **Validation**:
 - Review: architecture is clear and comprehensive
@@ -312,6 +330,7 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Acceptance Criteria**:
 - [x] Interface contracts defined in `docs/architecture/ble_protocol.md`
 - [x] Each component has a brief description in its header
+- [x] Contracts are compatible with `conductor-model-hardware` split (public API in conductor)
 
 **Validation**:
 - Review: contracts are clear and sufficient

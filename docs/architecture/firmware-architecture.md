@@ -1,6 +1,6 @@
 # Firmware Architecture — ESP Fly-in-Peace
 
-> Last updated: 2026-02-16  
+> Last updated: 2026-02-17  
 > Phase 1 — Software Architecture Design
 
 ---
@@ -9,6 +9,7 @@
 
 1. [High-Level Overview](#1-high-level-overview)
 2. [Layer Architecture](#2-layer-architecture)
+    - [2.1 Conductor-Model-Hardware Pattern](#21-conductor-model-hardware-pattern)
 3. [Component Catalog](#3-component-catalog)
 4. [Component Interface Contracts (C API)](#4-component-interface-contracts-c-api)
 5. [FreeRTOS Task Model](#5-freertos-task-model)
@@ -95,6 +96,38 @@ Dependencies point strictly **downward**. No layer may reference a layer above i
 | **HAL** | Sensor abstraction, I2C communication | Mockable interface for host tests |
 | **ESP-IDF Platform** | Hardware drivers, RTOS kernel | Not tested directly |
 
+### 2.1 Conductor-Model-Hardware Pattern
+
+All module implementations must follow the **conductor-model-hardware** pattern:
+
+- **Conductor**: orchestrates workflow, lifecycle, retries, timing, and error propagation.
+- **Model**: pure business logic and state transitions, deterministic and host-testable.
+- **Hardware**: thin adapter over ESP-IDF drivers/peripherals (NimBLE, I2C, RMT, NVS, ADC, PM).
+
+Rules:
+
+1. Application tasks and external APIs call only **conductor** entry points.
+2. **Model** layer does not depend on ESP-IDF headers.
+3. **Hardware** layer contains all platform I/O and driver bindings.
+4. Data flows: `conductor -> hardware` for I/O, `conductor -> model` for domain logic.
+5. Error mapping to public `esp_err_t` is done in **conductor**.
+
+Recommended internal file split per component:
+
+```
+component_name/
+├── include/
+│   └── component_name.h                 # Public API (conductor-facing)
+└── src/
+    ├── component_name_conductor.c
+    ├── component_name_model.c
+    └── component_name_hardware.c
+```
+
+If a component is pure algorithm/formatting, it can omit `_hardware` and keep only model/conductor or a single file when justified.
+
+Implementation template and closure checklist: `docs/architecture/conductor-model-hardware-template.md`.
+
 ---
 
 ## 3. Component Catalog
@@ -124,9 +157,26 @@ micro/components/
 | `config_manager` | Application | ESP-IDF NVS | Mutex |
 | `power_manager` | Application | ESP-IDF PM, GPIO | — |
 
+### 3.1 Pattern Mapping per Component
+
+| Component | Conductor | Model | Hardware |
+|-----------|-----------|-------|----------|
+| `ble_nus` | GAP/GATT lifecycle, subscriptions, fragmentation, callbacks | Connection state, packet policy, notify eligibility | NimBLE host, GAP/GATT APIs |
+| `sensor_hal` | Driver selection and read orchestration | Sensor-independent read contract | I2C bus lifecycle + selected driver binding |
+| `sensor_ms5611` | Read sequence orchestration and retries | Compensation math + calibration state | MS5611 register access via I2C |
+| `sensor_bmp390` | Read/config sequencing and retries | Compensation/filter state | BMP390 register access via I2C |
+| `kalman_filter` | API guards and state lifecycle | Predict/correct/calibration math | Not applicable |
+| `lk8ex1` | Formatting/validation entry points | Sentence/checksum logic | Not applicable |
+| `led_indicator` | Pattern scheduler and state transitions | Pattern timing model | RMT/WS2812 output |
+| `config_manager` | Load/save/reset orchestration and validation flow | Config schema + validation rules | NVS backend |
+| `power_manager` | Power policy orchestration | Power budget decision rules | PM/ADC/GPIO platform calls |
+
 ---
 
 ## 4. Component Interface Contracts (C API)
+
+Public headers keep the same APIs described below. Internally, each component implementation follows the
+**conductor-model-hardware** split from §2.1.
 
 ### 4.1 sensor_hal — Sensor Abstraction (Compile-Time Selection)
 

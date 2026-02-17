@@ -69,6 +69,23 @@
 
 ---
 
+## Cross-Phase Rule — `conductor-model-hardware`
+
+**Mandatory scope**: all implementation phases (`0` to `8`).
+
+For every feature/module implemented in those phases:
+
+- **Conductor**: use-case orchestration, UI/flow coordination, error mapping.
+- **Model**: domain/state logic independent from platform plugins.
+- **Hardware**: platform/plugin adapters (BLE, storage, permissions, device APIs).
+
+**Phase completion gate**:
+- No implementation phase is considered complete if new module code violates this split.
+- Validation must be re-run after refactorization to this pattern.
+- The module checklist in `docs/architecture/conductor-model-hardware-template.md` must be applied.
+
+---
+
 ## Phase 0: Project Bootstrap
 
 **Objective**: Set up a working Flutter project with dependencies, architecture, and a running "Hello World" app on Android.  
@@ -178,7 +195,7 @@ dev_dependencies:
 
 ### Task 0.4: Define project structure and architecture
 
-**Description**: Create the directory structure following a feature-based architecture that keeps BLE, data models, and UI separate.
+**Description**: Create the directory structure following a feature-based architecture and the `conductor-model-hardware` pattern.
 
 **Acceptance Criteria**:
 - [ ] Directory structure created:
@@ -213,6 +230,7 @@ dev_dependencies:
       └── value_display.dart
   ```
 - [ ] Each directory has a placeholder file or `.gitkeep`
+- [ ] Each feature defines `conductor`, `model`, and `hardware` responsibilities (can be files or subfolders)
 
 **Validation**:
 - Project compiles with empty structure
