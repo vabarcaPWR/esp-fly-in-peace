@@ -1,5 +1,25 @@
- 
+# ESP-IDF build output
+build/
+sdkconfig
+sdkconfig.old
+
+# Managed components (fetched by idf.py)
+managed_components/
+dependencies.lock
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ESP-IDF tools
 .pe-project-tools-config.ini
 
-# Build system files
-build
+# Ceedling test build artifacts
+test/build/
+
+# OS junk
+.DS_Store
+Thumbs.db

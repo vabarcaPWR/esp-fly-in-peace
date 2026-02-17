@@ -22,9 +22,9 @@
     - +:test/**
     - -:support
   :source:
-    - ../components/*/src/**
+    - ../components/*/src
   :include:
-    - ../components/*/include/**
+    - ../components/*/include
   :support:
     - support
     - support/mocks

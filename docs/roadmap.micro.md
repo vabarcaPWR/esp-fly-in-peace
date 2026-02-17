@@ -21,10 +21,10 @@
   - [x] Task 1.1: System architecture document
   - [x] Task 1.2: Component interface contracts
   - [x] Task 1.3: FreeRTOS task model and data flow design
-- [ ] **Phase 2: LK8EX1 Protocol**
-  - [ ] Task 2.1: LK8EX1 data types and formatter
-  - [ ] Task 2.2: NMEA checksum calculator
-  - [ ] Task 2.3: Ceedling unit tests for LK8EX1
+- [x] **Phase 2: LK8EX1 Protocol**
+  - [x] Task 2.1: LK8EX1 data types and formatter
+  - [x] Task 2.2: NMEA checksum calculator
+  - [x] Task 2.3: Ceedling unit tests for LK8EX1
 - [ ] **Phase 3: BLE NUS Service**
   - [ ] Task 3.1: NimBLE initialization and GAP configuration
   - [ ] Task 3.2: NUS GATT service registration
@@ -347,14 +347,14 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Description**: Create the `lk8ex1` component with the `lk8ex1_data_t` input struct and `lk8ex1_format()` function, following the contract defined in the architecture document.
 
 **Acceptance Criteria**:
-- [ ] Component `lk8ex1` created in `micro/components/lk8ex1/`
-- [ ] `lk8ex1_data_t` struct with fields per architecture §4.5: `pressure_pa`, `altitude_m`, `vario_cms`, `temperature_dc`, `battery_mv`
-- [ ] `esp_err_t lk8ex1_format(const lk8ex1_data_t *data, char *buffer, size_t buffer_size)`
-- [ ] Output format: `$LK8EX1,pressure,altitude,vario,temperature,battery*XX\r\n`
-- [ ] Returns `ESP_ERR_INVALID_ARG` for NULL pointers
-- [ ] Returns `ESP_ERR_INVALID_SIZE` if `buffer_size < LK8EX1_MAX_SENTENCE_LEN` (64 bytes)
-- [ ] All integer formatting — no floating-point operations
-- [ ] Pure C, no ESP-IDF dependencies (testable on host)
+- [x] Component `lk8ex1` created in `micro/components/lk8ex1/`
+- [x] `lk8ex1_data_t` struct with fields per architecture §4.5: `pressure_pa`, `altitude_m`, `vario_cms`, `temperature_dc`, `battery_mv`
+- [x] `esp_err_t lk8ex1_format(const lk8ex1_data_t *data, char *buffer, size_t buffer_size)`
+- [x] Output format: `$LK8EX1,pressure,altitude,vario,temperature,battery*XX\r\n`
+- [x] Returns `ESP_ERR_INVALID_ARG` for NULL pointers
+- [x] Returns `ESP_ERR_INVALID_SIZE` if `buffer_size < LK8EX1_MAX_SENTENCE_LEN` (64 bytes)
+- [x] All integer formatting — no floating-point operations
+- [x] Pure C, no ESP-IDF dependencies (testable on host)
 
 **Validation**:
 - Unit tests verify correct output for known inputs
@@ -371,9 +371,9 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Description**: Implement checksum and validation functions per architecture contract.
 
 **Acceptance Criteria**:
-- [ ] `uint8_t lk8ex1_checksum(const char *sentence, size_t len)` — XOR of chars between `$` and `*` (exclusive)
-- [ ] `bool lk8ex1_validate(const char *sentence)` — parses, computes, and compares checksum
-- [ ] Handles edge cases: null input, missing `$` or `*`
+- [x] `uint8_t lk8ex1_checksum(const char *sentence, size_t len)` — XOR of chars between `$` and `*` (exclusive)
+- [x] `bool lk8ex1_validate(const char *sentence)` — parses, computes, and compares checksum
+- [x] Handles edge cases: null input, missing `$` or `*`
 
 **Validation**:
 - Unit tests with known NMEA sentences
@@ -389,16 +389,16 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Description**: Write comprehensive unit tests for LK8EX1 formatting and checksum.
 
 **Acceptance Criteria**:
-- [ ] Test file `micro/test/test_lk8ex1.c` exists
-- [ ] Test: format with typical values produces correct sentence (e.g., `$LK8EX1,101325,99999,50,235,999*XX\r\n`)
-- [ ] Test: format with `altitude_m = 99999` (no GPS) works correctly
-- [ ] Test: format with `battery_mv = 999` (no battery) works correctly
-- [ ] Test: checksum matches manual XOR calculation
-- [ ] Test: `lk8ex1_validate()` returns `true` for correct sentence
-- [ ] Test: `lk8ex1_validate()` returns `false` for corrupted sentence
-- [ ] Test: format with NULL buffer returns `ESP_ERR_INVALID_ARG`
-- [ ] Test: format with insufficient buffer size returns `ESP_ERR_INVALID_SIZE`
-- [ ] All tests pass in `ceedling test:all`
+- [x] Test file `micro/test/test_lk8ex1.c` exists
+- [x] Test: format with typical values produces correct sentence (e.g., `$LK8EX1,101325,99999,50,235,999*XX\r\n`)
+- [x] Test: format with `altitude_m = 99999` (no GPS) works correctly
+- [x] Test: format with `battery_mv = 999` (no battery) works correctly
+- [x] Test: checksum matches manual XOR calculation
+- [x] Test: `lk8ex1_validate()` returns `true` for correct sentence
+- [x] Test: `lk8ex1_validate()` returns `false` for corrupted sentence
+- [x] Test: format with NULL buffer returns `ESP_ERR_INVALID_ARG`
+- [x] Test: format with insufficient buffer size returns `ESP_ERR_INVALID_SIZE`
+- [x] All tests pass in `ceedling test:all`
 
 **Validation**:
 - Run `./scripts/test.sh` — all tests green

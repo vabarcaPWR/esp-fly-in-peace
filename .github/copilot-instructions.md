@@ -39,6 +39,10 @@ Read `.github/PRE-PROMPT.md` for full project scope, constraints, and style guid
 - **Naming**: `snake_case` functions/variables, `UPPER_SNAKE_CASE` macros, `_t` suffix for types.
 - **Tests**: Ceedling (Unity + CMock) for business logic (Kalman filter, LK8EX1 formatting, config).
 - **Headers**: Include guard `#ifndef`/`#define`, `extern "C"` wrapper, Doxygen for public API.
+- **No file headers**: Do not add `@file` blocks or top-of-file comment banners in `.c` files.
+- **No comments in `.c` files**: Code must be self-explanatory through clear naming. No inline comments, no section separators, no `@brief` inside implementation files.
+- **DRY**: Do not repeat yourself. Extract shared logic into well-named helper functions.
+- **Self-documenting code**: Function and variable names must convey intent. If a comment is needed, rename the symbol instead.
 
 ## Mobile App Rules (app/)
 
