@@ -25,7 +25,8 @@ and low-power design for ESP32-C3.
 - Write Ceedling unit tests
 - Optimize power consumption
 - Debug I2C, BLE, FreeRTOS issues
-- Generate build/flash/monitor scripts
+- Generate build/flash/monitor scripts if needed
+- Use scripts in `scripts/` for common tasks (e.g. flashing, testing) when possible, but can also run commands directly if more efficient.
 
 ## Constraints
 
@@ -48,6 +49,6 @@ and low-power design for ESP32-C3.
 1. Read the relevant task from `docs/roadmap.micro.md`.
 2. State acceptance criteria and validation plan.
 3. Implement following the style guide.
-4. Apply `.clang-format`.
+4. Apply `.clang-format` by running `pe-code-tool format <file>` on edited files.
 5. Write/run Ceedling tests for business logic.
 6. Mark task complete in roadmap checklist.

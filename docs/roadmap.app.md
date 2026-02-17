@@ -75,6 +75,12 @@
 **Estimated Duration**: 2–3 days  
 **Dependencies**: None (can run in parallel with firmware Phase 0)
 
+**Refactorización (obligatoria)**:
+- Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
+- Reducir duplicación y complejidad accidental sin cambiar comportamiento funcional.
+- Mantener nombres y límites de módulos claros para código autoexplicativo.
+- Repetir la validación de la fase después de cada refactorización.
+
 ---
 
 ### Task 0.1: Create Flutter project
@@ -253,6 +259,12 @@ dev_dependencies:
 **Estimated Duration**: 2–3 days  
 **Dependencies**: Phase 0 complete
 
+**Refactorización (obligatoria)**:
+- Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
+- Reducir duplicación y complejidad accidental sin cambiar comportamiento funcional.
+- Mantener nombres y límites de módulos claros para código autoexplicativo.
+- Repetir la validación de la fase después de cada refactorización.
+
 ---
 
 ### Task 1.1: Android BLE permissions handling
@@ -351,6 +363,12 @@ Required manifest permissions:
 **Estimated Duration**: 2–3 days  
 **Dependencies**: Phase 1 complete
 
+**Refactorización (obligatoria)**:
+- Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
+- Reducir duplicación y complejidad accidental sin cambiar comportamiento funcional.
+- Mantener nombres y límites de módulos claros para código autoexplicativo.
+- Repetir la validación de la fase después de cada refactorización.
+
 ---
 
 ### Task 2.1: Connect to device
@@ -431,6 +449,12 @@ Required manifest permissions:
 **Estimated Duration**: 2–3 days  
 **Dependencies**: Phase 2 complete
 
+**Refactorización (obligatoria)**:
+- Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
+- Reducir duplicación y complejidad accidental sin cambiar comportamiento funcional.
+- Mantener nombres y límites de módulos claros para código autoexplicativo.
+- Repetir la validación de la fase después de cada refactorización.
+
 ---
 
 ### Task 3.1: Discover NUS service and characteristics
@@ -503,6 +527,12 @@ Required manifest permissions:
 **Objective**: Parse LK8EX1 NMEA sentences from BLE data stream into structured Dart objects.  
 **Estimated Duration**: 1–2 days  
 **Dependencies**: Phase 3 (data stream available)
+
+**Refactorización (obligatoria)**:
+- Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
+- Reducir duplicación y complejidad accidental sin cambiar comportamiento funcional.
+- Mantener nombres y límites de módulos claros para código autoexplicativo.
+- Repetir la validación de la fase después de cada refactorización.
 
 ---
 
@@ -592,6 +622,12 @@ Required manifest permissions:
 **Objective**: Build the main flight dashboard showing live altitude, vario, pressure, and temperature data.  
 **Estimated Duration**: 3–4 days  
 **Dependencies**: Phase 4 (parser), Phase 3 (data stream)
+
+**Refactorización (obligatoria)**:
+- Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
+- Reducir duplicación y complejidad accidental sin cambiar comportamiento funcional.
+- Mantener nombres y límites de módulos claros para código autoexplicativo.
+- Repetir la validación de la fase después de cada refactorización.
 
 ---
 
@@ -701,6 +737,12 @@ Required manifest permissions:
 **Objective**: Build the UI and BLE communication to read and modify device configuration parameters.  
 **Estimated Duration**: 3–4 days  
 **Dependencies**: Phase 3 (BLE connection), Phase 5 (dashboard working)
+
+**Refactorización (obligatoria)**:
+- Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
+- Reducir duplicación y complejidad accidental sin cambiar comportamiento funcional.
+- Mantener nombres y límites de módulos claros para código autoexplicativo.
+- Repetir la validación de la fase después de cada refactorización.
 
 ---
 
@@ -848,6 +890,12 @@ Required manifest permissions:
 **Estimated Duration**: 2–3 days  
 **Dependencies**: Phase 5 (dashboard uses units for display)
 
+**Refactorización (obligatoria)**:
+- Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
+- Reducir duplicación y complejidad accidental sin cambiar comportamiento funcional.
+- Mantener nombres y límites de módulos claros para código autoexplicativo.
+- Repetir la validación de la fase después de cada refactorización.
+
 ---
 
 ### Task 7.1: App settings screen
@@ -912,6 +960,12 @@ Required manifest permissions:
 **Objective**: Review error handling, polish the UI, and ensure comprehensive test coverage.  
 **Estimated Duration**: 3–5 days  
 **Dependencies**: All previous phases complete
+
+**Refactorización (obligatoria)**:
+- Aplicar Boy Scout Rule al cerrar cada corrección detectada durante pruebas.
+- Corregir deuda técnica localizada sin ampliar alcance funcional.
+- Mantener coherencia arquitectónica entre capas y features.
+- Revalidar pruebas críticas después de cada refactorización.
 
 ---
 

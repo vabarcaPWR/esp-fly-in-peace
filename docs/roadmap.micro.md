@@ -26,12 +26,12 @@
   - [x] Task 2.2: NMEA checksum calculator
   - [x] Task 2.3: Ceedling unit tests for LK8EX1
 - [ ] **Phase 3: BLE NUS Service**
-  - [ ] Task 3.1: NimBLE initialization and GAP configuration
-  - [ ] Task 3.2: NUS GATT service registration
-  - [ ] Task 3.3: TX notification (send data)
-  - [ ] Task 3.4: RX write handler (reserved for future use)
-  - [ ] Task 3.5: Connection state management
-  - [ ] Task 3.6: BLE + LK8EX1 integration (send simulated frames)
+  - [x] Task 3.1: NimBLE initialization and GAP configuration
+  - [x] Task 3.2: NUS GATT service registration
+  - [x] Task 3.3: TX notification (send data)
+  - [x] Task 3.4: RX write handler (reserved for future use)
+  - [x] Task 3.5: Connection state management
+  - [x] Task 3.6: BLE + LK8EX1 integration (send simulated frames)
   - [ ] Task 3.7: Verify with nRF Connect
 - [ ] **Phase 4: LED Indicator**
   - [ ] Task 4.1: WS2812 driver via RMT peripheral
@@ -95,6 +95,12 @@
 **Objective**: Set up a working ESP-IDF project that compiles, flashes, and runs a "Hello World" on the ESP32-C3-DevKitC-02.  
 **Estimated Duration**: 2–3 days  
 **Dependencies**: None
+
+**Refactorización (obligatoria)**:
+- Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
+- Reducir duplicación y complejidad accidental sin cambiar comportamiento funcional.
+- Mantener nombres y límites de módulo claros para código autoexplicativo.
+- Repetir la validación de la fase después de cada refactorización.
 
 ---
 
@@ -338,6 +344,13 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Objective**: Implement the LK8EX1 NMEA sentence formatter with checksum calculation. This is a pure-C component with zero ESP-IDF dependencies, making it the ideal first component to implement and test with Ceedling.  
 **Estimated Duration**: 1–2 days  
 **Dependencies**: Phase 1 (interface contract in `firmware-architecture.md` §4.5)  
+ 
+**Refactorización (obligatoria)**:
+- Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
+- Reducir duplicación y complejidad accidental sin cambiar comportamiento funcional.
+- Mantener nombres y límites de módulo claros para código autoexplicativo.
+- Repetir la validación de la fase después de cada refactorización.
+
 **Architecture Reference**: `firmware-architecture.md` §4.5 `lk8ex1`
 
 ---
@@ -413,6 +426,13 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Objective**: Implement Bluetooth Low Energy with NimBLE, advertising the Nordic UART Service (NUS), and supporting TX notifications. Integrate with LK8EX1 to send simulated flight data.  
 **Estimated Duration**: 3–4 days  
 **Dependencies**: Phase 2 (LK8EX1 formatter for integration test)  
+ 
+**Refactorización (obligatoria)**:
+- Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
+- Reducir duplicación y complejidad accidental sin cambiar comportamiento funcional.
+- Mantener nombres y límites de módulo claros para código autoexplicativo.
+- Repetir la validación de la fase después de cada refactorización.
+
 **Architecture Reference**: `firmware-architecture.md` §4.6 `ble_nus`, `ble_protocol.md`
 
 ---
@@ -422,14 +442,14 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Description**: Create the `ble_nus` component. Initialize the NimBLE host stack and configure GAP parameters following the API contract from the architecture document.
 
 **Acceptance Criteria**:
-- [ ] Component `ble_nus` created in `micro/components/ble_nus/`
-- [ ] `ble_nus_cfg_t` struct with `device_name` (default: `"FlyInPeace"`) and `adv_interval_ms` (default: 100)
-- [ ] `esp_err_t ble_nus_init(const ble_nus_cfg_t *cfg)` — initializes NimBLE host, starts advertising
-- [ ] GAP event handler processes: `BLE_GAP_EVENT_CONNECT`, `BLE_GAP_EVENT_DISCONNECT`, `BLE_GAP_EVENT_MTU`
-- [ ] Advertising starts automatically at boot
-- [ ] Advertising restarts after disconnect
-- [ ] MTU negotiation: requests 256 bytes
-- [ ] Logs connection/disconnection events
+- [x] Component `ble_nus` created in `micro/components/ble_nus/`
+- [x] `ble_nus_cfg_t` struct with `device_name` (default: `"FlyInPeace"`) and `adv_interval_ms` (default: 100)
+- [x] `esp_err_t ble_nus_init(const ble_nus_cfg_t *cfg)` — initializes NimBLE host, starts advertising
+- [x] GAP event handler processes: `BLE_GAP_EVENT_CONNECT`, `BLE_GAP_EVENT_DISCONNECT`, `BLE_GAP_EVENT_MTU`
+- [x] Advertising starts automatically at boot
+- [x] Advertising restarts after disconnect
+- [x] MTU negotiation: requests 256 bytes
+- [x] Logs connection/disconnection events
 
 **Validation**:
 - Flash firmware, scan with nRF Connect — device `"FlyInPeace"` appears
@@ -450,11 +470,11 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Description**: Register the Nordic UART Service (NUS) with NimBLE's GATT server, including TX (notify) and RX (write) characteristics.
 
 **Acceptance Criteria**:
-- [ ] NUS service registered with UUID `6E400001-B5A3-F393-E0A9-E50E24DCCA9E`
-- [ ] TX characteristic (UUID `6E400003-...`) with notify property
-- [ ] RX characteristic (UUID `6E400002-...`) with write property
-- [ ] CCCD (Client Characteristic Configuration Descriptor) for TX notifications
-- [ ] Access callback handles read/write/subscribe operations
+- [x] NUS service registered with UUID `6E400001-B5A3-F393-E0A9-E50E24DCCA9E`
+- [x] TX characteristic (UUID `6E400003-...`) with notify property
+- [x] RX characteristic (UUID `6E400002-...`) with write property
+- [x] CCCD (Client Characteristic Configuration Descriptor) for TX notifications
+- [x] Access callback handles read/write/subscribe operations
 
 **Validation**:
 - Connect with nRF Connect — NUS service visible with both characteristics
@@ -469,11 +489,11 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Description**: Implement the `ble_nus_send()` function per architecture contract.
 
 **Acceptance Criteria**:
-- [ ] `esp_err_t ble_nus_send(const uint8_t *data, uint16_t len)` implemented
-- [ ] Checks if client is connected and CCCD subscribed to notifications
-- [ ] Respects MTU size — fragments data if payload exceeds (MTU - 3)
-- [ ] Returns `ESP_ERR_INVALID_STATE` if not connected or not subscribed
-- [ ] Thread-safe (can be called from any task)
+- [x] `esp_err_t ble_nus_send(const uint8_t *data, uint16_t len)` implemented
+- [x] Checks if client is connected and CCCD subscribed to notifications
+- [x] Respects MTU size — fragments data if payload exceeds (MTU - 3)
+- [x] Returns `ESP_ERR_INVALID_STATE` if not connected or not subscribed
+- [x] Thread-safe (can be called from any task)
 
 **Validation**:
 - Send test string, verify receipt in nRF Connect UART terminal
@@ -488,10 +508,10 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Description**: Implement the NUS RX write handler. Data is passed to a registered callback.
 
 **Acceptance Criteria**:
-- [ ] `void ble_nus_register_rx_callback(ble_nus_rx_cb_t callback)` implemented
-- [ ] Callback receives `(const uint8_t *data, uint16_t len)` on GATT write
-- [ ] Handles partial writes / fragmented data
-- [ ] If no callback registered, RX data is silently discarded
+- [x] `void ble_nus_register_rx_callback(ble_nus_rx_cb_t callback)` implemented
+- [x] Callback receives `(const uint8_t *data, uint16_t len)` on GATT write
+- [x] Handles partial writes / fragmented data
+- [x] If no callback registered, RX data is silently discarded
 
 **Validation**:
 - Send text from nRF Connect UART, verify it arrives in the registered callback (log output)
@@ -506,10 +526,10 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Description**: Expose BLE connection state per architecture contract.
 
 **Acceptance Criteria**:
-- [ ] `bool ble_nus_is_connected(void)` — returns current connection state (atomic read)
-- [ ] `void ble_nus_register_state_callback(ble_nus_state_cb_t cb)` — notified on connect/disconnect
-- [ ] Callback receives: `(bool connected, uint16_t conn_handle)`
-- [ ] Thread-safe state access
+- [x] `bool ble_nus_is_connected(void)` — returns current connection state (atomic read)
+- [x] `void ble_nus_register_state_callback(ble_nus_state_cb_t cb)` — notified on connect/disconnect
+- [x] Callback receives: `(bool connected, uint16_t conn_handle)`
+- [x] Thread-safe state access
 
 **Validation**:
 - Connect/disconnect from nRF Connect, verify state callbacks fire and `is_connected()` updates
@@ -524,9 +544,9 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Description**: Send simulated LK8EX1 frames over BLE at 4 Hz to validate the full BLE → NUS TX pipeline.
 
 **Acceptance Criteria**:
-- [ ] Temporary FreeRTOS task sends simulated `lk8ex1_data_t` every 250 ms
-- [ ] Data contains realistic values (pressure ~101325 Pa, vario 0, temp 230)
-- [ ] Frames are valid LK8EX1 sentences with correct checksum
+- [x] Temporary FreeRTOS task sends simulated `lk8ex1_data_t` every 250 ms
+- [x] Data contains realistic values (pressure ~101325 Pa, vario 0, temp 230)
+- [x] Frames are valid LK8EX1 sentences with correct checksum
 - [ ] Frames received correctly in nRF Connect UART view
 
 **Validation**:
@@ -553,6 +573,59 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 - Test with nRF Connect (mandatory)
 - Test with XCTrack (nice to have — validate LK8EX1 parsing)
 
+**Status**:
+- [ ] Pending hardware validation with nRF Connect to close Task 3.7.
+
+**Support Script**:
+- `micro/scripts/phase3_7_quick_check.sh`
+
+**Execution Checklist (ready to run)**:
+1. Flash and open monitor:
+  - `cd micro`
+  - `source ./scripts/env.sh`
+  - `idf.py -p /dev/ttyUSB0 flash monitor`
+2. In nRF Connect (Android):
+  - Scan and verify device name `FlyInPeace` appears.
+  - Connect to device.
+  - Discover services and verify NUS UUID `6E400001-B5A3-F393-E0A9-E50E24DCCA9E`.
+  - Verify RX char `6E400002-...` (Write) and TX char `6E400003-...` (Notify).
+  - Enable notifications on TX characteristic.
+  - Confirm LK8EX1 frames arrive at ~4 Hz.
+3. RX path test:
+  - Write text payload from nRF Connect to RX characteristic.
+  - Confirm firmware log prints RX length (from `ble_rx_log_callback`).
+4. Reconnect test:
+  - Disconnect from nRF Connect.
+  - Verify firmware restarts advertising automatically.
+  - Reconnect and re-enable notifications.
+5. Deinit smoke test (optional, code-level):
+  - Confirm `ble_nus_deinit()` returns `ESP_OK` if invoked during controlled shutdown.
+
+**Pass Criteria (mark Task 3.7 done only if all pass)**:
+- Device is discoverable as `FlyInPeace`.
+- NUS service and both characteristics are visible.
+- TX notifications stream valid LK8EX1 sentences continuously.
+- RX writes are received by firmware callback (log evidence).
+- Disconnect/reconnect cycle works without reboot.
+
+**Evidence Template (fill during test run)**:
+- Board/Port used: ________________________________
+- Firmware build date/hash: ________________________
+- nRF Connect version/device: ______________________
+- Time to discovery (s): ___________________________
+- TX sample sentence captured: _____________________
+- RX callback log line captured: ___________________
+- Reconnect attempts passed (count): _______________
+- Final verdict: PASS / FAIL
+
+**Quick Field Check (60s MVP)**:
+1. Run `./scripts/phase3_7_quick_check.sh -p /dev/ttyUSB0`.
+2. Open nRF Connect, scan, and connect to `FlyInPeace`.
+3. Enable `Notify` on `6E400003-...` and confirm LK8EX1 lines appear.
+4. Write `PING` to `6E400002-...` and confirm firmware logs RX length.
+5. Disconnect and reconnect once; confirm stream resumes.
+6. If all 5 pass, mark Task 3.7 as complete.
+
 ---
 
 ## Phase 4: LED Indicator
@@ -560,6 +633,13 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Objective**: Drive the onboard WS2812 RGB LED to indicate device state using the state machine defined in the architecture.  
 **Estimated Duration**: 1–2 days  
 **Dependencies**: Phase 3 (BLE state callbacks for integration)  
+ 
+**Refactorización (obligatoria)**:
+- Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
+- Reducir duplicación y complejidad accidental sin cambiar comportamiento funcional.
+- Mantener nombres y límites de módulo claros para código autoexplicativo.
+- Repetir la validación de la fase después de cada refactorización.
+
 **Architecture Reference**: `firmware-architecture.md` §4.7 `led_indicator`, §8.3 LED State Machine
 
 ---
@@ -629,6 +709,13 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Objective**: Create the sensor hardware abstraction layer with compile-time driver selection via Kconfig. NO `i2c_bus` wrapper — sensor drivers use ESP-IDF I2C directly per architecture decision.  
 **Estimated Duration**: 1–2 days  
 **Dependencies**: Phase 1 (interface contract in `firmware-architecture.md` §4.1)  
+ 
+**Refactorización (obligatoria)**:
+- Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
+- Reducir duplicación y complejidad accidental sin cambiar comportamiento funcional.
+- Mantener nombres y límites de módulo claros para código autoexplicativo.
+- Repetir la validación de la fase después de cada refactorización.
+
 **Architecture Reference**: `firmware-architecture.md` §4.1 `sensor_hal`
 
 ---
@@ -710,6 +797,13 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Objective**: Implement a fully functional MS5611 barometric pressure sensor driver with PROM calibration, ADC conversion, and second-order compensation.  
 **Estimated Duration**: 3–4 days  
 **Dependencies**: Phase 5 (sensor_hal + I2C init)  
+ 
+**Refactorización (obligatoria)**:
+- Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
+- Reducir duplicación y complejidad accidental sin cambiar comportamiento funcional.
+- Mantener nombres y límites de módulo claros para código autoexplicativo.
+- Repetir la validación de la fase después de cada refactorización.
+
 **Architecture Reference**: `firmware-architecture.md` §4.2 `sensor_ms5611`
 
 ---
@@ -838,6 +932,13 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Objective**: Implement a fully functional BMP390 barometric pressure sensor driver with NVM trimming, compensation, and IIR filter support.  
 **Estimated Duration**: 3–4 days  
 **Dependencies**: Phase 5 (sensor_hal + I2C init)  
+ 
+**Refactorización (obligatoria)**:
+- Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
+- Reducir duplicación y complejidad accidental sin cambiar comportamiento funcional.
+- Mantener nombres y límites de módulo claros para código autoexplicativo.
+- Repetir la validación de la fase después de cada refactorización.
+
 **Architecture Reference**: `firmware-architecture.md` §4.3 `sensor_bmp390`
 
 ---
@@ -965,6 +1066,13 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Objective**: Implement a 2-state Kalman filter (altitude + vario) to smooth pressure readings and derive altitude and vertical speed.  
 **Estimated Duration**: 2–3 days  
 **Dependencies**: Phase 6 or Phase 7 (compensated pressure data for validation)  
+ 
+**Refactorización (obligatoria)**:
+- Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
+- Reducir duplicación y complejidad accidental sin cambiar comportamiento funcional.
+- Mantener nombres y límites de módulo claros para código autoexplicativo.
+- Repetir la validación de la fase después de cada refactorización.
+
 **Architecture Reference**: `firmware-architecture.md` §4.4 `kalman_filter`
 
 ---
@@ -1089,6 +1197,13 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Objective**: Wire up the FreeRTOS task model defined in the architecture: sensor_task reads the sensor at 10 Hz, runs the Kalman filter, and publishes to the shared flight data structure. ble_sender_task reads at 4 Hz, formats LK8EX1, and sends over BLE.  
 **Estimated Duration**: 3–4 days  
 **Dependencies**: Phases 3 (BLE), 6 or 7 (sensor), 8 (Kalman), 2 (LK8EX1)  
+ 
+**Refactorización (obligatoria)**:
+- Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
+- Reducir duplicación y complejidad accidental sin cambiar comportamiento funcional.
+- Mantener nombres y límites de módulo claros para código autoexplicativo.
+- Repetir la validación de la fase después de cada refactorización.
+
 **Architecture Reference**: `firmware-architecture.md` §5 Tasks, §6 Inter-Task Communication, §7 Data Flow
 
 ---
@@ -1241,6 +1356,13 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Objective**: Implement persistent device configuration with NVS storage and expose a BLE Config Service for remote configuration.  
 **Estimated Duration**: 3–4 days  
 **Dependencies**: Phase 3 (BLE NUS for GATT server), Phase 9 (data pipeline for applying config)  
+ 
+**Refactorización (obligatoria)**:
+- Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
+- Reducir duplicación y complejidad accidental sin cambiar comportamiento funcional.
+- Mantener nombres y límites de módulo claros para código autoexplicativo.
+- Repetir la validación de la fase después de cada refactorización.
+
 **Architecture Reference**: `firmware-architecture.md` §4.8 `config_manager`, `ble_protocol.md` §Config Service
 
 ---
@@ -1366,6 +1488,13 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Objective**: Optimize power consumption for battery operation using light-sleep, BLE interval tuning, and peripheral gating.  
 **Estimated Duration**: 2–3 days  
 **Dependencies**: Phase 9 (data pipeline running), Phase 10 (config for tuning)  
+ 
+**Refactorización (obligatoria)**:
+- Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
+- Reducir duplicación y complejidad accidental sin cambiar comportamiento funcional.
+- Mantener nombres y límites de módulo claros para código autoexplicativo.
+- Repetir la validación de la fase después de cada refactorización.
+
 **Architecture Reference**: `firmware-architecture.md` §4.9 `power_manager`, §7.3 Timing Budget
 
 ---
@@ -1455,6 +1584,12 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Objective**: Full system validation with real-world testing, long-duration stability, and edge case coverage.  
 **Estimated Duration**: 2–3 days  
 **Dependencies**: All previous phases complete
+
+**Refactorización (obligatoria)**:
+- Aplicar Boy Scout Rule al cerrar cada corrección detectada durante validación.
+- Corregir deuda técnica localizada sin ampliar el alcance funcional.
+- Mantener coherencia de contratos entre módulos después de cada ajuste.
+- Revalidar end-to-end tras cada refactorización aplicada.
 
 ---
 
