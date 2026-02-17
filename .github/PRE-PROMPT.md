@@ -341,6 +341,16 @@ extern "C" {
 - ❌ Mutable globals without `static`.
 - ❌ `printf` for logging (use `ESP_LOGI`, `ESP_LOGW`, `ESP_LOGE`).
 
+### 4.11 Recomended Practices
+
+- ✅ use `!var` instead `var == NULL` for pointer checks.
+- ✅ Use `const` for pointer parameters that are not modified.
+- ✅ Use `const` for configuration structs that are stored in the object struct.
+- ✅ Use `typedef struct module_s module_t` pattern for opaque types.
+- ✅ Use `static` functions for internal helpers, never expose them in headers.
+- ✅ Use ternary operator for simple conditional when possible.
+- ✅ Use early return with no curly braces for simple guard clauses (max 2 levels of nesting).
+
 ---
 
 ## 5. GitHub Copilot Configuration

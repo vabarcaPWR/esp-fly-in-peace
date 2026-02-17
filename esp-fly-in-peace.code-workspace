@@ -11,7 +11,9 @@
       "*.c": "c"
     },
     "editor.formatOnSave": false,
-    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+    "C_Cpp.default.compileCommands": "${workspaceFolder:Firmware (ESP32-C3)}/build/compile_commands.json",
+    "C_Cpp.intelliSenseEngine": "default",
+    "C_Cpp.default.browse.limitSymbolsToIncludedHeaders": true,
     "[dart]": {
       "editor.formatOnSave": true,
       "editor.defaultFormatter": "Dart-Code.dart-code"
