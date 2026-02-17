@@ -648,7 +648,7 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 - Final verdict: PASS / FAIL
 
 **Quick Field Check (60s MVP)**:
-1. Run `./scripts/phase3_7_quick_check.sh -p /dev/ttyUSB0`.
+1. Run `./scripts/phase3_7_quick_check.sh -p /dev/ttyUSB0` from repository root (or `./scripts/phase3_7_quick_check.sh -p /dev/ttyUSB0` inside `micro/`).
 2. Open nRF Connect, scan, and connect to `FlyInPeace`.
 3. Enable `Notify` on `6E400003-...` and confirm LK8EX1 lines appear.
 4. Write `PING` to `6E400002-...` and confirm firmware logs RX length.

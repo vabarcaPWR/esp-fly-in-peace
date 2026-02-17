@@ -50,7 +50,7 @@ fi
 
 if ! command -v idf.py >/dev/null 2>&1; then
     echo -e "${RED}[ERROR]${NC} idf.py is not available. Source ESP-IDF env first:" >&2
-    echo "  source ./scripts/env.sh" >&2
+    echo "  source \"${SCRIPT_DIR}/env.sh\"" >&2
     exit 1
 fi
 
