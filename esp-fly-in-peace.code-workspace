@@ -1,6 +1,6 @@
 {
   "folders": [
-    {"path": ".github", "name": "GitHub Copilot"},
+    { "path": ".", "name": "Repo root" },
     { "path": "micro", "name": "Firmware (ESP32-C3)" },
     { "path": "app", "name": "Mobile App (Flutter)" },
     { "path": "docs", "name": "Documentation" }
