@@ -380,6 +380,7 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 
 **Acceptance Criteria**:
 - [x] Component `lk8ex1` created in `micro/components/lk8ex1/`
+- [x] Internal split applied: `lk8ex1_conductor.c` (conductor), `lk8ex1_model.c` (model), `lk8ex1_hardware.c` (hardware)
 - [x] `lk8ex1_data_t` struct with fields per architecture §4.5: `pressure_pa`, `altitude_m`, `vario_cms`, `temperature_dc`, `battery_mv`
 - [x] `esp_err_t lk8ex1_format(const lk8ex1_data_t *data, char *buffer, size_t buffer_size)`
 - [x] Output format: `$LK8EX1,pressure,altitude,vario,temperature,battery*XX\r\n`
@@ -395,6 +396,10 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 - `micro/components/lk8ex1/CMakeLists.txt`
 - `micro/components/lk8ex1/include/lk8ex1.h`
 - `micro/components/lk8ex1/src/lk8ex1.c`
+- `micro/components/lk8ex1/src/lk8ex1_model.c`
+- `micro/components/lk8ex1/src/lk8ex1_model.h`
+- `micro/components/lk8ex1/src/lk8ex1_hardware.c`
+- `micro/components/lk8ex1/src/lk8ex1_hardware.h`
 
 ---
 
@@ -462,6 +467,7 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 
 **Acceptance Criteria**:
 - [x] Component `ble_nus` created in `micro/components/ble_nus/`
+- [x] Internal split applied: `ble_nus_conductor.c` (conductor), `ble_nus_model.c` (model), `ble_nus_hardware.c` (hardware)
 - [x] `ble_nus_cfg_t` struct with `device_name` (default: `"FlyInPeace"`) and `adv_interval_ms` (default: 100)
 - [x] `esp_err_t ble_nus_init(const ble_nus_cfg_t *cfg)` — initializes NimBLE host, starts advertising
 - [x] GAP event handler processes: `BLE_GAP_EVENT_CONNECT`, `BLE_GAP_EVENT_DISCONNECT`, `BLE_GAP_EVENT_MTU`
@@ -477,6 +483,10 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 - `micro/components/ble_nus/CMakeLists.txt`
 - `micro/components/ble_nus/include/ble_nus.h`
 - `micro/components/ble_nus/src/ble_nus.c`
+- `micro/components/ble_nus/src/ble_nus_model.c`
+- `micro/components/ble_nus/src/ble_nus_model.h`
+- `micro/components/ble_nus/src/ble_nus_hardware.c`
+- `micro/components/ble_nus/src/ble_nus_hardware.h`
 
 **Notes**:
 - NimBLE host task created internally by `nimble_port_freertos_init()` (Priority 4, 4096 bytes stack).
@@ -733,6 +743,7 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 - Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
 - Reducir duplicación y complejidad accidental sin cambiar comportamiento funcional.
 - Mantener nombres y límites de módulo claros para código autoexplicativo.
+- Convención de nombres por rol obligatoria: `*_conductor.c`, `*_model.c`, `*_hardware.c` (si aplica al módulo).
 - Repetir la validación de la fase después de cada refactorización.
 
 **Architecture Reference**: `firmware-architecture.md` §4.1 `sensor_hal`
@@ -821,6 +832,7 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 - Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
 - Reducir duplicación y complejidad accidental sin cambiar comportamiento funcional.
 - Mantener nombres y límites de módulo claros para código autoexplicativo.
+- Convención de nombres por rol obligatoria: `*_conductor.c`, `*_model.c`, `*_hardware.c` (si aplica al módulo).
 - Repetir la validación de la fase después de cada refactorización.
 
 **Architecture Reference**: `firmware-architecture.md` §4.2 `sensor_ms5611`
@@ -956,6 +968,7 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 - Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
 - Reducir duplicación y complejidad accidental sin cambiar comportamiento funcional.
 - Mantener nombres y límites de módulo claros para código autoexplicativo.
+- Convención de nombres por rol obligatoria: `*_conductor.c`, `*_model.c`, `*_hardware.c` (si aplica al módulo).
 - Repetir la validación de la fase después de cada refactorización.
 
 **Architecture Reference**: `firmware-architecture.md` §4.3 `sensor_bmp390`
@@ -1090,6 +1103,7 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 - Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
 - Reducir duplicación y complejidad accidental sin cambiar comportamiento funcional.
 - Mantener nombres y límites de módulo claros para código autoexplicativo.
+- Convención de nombres por rol obligatoria: `*_conductor.c`, `*_model.c`, `*_hardware.c` (si aplica al módulo).
 - Repetir la validación de la fase después de cada refactorización.
 
 **Architecture Reference**: `firmware-architecture.md` §4.4 `kalman_filter`
@@ -1221,6 +1235,7 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 - Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
 - Reducir duplicación y complejidad accidental sin cambiar comportamiento funcional.
 - Mantener nombres y límites de módulo claros para código autoexplicativo.
+- Convención de nombres por rol obligatoria: `*_conductor.c`, `*_model.c`, `*_hardware.c` (si aplica al módulo).
 - Repetir la validación de la fase después de cada refactorización.
 
 **Architecture Reference**: `firmware-architecture.md` §5 Tasks, §6 Inter-Task Communication, §7 Data Flow
@@ -1380,6 +1395,7 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 - Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
 - Reducir duplicación y complejidad accidental sin cambiar comportamiento funcional.
 - Mantener nombres y límites de módulo claros para código autoexplicativo.
+- Convención de nombres por rol obligatoria: `*_conductor.c`, `*_model.c`, `*_hardware.c` (si aplica al módulo).
 - Repetir la validación de la fase después de cada refactorización.
 
 **Architecture Reference**: `firmware-architecture.md` §4.8 `config_manager`, `ble_protocol.md` §Config Service

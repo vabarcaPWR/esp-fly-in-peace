@@ -11,6 +11,7 @@
 2. [Layer Architecture](#2-layer-architecture)
     - [2.1 Conductor-Model-Hardware Pattern](#21-conductor-model-hardware-pattern)
 3. [Component Catalog](#3-component-catalog)
+    - [3.2 Implemented File Mapping (Phase 2 and 3)](#32-implemented-file-mapping-phase-2-and-3)
 4. [Component Interface Contracts (C API)](#4-component-interface-contracts-c-api)
 5. [FreeRTOS Task Model](#5-freertos-task-model)
 6. [Inter-Task Communication](#6-inter-task-communication)
@@ -170,6 +171,22 @@ micro/components/
 | `led_indicator` | Pattern scheduler and state transitions | Pattern timing model | RMT/WS2812 output |
 | `config_manager` | Load/save/reset orchestration and validation flow | Config schema + validation rules | NVS backend |
 | `power_manager` | Power policy orchestration | Power budget decision rules | PM/ADC/GPIO platform calls |
+
+### 3.2 Implemented File Mapping (Phase 2 and 3)
+
+This matrix provides file-level traceability for the components already implemented in roadmap phases 2 and 3.
+
+| Phase | Component | Role | File |
+|-------|-----------|------|------|
+| 2 | `lk8ex1` | Conductor | `micro/components/lk8ex1/src/lk8ex1_conductor.c` |
+| 2 | `lk8ex1` | Model | `micro/components/lk8ex1/src/lk8ex1_model.c` |
+| 2 | `lk8ex1` | Hardware | `micro/components/lk8ex1/src/lk8ex1_hardware.c` |
+| 3 | `ble_nus` | Conductor | `micro/components/ble_nus/src/ble_nus_conductor.c` |
+| 3 | `ble_nus` | Model | `micro/components/ble_nus/src/ble_nus_model.c` |
+| 3 | `ble_nus` | Hardware | `micro/components/ble_nus/src/ble_nus_hardware.c` |
+
+Closure gate for these phases: any change that adds behavior in the listed components must keep the same role ownership
+or explicitly move it with matching updates in this matrix.
 
 ---
 
