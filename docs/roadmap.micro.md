@@ -188,7 +188,7 @@ For every module/component implemented in those phases:
 
 ### Task 0.4: Create build/flash/test/monitor scripts
 
-**Description**: Create bash scripts in `micro/scripts/` for common development workflows. All scripts should accept `-p PORT` for serial port override (default: `/dev/ttyUSB0`).
+**Description**: Create bash scripts in repository-root `scripts/` for common development workflows. All scripts should accept `-p PORT` for serial port override (default: `/dev/ttyUSB0`) and be runnable as `./scripts/<name>.sh` from project root.
 
 **Acceptance Criteria**:
 - [x] `build.sh` — runs `idf.py build`, exits non-zero on failure
@@ -204,11 +204,11 @@ For every module/component implemented in those phases:
 - Run `./scripts/test.sh` — Ceedling tests pass
 
 **Files to create**:
-- `micro/scripts/build.sh`
-- `micro/scripts/flash.sh`
-- `micro/scripts/monitor.sh`
-- `micro/scripts/test.sh`
-- `micro/scripts/all.sh`
+- `scripts/build.sh`
+- `scripts/flash.sh`
+- `scripts/monitor.sh`
+- `scripts/test.sh`
+- `scripts/all.sh`
 
 ---
 
@@ -267,14 +267,14 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 
 ### Task 0.7: Create ESP-IDF environment activation script
 
-**Description**: Create a sourceable shell script `micro/scripts/env.sh` that activates or deactivates the ESP-IDF environment (`idf.py`, toolchain, Python venv). This allows using the build/flash/monitor scripts from any terminal without manually sourcing ESP-IDF's `export.sh`.
+**Description**: Create a sourceable shell script `scripts/env.sh` that activates or deactivates the ESP-IDF environment (`idf.py`, toolchain, Python venv). This allows using the build/flash/monitor scripts from any terminal without manually sourcing ESP-IDF's `export.sh`.
 
 **Usage**:
 - Activate: `source ./scripts/env.sh` or `. ./scripts/env.sh`
 - Deactivate: `idf_deactivate`
 
 **Acceptance Criteria**:
-- [x] `micro/scripts/env.sh` exists and is sourceable (not executable directly)
+- [x] `scripts/env.sh` exists and is sourceable (not executable directly)
 - [x] Sourcing it activates the ESP-IDF environment (adds `idf.py` to PATH)
 - [x] Defines an `idf_deactivate` function that restores the original PATH/environment
 - [x] Prints a colored status message indicating activation/deactivation
@@ -288,7 +288,7 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 - Source again, run `./scripts/build.sh` — build succeeds
 
 **Files to create**:
-- `micro/scripts/env.sh`
+- `scripts/env.sh`
 
 **Notes**:
 - ESP-IDF v5.5.2 is installed at `~/.espressif/v5.5.2/esp-idf/`.
@@ -606,7 +606,7 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 - [ ] Pending hardware validation with nRF Connect to close Task 3.7.
 
 **Support Script**:
-- `micro/scripts/phase3_7_quick_check.sh`
+- `scripts/phase3_7_quick_check.sh`
 
 **Execution Checklist (ready to run)**:
 1. Flash and open monitor:
@@ -648,7 +648,7 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 - Final verdict: PASS / FAIL
 
 **Quick Field Check (60s MVP)**:
-1. Run `./scripts/phase3_7_quick_check.sh -p /dev/ttyUSB0` from repository root (or `./scripts/phase3_7_quick_check.sh -p /dev/ttyUSB0` inside `micro/`).
+1. Run `./scripts/phase3_7_quick_check.sh -p /dev/ttyUSB0` from repository root.
 2. Open nRF Connect, scan, and connect to `FlyInPeace`.
 3. Enable `Notify` on `6E400003-...` and confirm LK8EX1 lines appear.
 4. Write `PING` to `6E400002-...` and confirm firmware logs RX length.

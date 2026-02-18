@@ -3,21 +3,19 @@
 #   Activate:   source ./scripts/env.sh   (or . ./scripts/env.sh)
 #   Deactivate: idf_deactivate
 #
-# DO NOT execute directly (./env.sh) — must be sourced to modify the shell.
+# DO NOT execute directly (./scripts/env.sh) — must be sourced to modify the shell.
 
 _GREEN='\033[0;32m'
 _YELLOW='\033[0;33m'
 _RED='\033[0;31m'
 _NC='\033[0m'
 
-# --- Guard: must be sourced, not executed ---
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     echo -e "${_RED}[ENV]${_NC} This script must be sourced, not executed." >&2
     echo -e "      Usage: ${_YELLOW}source ./scripts/env.sh${_NC}" >&2
     exit 1
 fi
 
-# --- Deactivation function ---
 idf_deactivate()
 {
     if [[ -z "${_IDF_OLD_PATH+x}" ]]; then
@@ -36,15 +34,12 @@ idf_deactivate()
     echo -e "${_GREEN}[ENV]${_NC} ESP-IDF environment deactivated. Original PATH restored."
 }
 
-# --- Idempotency: if already active, skip ---
 if [[ -n "${_IDF_OLD_PATH+x}" ]]; then
     echo -e "${_YELLOW}[ENV]${_NC} ESP-IDF environment is already active. Run ${_YELLOW}idf_deactivate${_NC} first to re-source."
     return 0
 fi
 
-# --- Detect IDF_PATH ---
 if [[ -z "${IDF_PATH}" ]]; then
-    # Auto-detect common installation paths
     _IDF_CANDIDATES=(
         "$HOME/.espressif/v5.5.2/esp-idf"
         "$HOME/esp/esp-idf"
@@ -64,10 +59,8 @@ if [[ -z "${IDF_PATH}" || ! -f "${IDF_PATH}/export.sh" ]]; then
     return 1
 fi
 
-# --- Save original PATH for deactivation ---
 export _IDF_OLD_PATH="$PATH"
 
-# --- Source ESP-IDF export.sh (suppress its verbose output) ---
 source "$IDF_PATH/export.sh" > /dev/null 2>&1
 _rc=$?
 

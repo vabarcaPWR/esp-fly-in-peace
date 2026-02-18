@@ -906,7 +906,7 @@ Examples:
 
 ### 8.3 Build & Flash Scripts (Firmware)
 
-Scripts in `micro/scripts/`:
+Scripts in `scripts/` (repository root, execute from `.` as `./scripts/<name>.sh`):
 
 | Script | Purpose | Command |
 |--------|---------|---------|

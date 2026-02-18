@@ -28,6 +28,13 @@ Read `.github/PRE-PROMPT.md` for full project scope, constraints, and style guid
 - Reflect on **embedded constraints** (RAM, power, real-time, single core) for firmware suggestions.
 - **"Boy Scout Rule"**: leave code a little better than you found it, without going out of scope.
 
+## Scripts Policy (Repository Root)
+
+- All new scripts must be created only in `scripts/` at repository root.
+- Do not create scripts under `micro/scripts/`, `app/scripts/`, or any nested scripts directory.
+- Scripts must be executable from project root with this exact pattern: `./scripts/my_script.sh`.
+- Scripts that operate on firmware must internally target `micro/` as needed, but invocation must remain from `.`.
+
 ## Firmware Rules (micro/)
 
 - **Language**: C (C11). Comments in English.
