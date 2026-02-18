@@ -54,33 +54,25 @@ static int ble_nus_hardware_gatt_access_cb(uint16_t conn_handle, uint16_t attr_h
     (void)attr_handle;
 
     const ble_uuid_t *characteristic_uuid = (const ble_uuid_t *)arg;
-    if (ble_uuid_cmp(characteristic_uuid, &NUS_RX_UUID.u) == 0)
+    if (!ble_uuid_cmp(characteristic_uuid, &NUS_RX_UUID.u))
     {
-        if (ctxt->op != BLE_GATT_ACCESS_OP_WRITE_CHR)
-        {
+        if (BLE_GATT_ACCESS_OP_WRITE_CHR != ctxt->op)
             return BLE_ATT_ERR_UNLIKELY;
-        }
 
         uint16_t payload_len = OS_MBUF_PKTLEN(ctxt->om);
-        if (payload_len == 0U)
-        {
+        if (!payload_len)
             return 0;
-        }
 
         if (payload_len > BLE_NUS_RX_MAX_LEN)
-        {
             return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
-        }
 
         uint8_t rx_data[BLE_NUS_RX_MAX_LEN];
         int copy_result = ble_hs_mbuf_to_flat(ctxt->om, rx_data, payload_len, NULL);
-        if (copy_result != 0)
-        {
+        if (copy_result)
             return BLE_ATT_ERR_UNLIKELY;
-        }
 
         ble_nus_rx_cb_t callback = ble_nus_model_get_rx_callback();
-        if (callback != NULL)
+        if (callback)
         {
             callback(rx_data, payload_len);
         }
@@ -88,12 +80,10 @@ static int ble_nus_hardware_gatt_access_cb(uint16_t conn_handle, uint16_t attr_h
         return 0;
     }
 
-    if (ble_uuid_cmp(characteristic_uuid, &NUS_TX_UUID.u) == 0)
+    if (!ble_uuid_cmp(characteristic_uuid, &NUS_TX_UUID.u))
     {
-        if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR)
-        {
+        if (BLE_GATT_ACCESS_OP_READ_CHR == ctxt->op)
             return 0;
-        }
 
         return BLE_ATT_ERR_UNLIKELY;
     }
@@ -108,14 +98,14 @@ static int ble_nus_hardware_gap_event_cb(struct ble_gap_event *event, void *arg)
     switch (event->type)
     {
     case BLE_GAP_EVENT_CONNECT: {
-        if (event->connect.status == 0)
+        if (!event->connect.status)
         {
             ble_nus_model_set_conn_state(true, event->connect.conn_handle, BLE_NUS_DEFAULT_CONN_HANDLE,
                                          BLE_NUS_DEFAULT_MTU);
             ESP_LOGI(TAG, "BLE connected: conn_handle=%u", event->connect.conn_handle);
 
             ble_nus_state_cb_t callback = ble_nus_model_get_state_callback();
-            if (callback != NULL)
+            if (callback)
             {
                 callback(true, event->connect.conn_handle);
             }
@@ -137,7 +127,7 @@ static int ble_nus_hardware_gap_event_cb(struct ble_gap_event *event, void *arg)
             adv_fields.uuids128_is_complete = 1;
 
             int field_result = ble_gap_adv_set_fields(&adv_fields);
-            if (field_result != 0)
+            if (field_result)
             {
                 ESP_LOGE(TAG, "ble_gap_adv_set_fields failed: rc=%d", field_result);
                 return field_result;
@@ -153,7 +143,7 @@ static int ble_nus_hardware_gap_event_cb(struct ble_gap_event *event, void *arg)
 
             int adv_result = ble_gap_adv_start(ble_nus_model_get_own_addr_type(), NULL, BLE_HS_FOREVER, &adv_params,
                                                ble_nus_hardware_gap_event_cb, NULL);
-            if (adv_result != 0)
+            if (adv_result)
             {
                 ESP_LOGE(TAG, "ble_gap_adv_start failed: rc=%d", adv_result);
                 return adv_result;
@@ -168,7 +158,7 @@ static int ble_nus_hardware_gap_event_cb(struct ble_gap_event *event, void *arg)
         ESP_LOGI(TAG, "BLE disconnected: conn_handle=%u reason=%d", disconnected_handle, event->disconnect.reason);
 
         ble_nus_state_cb_t callback = ble_nus_model_get_state_callback();
-        if (callback != NULL)
+        if (callback)
         {
             callback(false, disconnected_handle);
         }
@@ -186,7 +176,7 @@ static int ble_nus_hardware_gap_event_cb(struct ble_gap_event *event, void *arg)
         adv_fields.uuids128_is_complete = 1;
 
         int field_result = ble_gap_adv_set_fields(&adv_fields);
-        if (field_result != 0)
+        if (field_result)
         {
             ESP_LOGE(TAG, "ble_gap_adv_set_fields failed: rc=%d", field_result);
             return field_result;
@@ -202,7 +192,7 @@ static int ble_nus_hardware_gap_event_cb(struct ble_gap_event *event, void *arg)
 
         int adv_result = ble_gap_adv_start(ble_nus_model_get_own_addr_type(), NULL, BLE_HS_FOREVER, &adv_params,
                                            ble_nus_hardware_gap_event_cb, NULL);
-        if (adv_result != 0)
+        if (adv_result)
         {
             ESP_LOGE(TAG, "ble_gap_adv_start failed: rc=%d", adv_result);
             return adv_result;
@@ -219,7 +209,7 @@ static int ble_nus_hardware_gap_event_cb(struct ble_gap_event *event, void *arg)
     case BLE_GAP_EVENT_SUBSCRIBE: {
         if (event->subscribe.attr_handle == ble_nus_model_get_tx_value_handle())
         {
-            ble_nus_model_set_notify_enabled(event->subscribe.cur_notify != 0);
+            ble_nus_model_set_notify_enabled(event->subscribe.cur_notify);
             ESP_LOGI(TAG, "BLE notify subscription: conn_handle=%u enabled=%u", event->subscribe.conn_handle,
                      event->subscribe.cur_notify);
         }
@@ -265,7 +255,7 @@ static void ble_nus_hardware_on_sync(void)
 {
     uint8_t own_addr_type = 0U;
     int infer_result = ble_hs_id_infer_auto(0, &own_addr_type);
-    if (infer_result != 0)
+    if (infer_result)
     {
         ESP_LOGE(TAG, "ble_hs_id_infer_auto failed: rc=%d", infer_result);
         return;
@@ -274,7 +264,7 @@ static void ble_nus_hardware_on_sync(void)
     ble_nus_model_set_own_addr_type(own_addr_type);
 
     int mtu_result = ble_att_set_preferred_mtu(BLE_NUS_MTU_REQUESTED);
-    if (mtu_result != 0)
+    if (mtu_result)
     {
         ESP_LOGW(TAG, "ble_att_set_preferred_mtu failed: rc=%d", mtu_result);
     }
@@ -292,7 +282,7 @@ static void ble_nus_hardware_on_sync(void)
     adv_fields.uuids128_is_complete = 1;
 
     int field_result = ble_gap_adv_set_fields(&adv_fields);
-    if (field_result != 0)
+    if (field_result)
     {
         ESP_LOGE(TAG, "ble_gap_adv_set_fields failed: rc=%d", field_result);
         return;
@@ -308,7 +298,7 @@ static void ble_nus_hardware_on_sync(void)
 
     int adv_result = ble_gap_adv_start(ble_nus_model_get_own_addr_type(), NULL, BLE_HS_FOREVER, &adv_params,
                                        ble_nus_hardware_gap_event_cb, NULL);
-    if (adv_result != 0)
+    if (adv_result)
     {
         ESP_LOGE(TAG, "ble_gap_adv_start failed: rc=%d", adv_result);
         return;
@@ -328,21 +318,17 @@ static void ble_nus_hardware_host_task(void *param)
 esp_err_t ble_nus_hardware_start(void)
 {
     esp_err_t nvs_result = nvs_flash_init();
-    if (nvs_result == ESP_ERR_NVS_NO_FREE_PAGES || nvs_result == ESP_ERR_NVS_NEW_VERSION_FOUND)
+    if (ESP_ERR_NVS_NO_FREE_PAGES == nvs_result || ESP_ERR_NVS_NEW_VERSION_FOUND == nvs_result)
     {
         ESP_ERROR_CHECK(nvs_flash_erase());
         nvs_result = nvs_flash_init();
     }
-    if (nvs_result != ESP_OK)
-    {
+    if (ESP_OK != nvs_result)
         return nvs_result;
-    }
 
     esp_err_t hci_result = esp_nimble_hci_init();
-    if (hci_result != ESP_OK)
-    {
+    if (ESP_OK != hci_result)
         return hci_result;
-    }
 
     nimble_port_init();
 
@@ -352,21 +338,21 @@ esp_err_t ble_nus_hardware_start(void)
     ble_svc_gatt_init();
 
     int gap_name_result = ble_svc_gap_device_name_set(ble_nus_model_get_device_name());
-    if (gap_name_result != 0)
+    if (gap_name_result)
     {
         nimble_port_deinit();
         return ESP_FAIL;
     }
 
     int count_result = ble_gatts_count_cfg(s_gatt_services);
-    if (count_result != 0)
+    if (count_result)
     {
         nimble_port_deinit();
         return ESP_FAIL;
     }
 
     int add_result = ble_gatts_add_svcs(s_gatt_services);
-    if (add_result != 0)
+    if (add_result)
     {
         nimble_port_deinit();
         return ESP_FAIL;
@@ -382,27 +368,25 @@ esp_err_t ble_nus_hardware_stop(void)
 {
     ble_nus_model_snapshot_t snapshot;
     if (!ble_nus_model_get_snapshot(&snapshot))
-    {
         return ESP_FAIL;
-    }
 
     int adv_stop_result = ble_gap_adv_stop();
-    if (adv_stop_result != 0 && adv_stop_result != BLE_HS_EALREADY)
+    if (adv_stop_result && BLE_HS_EALREADY != adv_stop_result)
     {
         ESP_LOGW(TAG, "ble_gap_adv_stop returned rc=%d", adv_stop_result);
     }
 
-    if (snapshot.conn_handle != BLE_NUS_DEFAULT_CONN_HANDLE)
+    if (BLE_NUS_DEFAULT_CONN_HANDLE != snapshot.conn_handle)
     {
         int terminate_result = ble_gap_terminate(snapshot.conn_handle, BLE_ERR_REM_USER_CONN_TERM);
-        if (terminate_result != 0)
+        if (terminate_result)
         {
             ESP_LOGW(TAG, "ble_gap_terminate returned rc=%d", terminate_result);
         }
     }
 
     int stop_result = nimble_port_stop();
-    if (stop_result != 0)
+    if (stop_result)
     {
         ESP_LOGW(TAG, "nimble_port_stop returned rc=%d", stop_result);
     }
@@ -410,7 +394,7 @@ esp_err_t ble_nus_hardware_stop(void)
     nimble_port_deinit();
 
     esp_err_t controller_result = esp_nimble_hci_deinit();
-    if (controller_result != ESP_OK)
+    if (ESP_OK != controller_result)
     {
         ESP_LOGW(TAG, "esp_nimble_hci_deinit returned err=0x%x", controller_result);
     }
@@ -421,21 +405,15 @@ esp_err_t ble_nus_hardware_stop(void)
 
 esp_err_t ble_nus_hardware_send(const uint8_t *data, uint16_t len, uint16_t att_overhead)
 {
-    if (data == NULL || len == 0U)
-    {
+    if (!data || !len)
         return ESP_ERR_INVALID_ARG;
-    }
 
     ble_nus_model_snapshot_t snapshot;
     if (!ble_nus_model_get_snapshot(&snapshot))
-    {
         return ESP_FAIL;
-    }
 
-    if (!snapshot.connected || !snapshot.notify_enabled || snapshot.conn_handle == BLE_NUS_DEFAULT_CONN_HANDLE)
-    {
+    if (!snapshot.connected || !snapshot.notify_enabled || BLE_NUS_DEFAULT_CONN_HANDLE == snapshot.conn_handle)
         return ESP_ERR_INVALID_STATE;
-    }
 
     uint16_t max_payload = snapshot.mtu > att_overhead ? (uint16_t)(snapshot.mtu - att_overhead) : 20U;
     uint16_t offset = 0U;
@@ -449,16 +427,12 @@ esp_err_t ble_nus_hardware_send(const uint8_t *data, uint16_t len, uint16_t att_
         }
 
         struct os_mbuf *packet = ble_hs_mbuf_from_flat(data + offset, fragment_len);
-        if (packet == NULL)
-        {
+        if (!packet)
             return ESP_ERR_NO_MEM;
-        }
 
         int notify_result = ble_gatts_notify_custom(snapshot.conn_handle, snapshot.tx_value_handle, packet);
-        if (notify_result != 0)
-        {
+        if (notify_result)
             return ESP_FAIL;
-        }
 
         offset = (uint16_t)(offset + fragment_len);
     }

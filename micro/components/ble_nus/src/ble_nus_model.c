@@ -23,32 +23,24 @@ static char s_device_name[21];
 esp_err_t ble_nus_model_init(const char *device_name, uint16_t adv_interval_ms, uint16_t default_adv_interval_ms,
                              uint16_t default_mtu, size_t max_device_name_len)
 {
-    if (device_name == NULL)
-    {
+    if (!device_name)
         return ESP_ERR_INVALID_ARG;
-    }
 
     size_t name_len = strlen(device_name);
-    if (name_len == 0U || name_len > max_device_name_len)
-    {
+    if (!name_len || name_len > max_device_name_len)
         return ESP_ERR_INVALID_ARG;
-    }
 
-    if (s_state_mutex != NULL)
-    {
+    if (s_state_mutex)
         return ESP_ERR_INVALID_STATE;
-    }
 
     s_state_mutex = xSemaphoreCreateMutex();
-    if (s_state_mutex == NULL)
-    {
+    if (!s_state_mutex)
         return ESP_ERR_NO_MEM;
-    }
 
     memset(s_device_name, 0, sizeof(s_device_name));
     memcpy(s_device_name, device_name, name_len);
 
-    s_adv_interval_ms = adv_interval_ms;
+    s_adv_interval_ms = adv_interval_ms ? adv_interval_ms : default_adv_interval_ms;
     s_conn_handle = 0xFFFFU;
     s_tx_value_handle = 0U;
     s_mtu = default_mtu;
@@ -59,17 +51,12 @@ esp_err_t ble_nus_model_init(const char *device_name, uint16_t adv_interval_ms, 
     atomic_store(&s_connected, false);
     atomic_store(&s_initialized, false);
 
-    if (s_adv_interval_ms == 0U)
-    {
-        s_adv_interval_ms = default_adv_interval_ms;
-    }
-
     return ESP_OK;
 }
 
 void ble_nus_model_reset(uint16_t default_adv_interval_ms, uint16_t default_mtu)
 {
-    if (s_state_mutex != NULL)
+    if (s_state_mutex)
     {
         vSemaphoreDelete(s_state_mutex);
         s_state_mutex = NULL;
@@ -111,12 +98,10 @@ const char *ble_nus_model_get_device_name(void)
 uint16_t ble_nus_model_get_adv_interval_ms(void)
 {
     uint16_t value = 0U;
-    if (s_state_mutex == NULL)
-    {
+    if (!s_state_mutex)
         return value;
-    }
 
-    if (xSemaphoreTake(s_state_mutex, portMAX_DELAY) == pdTRUE)
+    if (pdTRUE == xSemaphoreTake(s_state_mutex, portMAX_DELAY))
     {
         value = s_adv_interval_ms;
         xSemaphoreGive(s_state_mutex);
@@ -128,12 +113,10 @@ uint16_t ble_nus_model_get_adv_interval_ms(void)
 void ble_nus_model_set_conn_state(bool connected, uint16_t conn_handle, uint16_t default_conn_handle,
                                   uint16_t default_mtu)
 {
-    if (s_state_mutex == NULL)
-    {
+    if (!s_state_mutex)
         return;
-    }
 
-    if (xSemaphoreTake(s_state_mutex, portMAX_DELAY) == pdTRUE)
+    if (pdTRUE == xSemaphoreTake(s_state_mutex, portMAX_DELAY))
     {
         s_conn_handle = connected ? conn_handle : default_conn_handle;
         s_notify_enabled = false;
@@ -145,12 +128,10 @@ void ble_nus_model_set_conn_state(bool connected, uint16_t conn_handle, uint16_t
 
 void ble_nus_model_set_notify_enabled(bool enabled)
 {
-    if (s_state_mutex == NULL)
-    {
+    if (!s_state_mutex)
         return;
-    }
 
-    if (xSemaphoreTake(s_state_mutex, portMAX_DELAY) == pdTRUE)
+    if (pdTRUE == xSemaphoreTake(s_state_mutex, portMAX_DELAY))
     {
         s_notify_enabled = enabled;
         xSemaphoreGive(s_state_mutex);
@@ -159,12 +140,10 @@ void ble_nus_model_set_notify_enabled(bool enabled)
 
 void ble_nus_model_set_mtu(uint16_t mtu)
 {
-    if (s_state_mutex == NULL)
-    {
+    if (!s_state_mutex)
         return;
-    }
 
-    if (xSemaphoreTake(s_state_mutex, portMAX_DELAY) == pdTRUE)
+    if (pdTRUE == xSemaphoreTake(s_state_mutex, portMAX_DELAY))
     {
         s_mtu = mtu;
         xSemaphoreGive(s_state_mutex);
@@ -173,12 +152,10 @@ void ble_nus_model_set_mtu(uint16_t mtu)
 
 void ble_nus_model_set_tx_value_handle(uint16_t value_handle)
 {
-    if (s_state_mutex == NULL)
-    {
+    if (!s_state_mutex)
         return;
-    }
 
-    if (xSemaphoreTake(s_state_mutex, portMAX_DELAY) == pdTRUE)
+    if (pdTRUE == xSemaphoreTake(s_state_mutex, portMAX_DELAY))
     {
         s_tx_value_handle = value_handle;
         xSemaphoreGive(s_state_mutex);
@@ -188,12 +165,10 @@ void ble_nus_model_set_tx_value_handle(uint16_t value_handle)
 uint16_t ble_nus_model_get_tx_value_handle(void)
 {
     uint16_t value = 0U;
-    if (s_state_mutex == NULL)
-    {
+    if (!s_state_mutex)
         return value;
-    }
 
-    if (xSemaphoreTake(s_state_mutex, portMAX_DELAY) == pdTRUE)
+    if (pdTRUE == xSemaphoreTake(s_state_mutex, portMAX_DELAY))
     {
         value = s_tx_value_handle;
         xSemaphoreGive(s_state_mutex);
@@ -204,12 +179,10 @@ uint16_t ble_nus_model_get_tx_value_handle(void)
 
 void ble_nus_model_set_own_addr_type(uint8_t own_addr_type)
 {
-    if (s_state_mutex == NULL)
-    {
+    if (!s_state_mutex)
         return;
-    }
 
-    if (xSemaphoreTake(s_state_mutex, portMAX_DELAY) == pdTRUE)
+    if (pdTRUE == xSemaphoreTake(s_state_mutex, portMAX_DELAY))
     {
         s_own_addr_type = own_addr_type;
         xSemaphoreGive(s_state_mutex);
@@ -219,12 +192,10 @@ void ble_nus_model_set_own_addr_type(uint8_t own_addr_type)
 uint8_t ble_nus_model_get_own_addr_type(void)
 {
     uint8_t value = 0U;
-    if (s_state_mutex == NULL)
-    {
+    if (!s_state_mutex)
         return value;
-    }
 
-    if (xSemaphoreTake(s_state_mutex, portMAX_DELAY) == pdTRUE)
+    if (pdTRUE == xSemaphoreTake(s_state_mutex, portMAX_DELAY))
     {
         value = s_own_addr_type;
         xSemaphoreGive(s_state_mutex);
@@ -235,12 +206,10 @@ uint8_t ble_nus_model_get_own_addr_type(void)
 
 void ble_nus_model_set_rx_callback(ble_nus_rx_cb_t callback)
 {
-    if (s_state_mutex == NULL)
-    {
+    if (!s_state_mutex)
         return;
-    }
 
-    if (xSemaphoreTake(s_state_mutex, portMAX_DELAY) == pdTRUE)
+    if (pdTRUE == xSemaphoreTake(s_state_mutex, portMAX_DELAY))
     {
         s_rx_callback = callback;
         xSemaphoreGive(s_state_mutex);
@@ -249,12 +218,10 @@ void ble_nus_model_set_rx_callback(ble_nus_rx_cb_t callback)
 
 void ble_nus_model_set_state_callback(ble_nus_state_cb_t callback)
 {
-    if (s_state_mutex == NULL)
-    {
+    if (!s_state_mutex)
         return;
-    }
 
-    if (xSemaphoreTake(s_state_mutex, portMAX_DELAY) == pdTRUE)
+    if (pdTRUE == xSemaphoreTake(s_state_mutex, portMAX_DELAY))
     {
         s_state_callback = callback;
         xSemaphoreGive(s_state_mutex);
@@ -264,12 +231,10 @@ void ble_nus_model_set_state_callback(ble_nus_state_cb_t callback)
 ble_nus_rx_cb_t ble_nus_model_get_rx_callback(void)
 {
     ble_nus_rx_cb_t callback = NULL;
-    if (s_state_mutex == NULL)
-    {
+    if (!s_state_mutex)
         return callback;
-    }
 
-    if (xSemaphoreTake(s_state_mutex, portMAX_DELAY) == pdTRUE)
+    if (pdTRUE == xSemaphoreTake(s_state_mutex, portMAX_DELAY))
     {
         callback = s_rx_callback;
         xSemaphoreGive(s_state_mutex);
@@ -281,12 +246,10 @@ ble_nus_rx_cb_t ble_nus_model_get_rx_callback(void)
 ble_nus_state_cb_t ble_nus_model_get_state_callback(void)
 {
     ble_nus_state_cb_t callback = NULL;
-    if (s_state_mutex == NULL)
-    {
+    if (!s_state_mutex)
         return callback;
-    }
 
-    if (xSemaphoreTake(s_state_mutex, portMAX_DELAY) == pdTRUE)
+    if (pdTRUE == xSemaphoreTake(s_state_mutex, portMAX_DELAY))
     {
         callback = s_state_callback;
         xSemaphoreGive(s_state_mutex);
@@ -297,15 +260,11 @@ ble_nus_state_cb_t ble_nus_model_get_state_callback(void)
 
 bool ble_nus_model_get_snapshot(ble_nus_model_snapshot_t *snapshot)
 {
-    if (snapshot == NULL || s_state_mutex == NULL)
-    {
+    if (!snapshot || !s_state_mutex)
         return false;
-    }
 
-    if (xSemaphoreTake(s_state_mutex, portMAX_DELAY) != pdTRUE)
-    {
+    if (pdTRUE != xSemaphoreTake(s_state_mutex, portMAX_DELAY))
         return false;
-    }
 
     snapshot->initialized = atomic_load(&s_initialized);
     snapshot->connected = atomic_load(&s_connected);

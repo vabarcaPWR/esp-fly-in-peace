@@ -343,13 +343,28 @@ extern "C" {
 
 ### 4.11 Recomended Practices
 
-- ✅ use `!var` instead `var == NULL` for pointer checks.
+- ✅ Use `!var` instead `var == NULL` for pointer checks.
+- ✅ Use `!var` instead of `var == 0` for integer checks when zero is the invalid value.
+- ✅ Use `DEFINE == var` instead of `var == DEFINE` for constant comparisons.
 - ✅ Use `const` for pointer parameters that are not modified.
 - ✅ Use `const` for configuration structs that are stored in the object struct.
 - ✅ Use `typedef struct module_s module_t` pattern for opaque types.
 - ✅ Use `static` functions for internal helpers, never expose them in headers.
 - ✅ Use ternary operator for simple conditional when possible.
 - ✅ Use early return with no curly braces for simple guard clauses (max 2 levels of nesting).
+- ✅ Use following statement:
+
+```c
+if (!self || !cfg)
+    return ESP_ERR_INVALID_ARG;
+```
+instead of
+```c
+if (!self || !cfg) 
+{
+    return ESP_ERR_INVALID_ARG;
+}
+```
 
 ---
 

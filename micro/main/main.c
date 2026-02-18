@@ -20,20 +20,16 @@ typedef struct application_threads_s
 
 static void ble_rx_log_callback(const uint8_t *data, uint16_t len)
 {
-    if (data == NULL)
-    {
+    if (!data)
         return;
-    }
 
     ESP_LOGI(TAG, "BLE RX: len=%u", len);
 }
 
 static bool build_simulated_lk8ex1_sentence(char *sentence, size_t sentence_size)
 {
-    if (sentence == NULL)
-    {
+    if (!sentence)
         return false;
-    }
 
     static int32_t simulated_altitude_m = 99999;
 
@@ -51,7 +47,7 @@ static bool build_simulated_lk8ex1_sentence(char *sentence, size_t sentence_size
         simulated_altitude_m = 99999;
     }
 
-    return lk8ex1_format(&lk8ex1_data, sentence, sentence_size) == ESP_OK;
+    return ESP_OK == lk8ex1_format(&lk8ex1_data, sentence, sentence_size);
 }
 
 static void lk8ex1_simulated_sender_task(void *param)
@@ -68,7 +64,7 @@ static void lk8ex1_simulated_sender_task(void *param)
         if (build_simulated_lk8ex1_sentence(sentence, sizeof(sentence)))
         {
             esp_err_t send_result = ble_nus_send((const uint8_t *)sentence, (uint16_t)strlen(sentence));
-            if (send_result != ESP_OK && send_result != ESP_ERR_INVALID_STATE)
+            if (ESP_OK != send_result && ESP_ERR_INVALID_STATE != send_result)
             {
                 ESP_LOGW(TAG, "ble_nus_send failed: err=0x%x", send_result);
             }
@@ -110,17 +106,13 @@ static esp_err_t configure_modules_usage(void)
 
 static esp_err_t create_lk8ex1_sender_thread(application_threads_t *threads)
 {
-    if (threads == NULL)
-    {
+    if (!threads)
         return ESP_ERR_INVALID_ARG;
-    }
 
     BaseType_t task_created = xTaskCreate(lk8ex1_simulated_sender_task, "lk8ex1_tx", LK8EX1_TX_TASK_STACK_SIZE, NULL,
                                           LK8EX1_TX_TASK_PRIORITY, &threads->lk8ex1_sender_task);
     if (task_created != pdPASS)
-    {
         return ESP_FAIL;
-    }
 
     return ESP_OK;
 }
@@ -132,10 +124,8 @@ static esp_err_t create_threads(application_threads_t *threads)
 
 static esp_err_t launch_lk8ex1_sender_thread(const application_threads_t *threads)
 {
-    if (threads == NULL || threads->lk8ex1_sender_task == NULL)
-    {
+    if (!threads || !threads->lk8ex1_sender_task)
         return ESP_ERR_INVALID_ARG;
-    }
 
     xTaskNotifyGive(threads->lk8ex1_sender_task);
     return ESP_OK;
@@ -155,28 +145,28 @@ void app_main(void)
     };
 
     esp_err_t modules_result = initialize_modules();
-    if (modules_result != ESP_OK)
+    if (ESP_OK != modules_result)
     {
         ESP_LOGE(TAG, "initialize_modules failed: err=0x%x", modules_result);
         return;
     }
 
     esp_err_t modules_usage_result = configure_modules_usage();
-    if (modules_usage_result != ESP_OK)
+    if (ESP_OK != modules_usage_result)
     {
         ESP_LOGE(TAG, "configure_modules_usage failed: err=0x%x", modules_usage_result);
         return;
     }
 
     esp_err_t create_threads_result = create_threads(&threads);
-    if (create_threads_result != ESP_OK)
+    if (ESP_OK != create_threads_result)
     {
         ESP_LOGE(TAG, "create_threads failed: err=0x%x", create_threads_result);
         return;
     }
 
     esp_err_t launch_threads_result = launch_threads(&threads);
-    if (launch_threads_result != ESP_OK)
+    if (ESP_OK != launch_threads_result)
     {
         ESP_LOGE(TAG, "launch_threads failed: err=0x%x", launch_threads_result);
         return;
