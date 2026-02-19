@@ -22,7 +22,7 @@ extern "C"
         int32_t altitude_m;     /**< Altitude in meters (99999 = not available) */
         int32_t vario_cms;      /**< Vertical speed in cm/s (e.g., 50 = 0.50 m/s) */
         int32_t temperature_dc; /**< Temperature in °C × 10 (e.g., 235 = 23.5°C) */
-        int32_t battery_mv;     /**< Battery voltage mV (999 = not available) */
+        int32_t battery_mv;     /**< Battery percentage (0-100, 999 for unavailable) */
     } lk8ex1_data_t;
 
     /** @brief Format LK8EX1 NMEA sentence into buffer. Requires buffer_size >= LK8EX1_MAX_SENTENCE_LEN. */

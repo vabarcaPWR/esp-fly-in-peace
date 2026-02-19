@@ -1,15 +1,19 @@
-#include "unity.h"
 #include "lk8ex1.h"
+#include "unity.h"
 
 TEST_SOURCE_FILE("../components/lk8ex1/src/lk8ex1_model.c")
 TEST_SOURCE_FILE("../components/lk8ex1/src/lk8ex1_hardware.c")
 TEST_SOURCE_FILE("../components/lk8ex1/src/lk8ex1_conductor.c")
 
-#include <string.h>
 #include <stdio.h>
+#include <string.h>
 
-void setUp(void) {}
-void tearDown(void) {}
+void setUp(void)
+{
+}
+void tearDown(void)
+{
+}
 
 static uint8_t xor_between_dollar_and_star(const char *sentence)
 {
@@ -30,11 +34,11 @@ static uint8_t xor_between_dollar_and_star(const char *sentence)
 static lk8ex1_data_t make_typical_data(void)
 {
     return (lk8ex1_data_t){
-        .pressure_pa    = 101325,
-        .altitude_m     = 99999,
-        .vario_cms      = 50,
+        .pressure_pa = 101325,
+        .altitude_m = 1000,
+        .vario_cms = 50,
         .temperature_dc = 235,
-        .battery_mv     = 999,
+        .battery_mv = 85,
     };
 }
 
@@ -55,11 +59,11 @@ void test_format_typical_values(void)
     TEST_ASSERT_EQUAL_CHAR('\r', buffer[len - 2]);
     TEST_ASSERT_EQUAL_CHAR('\n', buffer[len - 1]);
 
-    TEST_ASSERT_NOT_NULL(strstr(buffer, "101325"));
-    TEST_ASSERT_NOT_NULL(strstr(buffer, "99999"));
+    TEST_ASSERT_NOT_NULL(strstr(buffer, "1013"));
+    TEST_ASSERT_NOT_NULL(strstr(buffer, "1000"));
     TEST_ASSERT_NOT_NULL(strstr(buffer, ",50,"));
     TEST_ASSERT_NOT_NULL(strstr(buffer, ",235,"));
-    TEST_ASSERT_NOT_NULL(strstr(buffer, ",999*"));
+    TEST_ASSERT_NOT_NULL(strstr(buffer, ",85,*"));
 
     TEST_ASSERT_TRUE(lk8ex1_validate(buffer));
 }
@@ -70,6 +74,7 @@ void test_format_no_gps_altitude(void)
     char buffer[LK8EX1_MAX_SENTENCE_LEN];
     TEST_ASSERT_EQUAL(ESP_OK, format_into(&data, buffer));
     TEST_ASSERT_NOT_NULL(strstr(buffer, ",99999,"));
+    TEST_ASSERT_NOT_NULL(strstr(buffer, ",3700,*"));
     TEST_ASSERT_TRUE(lk8ex1_validate(buffer));
 }
 
@@ -78,7 +83,7 @@ void test_format_no_battery(void)
     lk8ex1_data_t data = {101325, 452, 0, 210, 999};
     char buffer[LK8EX1_MAX_SENTENCE_LEN];
     TEST_ASSERT_EQUAL(ESP_OK, format_into(&data, buffer));
-    TEST_ASSERT_NOT_NULL(strstr(buffer, ",999*"));
+    TEST_ASSERT_NOT_NULL(strstr(buffer, ",999,*"));
     TEST_ASSERT_TRUE(lk8ex1_validate(buffer));
 }
 
@@ -93,7 +98,7 @@ void test_format_calibrated_altitude(void)
 
 void test_format_zero_vario(void)
 {
-    lk8ex1_data_t data = {100000, 99999, 0, 200, 999};
+    lk8ex1_data_t data = {100000, 99999, 0, 200, 90};
     char buffer[LK8EX1_MAX_SENTENCE_LEN];
     TEST_ASSERT_EQUAL(ESP_OK, format_into(&data, buffer));
     TEST_ASSERT_NOT_NULL(strstr(buffer, ",0,"));
@@ -102,7 +107,7 @@ void test_format_zero_vario(void)
 
 void test_format_negative_vario(void)
 {
-    lk8ex1_data_t data = {101000, 99999, -200, 150, 3500};
+    lk8ex1_data_t data = {101000, 99999, -200, 150, 75};
     char buffer[LK8EX1_MAX_SENTENCE_LEN];
     TEST_ASSERT_EQUAL(ESP_OK, format_into(&data, buffer));
     TEST_ASSERT_NOT_NULL(strstr(buffer, ",-200,"));
@@ -142,8 +147,7 @@ void test_checksum_matches_manual_xor(void)
     char buffer[LK8EX1_MAX_SENTENCE_LEN];
     format_into(&data, buffer);
 
-    TEST_ASSERT_EQUAL_HEX8(xor_between_dollar_and_star(buffer),
-                           lk8ex1_checksum(buffer, strlen(buffer)));
+    TEST_ASSERT_EQUAL_HEX8(xor_between_dollar_and_star(buffer), lk8ex1_checksum(buffer, strlen(buffer)));
 }
 
 void test_checksum_null_sentence(void)
@@ -208,12 +212,12 @@ void test_validate_null_input(void)
 
 void test_validate_missing_dollar(void)
 {
-    TEST_ASSERT_FALSE(lk8ex1_validate("LK8EX1,101325,99999,50,235,999*0A\r\n"));
+    TEST_ASSERT_FALSE(lk8ex1_validate("LK8EX1,1013,1000,50,235,85,*00\r\n"));
 }
 
 void test_validate_missing_star(void)
 {
-    TEST_ASSERT_FALSE(lk8ex1_validate("$LK8EX1,101325,99999,50,235,9990A\r\n"));
+    TEST_ASSERT_FALSE(lk8ex1_validate("$LK8EX1,1013,1000,50,235,85,00\r\n"));
 }
 
 void test_validate_too_short(void)
@@ -231,10 +235,10 @@ void test_validate_known_good(void)
 void test_validate_multiple_formats(void)
 {
     lk8ex1_data_t test_cases[] = {
-        {101325, 99999,    0, 200,  999},
-        { 96000,   452, -300, 150, 3700},
-        {110000,  1500,  500, 350, 4200},
-        { 80000,  8848,  100,  50, 3000},
+        {101325, 99999, 0, 200, 85},
+        {96000, 452, -300, 150, 3700},
+        {110000, 1500, 500, 350, 4200},
+        {80000, 8848, 100, 50, 3000},
     };
 
     char buffer[LK8EX1_MAX_SENTENCE_LEN];

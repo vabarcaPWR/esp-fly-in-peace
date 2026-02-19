@@ -1,3 +1,4 @@
+#include <math.h>
 #include <stdbool.h>
 #include <string.h>
 
@@ -31,21 +32,38 @@ static bool build_simulated_lk8ex1_sentence(char *sentence, size_t sentence_size
     if (!sentence)
         return false;
 
-    static int32_t simulated_altitude_m = 99999;
+    static uint32_t sample_counter = 0;
+    static float simulated_altitude_m = 1020.0f;
+    static float simulated_phase = 0.0f;
+    static int32_t simulated_battery_percent = 96;
+
+    float vertical_speed_ms = 1.8f * sinf(simulated_phase);
+    simulated_altitude_m += vertical_speed_ms * 0.25f;
+
+    simulated_phase += 0.12f;
+    if (simulated_phase >= 6.2831853f)
+    {
+        simulated_phase -= 6.2831853f;
+    }
+
+    float pressure_ratio = 1.0f - (simulated_altitude_m / 44330.0f);
+    int32_t simulated_pressure_pa = (int32_t)(101325.0f * powf(pressure_ratio, 5.255f));
+    int32_t simulated_vario_cms = (int32_t)(vertical_speed_ms * 100.0f);
+    int32_t simulated_temperature_dc = 235 + (int32_t)(8.0f * sinf(simulated_phase * 0.5f));
+
+    if ((0U == (sample_counter % 240U)) && (simulated_battery_percent > 15))
+    {
+        simulated_battery_percent--;
+    }
+    sample_counter++;
 
     lk8ex1_data_t lk8ex1_data = {
-        .pressure_pa = 101325,
-        .altitude_m = simulated_altitude_m,
-        .vario_cms = 0,
-        .temperature_dc = 230,
-        .battery_mv = 999,
+        .pressure_pa = simulated_pressure_pa,
+        .altitude_m = (int32_t)simulated_altitude_m,
+        .vario_cms = simulated_vario_cms,
+        .temperature_dc = simulated_temperature_dc,
+        .battery_mv = simulated_battery_percent,
     };
-
-    simulated_altitude_m++;
-    if (simulated_altitude_m > 100009)
-    {
-        simulated_altitude_m = 99999;
-    }
 
     return ESP_OK == lk8ex1_format(&lk8ex1_data, sentence, sentence_size);
 }

@@ -9,9 +9,12 @@ esp_err_t lk8ex1_hardware_format_payload(const lk8ex1_data_t *data, char *payloa
     if (!data || !payload || !payload_len)
         return ESP_ERR_INVALID_ARG;
 
+    int32_t pressure_hpa = data->pressure_pa / 100;
+    int32_t battery_level = data->battery_mv;
+
     int result =
-        snprintf(payload, payload_size, "LK8EX1,%ld,%ld,%ld,%ld,%ld", (long)data->pressure_pa, (long)data->altitude_m,
-                 (long)data->vario_cms, (long)data->temperature_dc, (long)data->battery_mv);
+        snprintf(payload, payload_size, "LK8EX1,%ld,%ld,%ld,%ld,%ld,", (long)pressure_hpa, (long)data->altitude_m,
+                 (long)data->vario_cms, (long)data->temperature_dc, (long)battery_level);
     if (result < 0 || (size_t)result >= payload_size)
         return ESP_FAIL;
 
