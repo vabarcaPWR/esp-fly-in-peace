@@ -5,7 +5,6 @@
 
 #include "ble_nus_model.h"
 #include "esp_log.h"
-#include "esp_nimble_hci.h"
 #include "host/ble_att.h"
 #include "host/ble_gatt.h"
 #include "host/ble_hs.h"
@@ -45,6 +44,67 @@ static uint16_t adv_interval_ms_to_units(uint16_t interval_ms)
     }
 
     return (uint16_t)units;
+}
+
+static int ble_nus_hardware_set_advertising_data(void)
+{
+    struct ble_hs_adv_fields adv_fields;
+    memset(&adv_fields, 0, sizeof(adv_fields));
+    adv_fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
+    adv_fields.tx_pwr_lvl_is_present = 1;
+    adv_fields.tx_pwr_lvl = BLE_HS_ADV_TX_PWR_LVL_AUTO;
+    adv_fields.name = (uint8_t *)ble_nus_model_get_device_name();
+    adv_fields.name_len = (uint8_t)strlen(ble_nus_model_get_device_name());
+    adv_fields.name_is_complete = 1;
+
+    int field_result = ble_gap_adv_set_fields(&adv_fields);
+    if (field_result)
+    {
+        ESP_LOGE(TAG, "ble_gap_adv_set_fields failed: rc=%d", field_result);
+        return field_result;
+    }
+
+    struct ble_hs_adv_fields scan_rsp_fields;
+    memset(&scan_rsp_fields, 0, sizeof(scan_rsp_fields));
+    scan_rsp_fields.uuids128 = (ble_uuid128_t *)&NUS_SERVICE_UUID;
+    scan_rsp_fields.num_uuids128 = 1;
+    scan_rsp_fields.uuids128_is_complete = 1;
+
+    int scan_rsp_result = ble_gap_adv_rsp_set_fields(&scan_rsp_fields);
+    if (scan_rsp_result)
+    {
+        ESP_LOGE(TAG, "ble_gap_adv_rsp_set_fields failed: rc=%d", scan_rsp_result);
+        return scan_rsp_result;
+    }
+
+    return 0;
+}
+
+static int ble_nus_hardware_start_advertising(int (*event_cb)(struct ble_gap_event *event, void *arg))
+{
+    int field_result = ble_nus_hardware_set_advertising_data();
+    if (field_result)
+    {
+        return field_result;
+    }
+
+    struct ble_gap_adv_params adv_params;
+    memset(&adv_params, 0, sizeof(adv_params));
+    adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
+    adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
+    uint16_t interval_units = adv_interval_ms_to_units(ble_nus_model_get_adv_interval_ms());
+    adv_params.itvl_min = interval_units;
+    adv_params.itvl_max = interval_units;
+
+    int adv_result =
+        ble_gap_adv_start(ble_nus_model_get_own_addr_type(), NULL, BLE_HS_FOREVER, &adv_params, event_cb, NULL);
+    if (adv_result)
+    {
+        ESP_LOGE(TAG, "ble_gap_adv_start failed: rc=%d", adv_result);
+        return adv_result;
+    }
+
+    return 0;
 }
 
 static int ble_nus_hardware_gatt_access_cb(uint16_t conn_handle, uint16_t attr_handle,
@@ -113,41 +173,7 @@ static int ble_nus_hardware_gap_event_cb(struct ble_gap_event *event, void *arg)
         else
         {
             ESP_LOGW(TAG, "BLE connect failed: status=%d", event->connect.status);
-
-            struct ble_hs_adv_fields adv_fields;
-            memset(&adv_fields, 0, sizeof(adv_fields));
-            adv_fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
-            adv_fields.tx_pwr_lvl_is_present = 1;
-            adv_fields.tx_pwr_lvl = BLE_HS_ADV_TX_PWR_LVL_AUTO;
-            adv_fields.name = (uint8_t *)ble_nus_model_get_device_name();
-            adv_fields.name_len = (uint8_t)strlen(ble_nus_model_get_device_name());
-            adv_fields.name_is_complete = 1;
-            adv_fields.uuids128 = (ble_uuid128_t *)&NUS_SERVICE_UUID;
-            adv_fields.num_uuids128 = 1;
-            adv_fields.uuids128_is_complete = 1;
-
-            int field_result = ble_gap_adv_set_fields(&adv_fields);
-            if (field_result)
-            {
-                ESP_LOGE(TAG, "ble_gap_adv_set_fields failed: rc=%d", field_result);
-                return field_result;
-            }
-
-            struct ble_gap_adv_params adv_params;
-            memset(&adv_params, 0, sizeof(adv_params));
-            adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
-            adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
-            uint16_t interval_units = adv_interval_ms_to_units(ble_nus_model_get_adv_interval_ms());
-            adv_params.itvl_min = interval_units;
-            adv_params.itvl_max = interval_units;
-
-            int adv_result = ble_gap_adv_start(ble_nus_model_get_own_addr_type(), NULL, BLE_HS_FOREVER, &adv_params,
-                                               ble_nus_hardware_gap_event_cb, NULL);
-            if (adv_result)
-            {
-                ESP_LOGE(TAG, "ble_gap_adv_start failed: rc=%d", adv_result);
-                return adv_result;
-            }
+            return ble_nus_hardware_start_advertising(ble_nus_hardware_gap_event_cb);
         }
         return 0;
     }
@@ -163,41 +189,7 @@ static int ble_nus_hardware_gap_event_cb(struct ble_gap_event *event, void *arg)
             callback(false, disconnected_handle);
         }
 
-        struct ble_hs_adv_fields adv_fields;
-        memset(&adv_fields, 0, sizeof(adv_fields));
-        adv_fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
-        adv_fields.tx_pwr_lvl_is_present = 1;
-        adv_fields.tx_pwr_lvl = BLE_HS_ADV_TX_PWR_LVL_AUTO;
-        adv_fields.name = (uint8_t *)ble_nus_model_get_device_name();
-        adv_fields.name_len = (uint8_t)strlen(ble_nus_model_get_device_name());
-        adv_fields.name_is_complete = 1;
-        adv_fields.uuids128 = (ble_uuid128_t *)&NUS_SERVICE_UUID;
-        adv_fields.num_uuids128 = 1;
-        adv_fields.uuids128_is_complete = 1;
-
-        int field_result = ble_gap_adv_set_fields(&adv_fields);
-        if (field_result)
-        {
-            ESP_LOGE(TAG, "ble_gap_adv_set_fields failed: rc=%d", field_result);
-            return field_result;
-        }
-
-        struct ble_gap_adv_params adv_params;
-        memset(&adv_params, 0, sizeof(adv_params));
-        adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
-        adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
-        uint16_t interval_units = adv_interval_ms_to_units(ble_nus_model_get_adv_interval_ms());
-        adv_params.itvl_min = interval_units;
-        adv_params.itvl_max = interval_units;
-
-        int adv_result = ble_gap_adv_start(ble_nus_model_get_own_addr_type(), NULL, BLE_HS_FOREVER, &adv_params,
-                                           ble_nus_hardware_gap_event_cb, NULL);
-        if (adv_result)
-        {
-            ESP_LOGE(TAG, "ble_gap_adv_start failed: rc=%d", adv_result);
-            return adv_result;
-        }
-        return 0;
+        return ble_nus_hardware_start_advertising(ble_nus_hardware_gap_event_cb);
     }
 
     case BLE_GAP_EVENT_MTU: {
@@ -269,38 +261,9 @@ static void ble_nus_hardware_on_sync(void)
         ESP_LOGW(TAG, "ble_att_set_preferred_mtu failed: rc=%d", mtu_result);
     }
 
-    struct ble_hs_adv_fields adv_fields;
-    memset(&adv_fields, 0, sizeof(adv_fields));
-    adv_fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
-    adv_fields.tx_pwr_lvl_is_present = 1;
-    adv_fields.tx_pwr_lvl = BLE_HS_ADV_TX_PWR_LVL_AUTO;
-    adv_fields.name = (uint8_t *)ble_nus_model_get_device_name();
-    adv_fields.name_len = (uint8_t)strlen(ble_nus_model_get_device_name());
-    adv_fields.name_is_complete = 1;
-    adv_fields.uuids128 = (ble_uuid128_t *)&NUS_SERVICE_UUID;
-    adv_fields.num_uuids128 = 1;
-    adv_fields.uuids128_is_complete = 1;
-
-    int field_result = ble_gap_adv_set_fields(&adv_fields);
-    if (field_result)
-    {
-        ESP_LOGE(TAG, "ble_gap_adv_set_fields failed: rc=%d", field_result);
-        return;
-    }
-
-    struct ble_gap_adv_params adv_params;
-    memset(&adv_params, 0, sizeof(adv_params));
-    adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
-    adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
-    uint16_t interval_units = adv_interval_ms_to_units(ble_nus_model_get_adv_interval_ms());
-    adv_params.itvl_min = interval_units;
-    adv_params.itvl_max = interval_units;
-
-    int adv_result = ble_gap_adv_start(ble_nus_model_get_own_addr_type(), NULL, BLE_HS_FOREVER, &adv_params,
-                                       ble_nus_hardware_gap_event_cb, NULL);
+    int adv_result = ble_nus_hardware_start_advertising(ble_nus_hardware_gap_event_cb);
     if (adv_result)
     {
-        ESP_LOGE(TAG, "ble_gap_adv_start failed: rc=%d", adv_result);
         return;
     }
 
@@ -324,13 +287,17 @@ esp_err_t ble_nus_hardware_start(void)
         nvs_result = nvs_flash_init();
     }
     if (ESP_OK != nvs_result)
+    {
+        ESP_LOGE(TAG, "nvs_flash_init failed: err=0x%x", nvs_result);
         return nvs_result;
+    }
 
-    esp_err_t hci_result = esp_nimble_hci_init();
-    if (ESP_OK != hci_result)
-        return hci_result;
-
-    nimble_port_init();
+    int nimble_init_result = nimble_port_init();
+    if (nimble_init_result)
+    {
+        ESP_LOGE(TAG, "nimble_port_init failed: rc=%d", nimble_init_result);
+        return ESP_FAIL;
+    }
 
     ble_hs_cfg.sync_cb = ble_nus_hardware_on_sync;
 
@@ -340,6 +307,7 @@ esp_err_t ble_nus_hardware_start(void)
     int gap_name_result = ble_svc_gap_device_name_set(ble_nus_model_get_device_name());
     if (gap_name_result)
     {
+        ESP_LOGE(TAG, "ble_svc_gap_device_name_set failed: rc=%d", gap_name_result);
         nimble_port_deinit();
         return ESP_FAIL;
     }
@@ -347,6 +315,7 @@ esp_err_t ble_nus_hardware_start(void)
     int count_result = ble_gatts_count_cfg(s_gatt_services);
     if (count_result)
     {
+        ESP_LOGE(TAG, "ble_gatts_count_cfg failed: rc=%d", count_result);
         nimble_port_deinit();
         return ESP_FAIL;
     }
@@ -354,6 +323,7 @@ esp_err_t ble_nus_hardware_start(void)
     int add_result = ble_gatts_add_svcs(s_gatt_services);
     if (add_result)
     {
+        ESP_LOGE(TAG, "ble_gatts_add_svcs failed: rc=%d", add_result);
         nimble_port_deinit();
         return ESP_FAIL;
     }
@@ -392,12 +362,6 @@ esp_err_t ble_nus_hardware_stop(void)
     }
 
     nimble_port_deinit();
-
-    esp_err_t controller_result = esp_nimble_hci_deinit();
-    if (ESP_OK != controller_result)
-    {
-        ESP_LOGW(TAG, "esp_nimble_hci_deinit returned err=0x%x", controller_result);
-    }
 
     s_tx_value_handle = 0U;
     return ESP_OK;

@@ -39,7 +39,7 @@ if [[ -n "${_IDF_OLD_PATH+x}" ]]; then
     return 0
 fi
 
-if [[ -z "${IDF_PATH}" ]]; then
+if [[ -z "${IDF_PATH:-}" ]]; then
     _IDF_CANDIDATES=(
         "$HOME/.espressif/v5.5.2/esp-idf"
         "$HOME/esp/esp-idf"
@@ -54,7 +54,7 @@ if [[ -z "${IDF_PATH}" ]]; then
     unset _candidate _IDF_CANDIDATES
 fi
 
-if [[ -z "${IDF_PATH}" || ! -f "${IDF_PATH}/export.sh" ]]; then
+if [[ -z "${IDF_PATH:-}" || ! -f "${IDF_PATH}/export.sh" ]]; then
     echo -e "${_RED}[ENV]${_NC} ESP-IDF not found. Set IDF_PATH or install ESP-IDF." >&2
     return 1
 fi

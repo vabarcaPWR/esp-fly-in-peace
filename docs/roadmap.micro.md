@@ -25,14 +25,14 @@
   - [x] Task 2.1: LK8EX1 data types and formatter
   - [x] Task 2.2: NMEA checksum calculator
   - [x] Task 2.3: Ceedling unit tests for LK8EX1
-- [ ] **Phase 3: BLE NUS Service**
+- [x] **Phase 3: BLE NUS Service**
   - [x] Task 3.1: NimBLE initialization and GAP configuration
   - [x] Task 3.2: NUS GATT service registration
   - [x] Task 3.3: TX notification (send data)
   - [x] Task 3.4: RX write handler (reserved for future use)
   - [x] Task 3.5: Connection state management
   - [x] Task 3.6: BLE + LK8EX1 integration (send simulated frames)
-  - [ ] Task 3.7: Verify with nRF Connect
+  - [x] Task 3.7: Verify with nRF Connect
 - [ ] **Phase 4: LED Indicator**
   - [ ] Task 4.1: WS2812 driver via RMT peripheral
   - [ ] Task 4.2: LED state machine (patterns per `led_state_e`)
@@ -591,22 +591,23 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Description**: Full BLE NUS validation with nRF Connect app.
 
 **Acceptance Criteria**:
-- [ ] Device advertises and is visible in nRF Connect
-- [ ] Connection succeeds, NUS service and characteristics visible
-- [ ] TX notifications received correctly (full LK8EX1 sentences)
-- [ ] RX writes received correctly in firmware callback (log output)
-- [ ] Reconnection works after disconnect
-- [ ] `esp_err_t ble_nus_deinit(void)` cleans up resources
+- [x] Device advertises and is visible in nRF Connect
+- [x] Connection succeeds, NUS service and characteristics visible
+- [x] TX notifications received correctly (full LK8EX1 sentences)
+- [x] RX writes received correctly in firmware callback (log output)
+- [x] Reconnection works after disconnect
+- [x] `esp_err_t ble_nus_deinit(void)` cleans up resources
 
 **Validation**:
 - Test with nRF Connect (mandatory)
 - Test with XCTrack (nice to have — validate LK8EX1 parsing)
 
 **Status**:
-- [ ] Pending hardware validation with nRF Connect to close Task 3.7.
-
-**Support Script**:
-- `scripts/phase3_7_quick_check.sh`
+- [x] Completed on 2026-02-19 after hardware validation with nRF Connect.
+- [x] Automated pre-check passed on 2026-02-19:
+  - BLE stack initializes without `esp_nimble_hci_init failed`.
+  - Advertising starts successfully (`BLE advertising started: name=FlyInPeace interval_ms=100`).
+  - NUS advertising payload fix validated (ADV + scan response split).
 
 **Execution Checklist (ready to run)**:
 1. Flash and open monitor:
@@ -648,12 +649,11 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 - Final verdict: PASS / FAIL
 
 **Quick Field Check (60s MVP)**:
-1. Run `./scripts/phase3_7_quick_check.sh -p /dev/ttyUSB0` from repository root.
+1. Run `./scripts/all.sh -p /dev/ttyUSB0` from repository root.
 2. Open nRF Connect, scan, and connect to `FlyInPeace`.
 3. Enable `Notify` on `6E400003-...` and confirm LK8EX1 lines appear.
 4. Write `PING` to `6E400002-...` and confirm firmware logs RX length.
 5. Disconnect and reconnect once; confirm stream resumes.
-6. If all 5 pass, mark Task 3.7 as complete.
 
 ---
 

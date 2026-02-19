@@ -50,5 +50,6 @@ and low-power design for ESP32-C3.
 2. State acceptance criteria and validation plan.
 3. Implement following the style guide.
 4. Apply `.clang-format` by running `pe-code-tool format <file>` on edited files.
-5. Write/run Ceedling tests for business logic.
-6. Mark task complete in roadmap checklist.
+5. Execute `pe-code-tool format` on all `.c` and `.h` from micro folder. Do not run it on root or app folders.
+6. Write/run Ceedling tests for business logic.
+7. Mark task complete in roadmap checklist.
