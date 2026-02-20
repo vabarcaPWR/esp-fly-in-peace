@@ -11,7 +11,7 @@
 ## Summary Checklist
 
 - [ ] **Phase 0: Project Bootstrap**
-  - [ ] Task 0.1: Create Flutter project
+  - [x] Task 0.1: Create Flutter project
   - [ ] Task 0.2: Configure dependencies (BLE, state management, etc.)
   - [ ] Task 0.3: Choose and set up state management
   - [ ] Task 0.4: Define project structure and architecture
@@ -105,11 +105,11 @@ For every feature/module implemented in those phases:
 **Description**: Create a new Flutter project under `app/` targeting Android only. Configure `android/app/build.gradle` with appropriate min/target SDK versions for BLE support.
 
 **Acceptance Criteria**:
-- [ ] Flutter project created at `app/`
-- [ ] `android/app/build.gradle` sets `minSdkVersion 21` (for BLE), `targetSdkVersion 34`
-- [ ] Project name: `fly_in_peace`
-- [ ] Package/application ID: `com.flyinpeace.app` (or similar)
-- [ ] `flutter run` launches the default counter app on Android device/emulator
+- [x] Flutter project created at `app/`
+- [x] `android/app/build.gradle` sets `minSdkVersion 21` (for BLE), `targetSdkVersion 34`
+- [x] Project name: `fly_in_peace`
+- [x] Package/application ID: `com.flyinpeace.app` (or similar)
+- [x] `flutter run` launches the default counter app on Android device/emulator
 
 **Validation**:
 - `flutter run` succeeds on an Android device or emulator
