@@ -75,3 +75,9 @@ type(scope): short description
 Types: feat, fix, refactor, test, docs, chore
 Scopes: micro, app, docs, config
 ```
+
+## IA Actions
+
+- Select agent `app.agent.md` for app-related tasks.
+- Select agent `micro.agent.md` for firmware-related tasks.
+- Select agent `docs.agent.md` for documentation-related tasks.

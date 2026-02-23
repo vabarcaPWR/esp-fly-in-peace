@@ -53,3 +53,19 @@ Provide extra context, explain patterns, and suggest the simplest correct approa
 4. Format with `dart format`.
 5. Write tests for business logic and widget behavior.
 6. Mark task complete in roadmap checklist.
+
+## Constraints
+
+- Always use `esp_err_t` for return codes
+- Always validate pointer parameters at function entry
+- Use `ESP_LOGx` macros for logging (never `printf`)
+- Follow naming: `snake_case` functions, `UPPER_SNAKE_CASE` macros, `_t` suffix for types
+- Static allocation preferred over dynamic
+- No dynamic memory allocation in ISRs or time-critical paths
+- Allman brace style, 4-space indent, 120-char line limit
+- Public headers: include guard + `extern "C"` wrapper + Doxygen for public API
+- Private functions: always `static`, no forward declarations (reorder instead)
+- **No file headers**: Do not add `@file` blocks or top-of-file comment banners in `.c` files.
+- **No comments in `.c` files**: Code must be self-explanatory through clear naming. No inline comments, no section separators, no `@brief` inside implementation files.
+- **DRY**: Do not repeat yourself. Extract shared logic into well-named helper functions.
+- **Self-documenting code**: Function and variable names must convey intent. If a comment is needed, rename the symbol instead.
