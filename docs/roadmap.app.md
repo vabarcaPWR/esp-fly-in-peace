@@ -10,13 +10,13 @@
 
 ## Summary Checklist
 
-- [ ] **Phase 0: Project Bootstrap**
+- [x] **Phase 0: Project Bootstrap**
   - [x] Task 0.1: Create Flutter project
-  - [ ] Task 0.2: Configure dependencies (BLE, state management, etc.)
-  - [ ] Task 0.3: Choose and set up state management
-  - [ ] Task 0.4: Define project structure and architecture
-  - [ ] Task 0.5: Create app theme and common widgets
-  - [ ] Task 0.6: Verify build and run on Android device/emulator
+  - [x] Task 0.2: Configure dependencies (BLE, state management, etc.)
+  - [x] Task 0.3: Choose and set up state management
+  - [x] Task 0.4: Define project structure and architecture
+  - [x] Task 0.5: Create app theme and common widgets
+  - [x] Task 0.6: Verify build and run on Android device/emulator
 - [ ] **Phase 1: BLE Scanner**
   - [ ] Task 1.1: Android BLE permissions handling
   - [ ] Task 1.2: BLE scan functionality with NUS UUID filter
@@ -129,12 +129,12 @@ For every feature/module implemented in those phases:
 **Description**: Add required packages to `pubspec.yaml`: BLE, state management, local storage, etc.
 
 **Acceptance Criteria**:
-- [ ] `flutter_blue_plus` added for BLE communication
-- [ ] State management package added (see Task 0.3)
-- [ ] `shared_preferences` added for local app settings
-- [ ] `permission_handler` added for BLE permissions
-- [ ] `flutter_lints` or `very_good_analysis` for lint rules
-- [ ] `flutter pub get` succeeds with no dependency conflicts
+- [x] `flutter_blue_plus` added for BLE communication
+- [x] State management package added (see Task 0.3)
+- [x] `shared_preferences` added for local app settings
+- [x] `permission_handler` added for BLE permissions
+- [x] `flutter_lints` or `very_good_analysis` for lint rules
+- [x] `flutter pub get` succeeds with no dependency conflicts
 
 **Validation**:
 - `flutter pub get` completes successfully
@@ -184,9 +184,9 @@ dev_dependencies:
 - No `BuildContext` needed for accessing state (useful for BLE callbacks).
 
 **Acceptance Criteria**:
-- [ ] State management choice confirmed by developer
-- [ ] Package installed and basic provider structure created
-- [ ] A sample provider works (e.g., counter or connection state)
+- [x] State management choice confirmed by developer
+- [x] Package installed and basic provider structure created
+- [x] A sample provider works (e.g., counter or connection state)
 
 **Validation**:
 - App compiles and runs with state management integrated
@@ -198,7 +198,7 @@ dev_dependencies:
 **Description**: Create the directory structure following a feature-based architecture and the `conductor-model-hardware` pattern.
 
 **Acceptance Criteria**:
-- [ ] Directory structure created:
+- [x] Directory structure created:
   ```
   app/lib/
   ├── main.dart                     # Entry point
@@ -229,8 +229,8 @@ dev_dependencies:
       ├── connection_indicator.dart
       └── value_display.dart
   ```
-- [ ] Each directory has a placeholder file or `.gitkeep`
-- [ ] Each feature defines `conductor`, `model`, and `hardware` responsibilities (can be files or subfolders)
+- [x] Each directory has a placeholder file or `.gitkeep`
+- [x] Each feature defines `conductor`, `model`, and `hardware` responsibilities (can be files or subfolders)
 
 **Validation**:
 - Project compiles with empty structure
@@ -242,12 +242,12 @@ dev_dependencies:
 **Description**: Set up the app's visual theme (Material 3) and create reusable base widgets.
 
 **Acceptance Criteria**:
-- [ ] Material 3 theme configured in `app.dart`
-- [ ] Color scheme defined (flight/outdoor theme: blues, greens, grays)
-- [ ] Text theme defined (readable at a glance, large data values)
-- [ ] Common widget: `ConnectionIndicator` (green dot = connected, red dot = disconnected)
-- [ ] Common widget: `ValueDisplay` (label + large value + unit, reusable for altitude/vario/pressure)
-- [ ] Dark mode support (optional for MVP, but theme structure should allow it)
+- [x] Material 3 theme configured in `app.dart`
+- [x] Color scheme defined (flight/outdoor theme: blues, greens, grays)
+- [x] Text theme defined (readable at a glance, large data values)
+- [x] Common widget: `ConnectionIndicator` (green dot = connected, red dot = disconnected)
+- [x] Common widget: `ValueDisplay` (label + large value + unit, reusable for altitude/vario/pressure)
+- [x] Dark mode support (optional for MVP, but theme structure should allow it)
 
 **Validation**:
 - App displays themed widgets correctly
@@ -259,15 +259,21 @@ dev_dependencies:
 **Description**: End-to-end verification: the Flutter app builds, installs, and runs on an Android device.
 
 **Acceptance Criteria**:
-- [ ] `flutter build apk --debug` succeeds
+- [x] `flutter build apk --debug` succeeds
 - [ ] App installs and launches on Android device/emulator
-- [ ] Basic navigation between placeholder screens works
-- [ ] No crash or build errors
+- [x] Basic navigation between placeholder screens works
+- [x] No crash or build errors
 
 **Validation**:
 - Install APK on physical device, navigate between screens
 
 **Notes**: This is the gate for Phase 0. Do not proceed to Phase 1 until this passes.
+
+**Status Note (2026-02-23)**:
+- `flutter pub get` ✅
+- `flutter analyze` ✅
+- `flutter test` ✅
+- `flutter build apk --debug` ✅ (`scripts/build_app_debug.sh` with `JAVA_HOME=/home/vabarca/.local/jdk-17`)
 
 ---
 
