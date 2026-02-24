@@ -57,7 +57,7 @@ class BleService {
       StreamController<List<BleScanDevice>>.broadcast();
   final StreamController<bool> _isScanningController =
       StreamController<bool>.broadcast();
-    final StreamController<String> _receivedLinesController =
+  final StreamController<String> _receivedLinesController =
       StreamController<String>.broadcast();
 
   final Map<String, BleScanDevice> _scanDevicesById = <String, BleScanDevice>{};
@@ -269,9 +269,7 @@ class BleService {
       _handleTxNotificationValue,
       onError: (Object error, StackTrace stackTrace) {
         _receivedLinesController.addError(
-          BleServiceException(
-            'Failed to process TX notifications: $error',
-          ),
+          BleServiceException('Failed to process TX notifications: $error'),
           stackTrace,
         );
       },
