@@ -1,41 +1,179 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../widgets/connection_indicator.dart';
+import '../../widgets/device_list_tile.dart';
+import '../dashboard/dashboard_screen.dart';
 import 'scanner_provider.dart';
 
-class ScannerScreen extends ConsumerWidget {
+class ScannerScreen extends ConsumerStatefulWidget {
   const ScannerScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final refreshCount = ref.watch(scannerRefreshCountProvider);
+  ConsumerState<ScannerScreen> createState() => _ScannerScreenState();
+}
+
+class _ScannerScreenState extends ConsumerState<ScannerScreen> {
+  bool _hasRequestedInitialScan = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_hasRequestedInitialScan) {
+      return;
+    }
+
+    _hasRequestedInitialScan = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      ref.read(scannerControllerProvider.notifier).startScan();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ScannerState state = ref.watch(scannerControllerProvider);
+
+    ref.listen<ScannerState>(scannerControllerProvider, (previous, next) {
+      final ScannerDialogRequest? request = next.dialogRequest;
+      if (request == null || request == previous?.dialogRequest) {
+        return;
+      }
+
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) {
+          return;
+        }
+
+        await showDialog<void>(
+          context: context,
+          builder: (dialogContext) {
+            return AlertDialog(
+              title: Text(request.title),
+              content: Text(request.message),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(dialogContext).pop();
+                  },
+                  child: const Text('Close'),
+                ),
+                if (request.action != ScannerDialogAction.none)
+                  ElevatedButton(
+                    onPressed: () async {
+                      await ref
+                          .read(scannerControllerProvider.notifier)
+                          .handleDialogAction();
+                      if (dialogContext.mounted) {
+                        Navigator.of(dialogContext).pop();
+                      }
+                    },
+                    child: Text(
+                      request.action == ScannerDialogAction.turnOnBluetooth
+                          ? 'Turn on Bluetooth'
+                          : 'Open settings',
+                    ),
+                  ),
+              ],
+            );
+          },
+        );
+
+        ref.read(scannerControllerProvider.notifier).clearDialog();
+      });
+    });
 
     return Scaffold(
       appBar: AppBar(title: const Text('Scanner')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const ConnectionIndicator(connected: false),
-            const SizedBox(height: 16),
-            Text(
-              'Phase 0 scanner placeholder',
-              style: Theme.of(context).textTheme.titleLarge,
+      body: Column(
+        children: [
+          if (state.isScanning)
+            LinearProgressIndicator(value: state.scanProgress.clamp(0.0, 1.0)),
+          if (state.isScanning)
+            const ListTile(
+              leading: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              title: Text('Scanning for BLE devices...'),
             ),
-            const SizedBox(height: 8),
-            Text('Refresh count: $refreshCount'),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: () {
-                ref.read(scannerRefreshCountProvider.notifier).state++;
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () async {
+                await ref
+                    .read(scannerControllerProvider.notifier)
+                    .refreshScan();
               },
-              icon: const Icon(Icons.refresh),
-              label: const Text('Refresh placeholder state'),
+              child: state.devices.isEmpty
+                  ? ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(16),
+                      children: [
+                        const SizedBox(height: 80),
+                        Text(
+                          'No devices found. Make sure your vario is powered on.',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        if (state.showScanAgain) ...[
+                          const SizedBox(height: 20),
+                          Center(
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                ref
+                                    .read(scannerControllerProvider.notifier)
+                                    .startScan();
+                              },
+                              icon: const Icon(Icons.refresh),
+                              label: const Text('Scan again'),
+                            ),
+                          ),
+                        ],
+                      ],
+                    )
+                  : ListView.separated(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(12),
+                      itemBuilder: (context, index) {
+                        final device = state.devices[index];
+                        return DeviceListTile(
+                          device: device,
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => const DashboardScreen(),
+                              ),
+                            );
+                          },
+                          onConnect: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => const DashboardScreen(),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                      separatorBuilder: (_, _) => const SizedBox(height: 8),
+                      itemCount: state.devices.length,
+                    ),
             ),
-          ],
-        ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          final controller = ref.read(scannerControllerProvider.notifier);
+          if (state.isScanning) {
+            await controller.stopScan();
+          } else {
+            await controller.startScan();
+          }
+        },
+        icon: Icon(state.isScanning ? Icons.stop : Icons.search),
+        label: Text(state.isScanning ? 'Stop' : 'Scan'),
       ),
     );
   }

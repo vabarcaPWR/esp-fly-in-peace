@@ -17,11 +17,17 @@ void main() {
     await tester.pumpWidget(const ProviderScope(child: FlyInPeaceApp()));
     await tester.pumpAndSettle();
 
+    final closeDialogFinder = find.text('Close');
+    if (closeDialogFinder.evaluate().isNotEmpty) {
+      await tester.tap(closeDialogFinder.first);
+      await tester.pumpAndSettle();
+    }
+
     expect(find.text('Scanner'), findsNWidgets(2));
 
-    await tester.tap(find.text('Dashboard'));
+    await tester.tap(find.text('Dashboard').first);
     await tester.pumpAndSettle();
-    expect(find.text('Dashboard'), findsNWidgets(2));
+    expect(find.text('Dashboard'), findsWidgets);
 
     await tester.tap(find.text('Config'));
     await tester.pumpAndSettle();

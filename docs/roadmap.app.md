@@ -17,11 +17,11 @@
   - [x] Task 0.4: Define project structure and architecture
   - [x] Task 0.5: Create app theme and common widgets
   - [x] Task 0.6: Verify build and run on Android device/emulator
-- [ ] **Phase 1: BLE Scanner**
-  - [ ] Task 1.1: Android BLE permissions handling
-  - [ ] Task 1.2: BLE scan functionality with NUS UUID filter
-  - [ ] Task 1.3: Device list UI (name, RSSI, connect button)
-  - [ ] Task 1.4: Pull-to-refresh and scan timeout
+- [x] **Phase 1: BLE Scanner**
+  - [x] Task 1.1: Android BLE permissions handling
+  - [x] Task 1.2: BLE scan functionality with NUS UUID filter
+  - [x] Task 1.3: Device list UI (name, RSSI, connect button)
+  - [x] Task 1.4: Pull-to-refresh and scan timeout
 - [ ] **Phase 2: BLE Connection**
   - [ ] Task 2.1: Connect to device
   - [ ] Task 2.2: Connection state management
@@ -296,12 +296,12 @@ dev_dependencies:
 **Description**: Implement proper Android BLE permission handling for all Android versions (especially Android 12+ which requires `BLUETOOTH_SCAN`, `BLUETOOTH_CONNECT`, and location permissions).
 
 **Acceptance Criteria**:
-- [ ] Request `BLUETOOTH_SCAN` and `BLUETOOTH_CONNECT` on Android 12+ (API 31+)
-- [ ] Request `ACCESS_FINE_LOCATION` on Android 11 and below
-- [ ] Handle "permission denied" gracefully — show explanation dialog
-- [ ] Handle "permission permanently denied" — direct user to app settings
-- [ ] Check if Bluetooth adapter is enabled — prompt to enable if off
-- [ ] Check if Location services are enabled (required for BLE scan on some Android versions)
+- [x] Request `BLUETOOTH_SCAN` and `BLUETOOTH_CONNECT` on Android 12+ (API 31+)
+- [x] Request `ACCESS_FINE_LOCATION` on Android 11 and below
+- [x] Handle "permission denied" gracefully — show explanation dialog
+- [x] Handle "permission permanently denied" — direct user to app settings
+- [x] Check if Bluetooth adapter is enabled — prompt to enable if off
+- [x] Check if Location services are enabled (required for BLE scan on some Android versions)
 
 **Validation**:
 - Test on Android 12+ device: permissions requested correctly
@@ -328,12 +328,12 @@ Required manifest permissions:
 **Description**: Implement BLE scanning using `flutter_blue_plus`, filtered to show only devices advertising the NUS service UUID.
 
 **Acceptance Criteria**:
-- [ ] Start/stop scanning via `FlutterBluePlus.startScan()` / `stopScan()`
-- [ ] Filter by NUS service UUID: `6E400001-B5A3-F393-E0A9-E50E24DCCA9E`
-- [ ] Also show devices with name containing "FlyInPeace" (for devices that don't advertise service UUID)
-- [ ] Scan timeout: 10 seconds (configurable)
-- [ ] Deduplicate results (same device MAC)
-- [ ] Expose scan results as a stream/provider for the UI
+- [x] Start/stop scanning via `FlutterBluePlus.startScan()` / `stopScan()`
+- [x] Filter by NUS service UUID: `6E400001-B5A3-F393-E0A9-E50E24DCCA9E`
+- [x] Also show devices with name containing "FlyInPeace" (for devices that don't advertise service UUID)
+- [x] Scan timeout: 10 seconds (configurable)
+- [x] Deduplicate results (same device MAC)
+- [x] Expose scan results as a stream/provider for the UI
 
 **Validation**:
 - Turn on ESP32-C3 with BLE firmware → device appears in scan results
@@ -349,12 +349,12 @@ Required manifest permissions:
 **Description**: Build the scanner screen UI showing discovered BLE devices.
 
 **Acceptance Criteria**:
-- [ ] List view showing each device: name (or "Unknown"), MAC address, RSSI signal indicator
-- [ ] "Scan" FAB button to start/stop scanning
-- [ ] Scanning indicator (spinner or animation) while scan is active
-- [ ] Tap on device → navigate to connection / dashboard
-- [ ] Empty state: "No devices found. Make sure your vario is powered on."
-- [ ] RSSI shown as signal bars or dBm value
+- [x] List view showing each device: name (or "Unknown"), MAC address, RSSI signal indicator
+- [x] "Scan" FAB button to start/stop scanning
+- [x] Scanning indicator (spinner or animation) while scan is active
+- [x] Tap on device → navigate to connection / dashboard
+- [x] Empty state: "No devices found. Make sure your vario is powered on."
+- [x] RSSI shown as signal bars or dBm value
 
 **Validation**:
 - Scan shows ESP32-C3 device with correct name and signal strength
@@ -370,14 +370,19 @@ Required manifest permissions:
 **Description**: Add pull-to-refresh gesture and automatic scan timeout with "rescan" button.
 
 **Acceptance Criteria**:
-- [ ] Pull down on device list → restart scan
-- [ ] Scan automatically stops after timeout (10 seconds)
-- [ ] "Scan again" button appears after scan completes
-- [ ] Scan progress indicator (e.g., linear progress bar showing time remaining)
+- [x] Pull down on device list → restart scan
+- [x] Scan automatically stops after timeout (10 seconds)
+- [x] "Scan again" button appears after scan completes
+- [x] Scan progress indicator (e.g., linear progress bar showing time remaining)
 
 **Validation**:
 - Pull down → scan restarts
 - Wait 10 seconds → scan stops, "Scan again" visible
+
+**Status Note (2026-02-23)**:
+- `flutter analyze` ✅
+- `flutter test` ✅
+- `flutter build apk --debug` ✅
 
 ---
 
