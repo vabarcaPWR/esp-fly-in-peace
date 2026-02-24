@@ -57,11 +57,15 @@ class BlePermissions {
       if (linuxAdapterState != BluetoothAdapterState.on) {
         return const BleReadiness(
           issue: BleReadinessIssue.bluetoothDisabled,
-          message: 'Bluetooth is turned off. Please enable Bluetooth and retry.',
+          message:
+              'Bluetooth is turned off. Please enable Bluetooth and retry.',
         );
       }
 
-      return const BleReadiness(issue: BleReadinessIssue.none, message: 'Ready');
+      return const BleReadiness(
+        issue: BleReadinessIssue.none,
+        message: 'Ready',
+      );
     }
 
     final Map<Permission, PermissionStatus> statuses = await <Permission>[

@@ -125,6 +125,19 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
               ),
               title: Text('Scanning for BLE devices...'),
             ),
+          if (state.isConnecting)
+            ListTile(
+              leading: const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              title: Text(
+                state.connectingDeviceId == null
+                    ? 'Connecting...'
+                    : 'Connecting to ${state.connectingDeviceId}...',
+              ),
+            ),
           Expanded(
             child: RefreshIndicator(
               onRefresh: () async {
@@ -177,31 +190,42 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                           );
                         }
 
+                        Future<void> connectAndOpenDashboard() async {
+                          if (state.isConnecting) {
+                            return;
+                          }
+
+                          final bool connected = await ref
+                              .read(scannerControllerProvider.notifier)
+                              .connectToDevice(device);
+                          if (!mounted || !connected) {
+                            return;
+                          }
+
+                          await Navigator.of(this.context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const DashboardScreen(),
+                            ),
+                          );
+                        }
+
                         return DeviceListTile(
                           device: device,
-                          onTap: () {
+                          onTap: () async {
                             if (!device.isFlyInPeaceCompatible) {
                               handleIncompatibleTap();
                               return;
                             }
 
-                            Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => const DashboardScreen(),
-                              ),
-                            );
+                            await connectAndOpenDashboard();
                           },
-                          onConnect: () {
+                          onConnect: () async {
                             if (!device.isFlyInPeaceCompatible) {
                               handleIncompatibleTap();
                               return;
                             }
 
-                            Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => const DashboardScreen(),
-                              ),
-                            );
+                            await connectAndOpenDashboard();
                           },
                         );
                       },

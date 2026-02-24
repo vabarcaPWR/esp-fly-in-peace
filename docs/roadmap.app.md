@@ -28,12 +28,12 @@
   - [x] Task 1.5.3: Firmware-first validation loop (scan + identify FlyInPeace)
   - [x] Task 1.5.4: Debug evidence checklist for firmware bring-up
 - [ ] **Phase 2: BLE Connection**
-  - [ ] Task 2.1: Connect to device
+  - [x] Task 2.1: Connect to device
   - [ ] Task 2.2: Connection state management
   - [ ] Task 2.3: Auto-reconnect logic
   - [ ] Task 2.4: Disconnect handling and UI feedback
 - [ ] **Phase 3: NUS Communication**
-  - [ ] Task 3.1: Discover NUS service and characteristics
+  - [x] Task 3.1: Discover NUS service and characteristics
   - [ ] Task 3.2: Subscribe to TX notifications (receive data)
   - [ ] Task 3.3: Write to RX characteristic (reserved for future use)
   - [ ] Task 3.4: Raw data debug screen
@@ -639,14 +639,27 @@ Execute tasks in this order before continuing with broader app features:
 **Description**: Connect to a selected BLE device using `flutter_blue_plus`.
 
 **Acceptance Criteria**:
-- [ ] `BleService.connect(BluetoothDevice device)` connects to the specified device
-- [ ] Connection timeout: 10 seconds
-- [ ] Negotiate MTU to maximum (request 512, accept whatever the device supports)
-- [ ] Discover services after connection
-- [ ] Verify NUS service is present — error if not
+- [x] `BleService.connect(BluetoothDevice device)` connects to the specified device
+- [x] Connection timeout: 10 seconds
+- [x] Negotiate MTU to maximum (request 512, accept whatever the device supports)
+- [x] Discover services after connection
+- [x] Verify NUS service is present — error if not
 
 **Validation**:
 - Tap device in scanner → connection established, services discovered
+
+**Status Note (2026-02-24 — implementation + validation)**:
+- `app/lib/core/ble/ble_service.dart` now implements `connect(BluetoothDevice device)` with:
+  - 10s connection timeout (`connectionTimeout = Duration(seconds: 10)`).
+  - MTU negotiation request (`requestMtu(512)` with graceful fallback).
+  - Service discovery and strict NUS validation.
+  - Stored references to connected device and discovered NUS entities for downstream tasks.
+- Scanner flow now calls real connection before dashboard navigation:
+  - `app/lib/features/scanner/scanner_provider.dart` adds `connectToDevice(...)`.
+  - `app/lib/features/scanner/scanner_screen.dart` connects on tap/connect and shows connecting progress.
+- Quality checks:
+  - `flutter analyze` ✅
+  - `flutter test` ✅
 
 **Files to modify**:
 - `app/lib/core/ble/ble_service.dart`
@@ -725,14 +738,26 @@ Execute tasks in this order before continuing with broader app features:
 **Description**: After connection, discover the NUS service and get references to TX (notify) and RX (write) characteristics.
 
 **Acceptance Criteria**:
-- [ ] Find NUS service by UUID `6E400001-B5A3-F393-E0A9-E50E24DCCA9E`
-- [ ] Find TX characteristic `6E400003-...` (notify)
-- [ ] Find RX characteristic `6E400002-...` (write)
-- [ ] Error handling if service/characteristics not found
-- [ ] Store references for use by send/receive functions
+- [x] Find NUS service by UUID `6E400001-B5A3-F393-E0A9-E50E24DCCA9E`
+- [x] Find TX characteristic `6E400003-...` (notify)
+- [x] Find RX characteristic `6E400002-...` (write)
+- [x] Error handling if service/characteristics not found
+- [x] Store references for use by send/receive functions
 
 **Validation**:
 - Connect to device → NUS service and chars found and logged
+
+**Status Note (2026-02-24 — implementation + validation)**:
+- NUS discovery is executed immediately after connection in `BleService.connect(...)`.
+- Implemented checks:
+  - NUS Service UUID match (`6E400001-B5A3-F393-E0A9-E50E24DCCA9E`).
+  - TX characteristic UUID match (`6E400003-B5A3-F393-E0A9-E50E24DCCA9E`).
+  - RX characteristic UUID match (`6E400002-B5A3-F393-E0A9-E50E24DCCA9E`).
+- Failure handling:
+  - Throws `BleServiceException` when NUS service or required characteristics are missing.
+  - Resets connection state on failure to avoid partial connected sessions.
+- Stored references for next tasks:
+  - `connectedDevice`, `nusService`, `nusTxCharacteristic`, `nusRxCharacteristic` getters in `BleService`.
 
 ---
 

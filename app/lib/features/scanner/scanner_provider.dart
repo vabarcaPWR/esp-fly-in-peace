@@ -26,6 +26,8 @@ class ScannerState {
     required this.devices,
     required this.deviceFilter,
     required this.isScanning,
+    required this.isConnecting,
+    required this.connectingDeviceId,
     required this.scanProgress,
     required this.showScanAgain,
     required this.dialogRequest,
@@ -36,6 +38,8 @@ class ScannerState {
       devices: <BleScanDevice>[],
       deviceFilter: ScannerDeviceFilter.all,
       isScanning: false,
+      isConnecting: false,
+      connectingDeviceId: null,
       scanProgress: 0,
       showScanAgain: false,
       dialogRequest: null,
@@ -45,6 +49,8 @@ class ScannerState {
   final List<BleScanDevice> devices;
   final ScannerDeviceFilter deviceFilter;
   final bool isScanning;
+  final bool isConnecting;
+  final String? connectingDeviceId;
   final double scanProgress;
   final bool showScanAgain;
   final ScannerDialogRequest? dialogRequest;
@@ -61,6 +67,9 @@ class ScannerState {
     List<BleScanDevice>? devices,
     ScannerDeviceFilter? deviceFilter,
     bool? isScanning,
+    bool? isConnecting,
+    String? connectingDeviceId,
+    bool clearConnectingDeviceId = false,
     double? scanProgress,
     bool? showScanAgain,
     ScannerDialogRequest? dialogRequest,
@@ -70,6 +79,10 @@ class ScannerState {
       devices: devices ?? this.devices,
       deviceFilter: deviceFilter ?? this.deviceFilter,
       isScanning: isScanning ?? this.isScanning,
+      isConnecting: isConnecting ?? this.isConnecting,
+      connectingDeviceId: clearConnectingDeviceId
+          ? null
+          : (connectingDeviceId ?? this.connectingDeviceId),
       scanProgress: scanProgress ?? this.scanProgress,
       showScanAgain: showScanAgain ?? this.showScanAgain,
       dialogRequest: clearDialog ? null : (dialogRequest ?? this.dialogRequest),
@@ -175,6 +188,34 @@ class ScannerController extends StateNotifier<ScannerState> {
 
   Future<void> refreshScan() async {
     await startScan(timeout: defaultScanTimeout);
+  }
+
+  Future<bool> connectToDevice(BleScanDevice scanDevice) async {
+    state = state.copyWith(
+      isConnecting: true,
+      connectingDeviceId: scanDevice.remoteId,
+      clearDialog: true,
+    );
+
+    try {
+      await _bleService.connect(scanDevice.device);
+      state = state.copyWith(
+        isConnecting: false,
+        clearConnectingDeviceId: true,
+      );
+      return true;
+    } catch (error) {
+      state = state.copyWith(
+        isConnecting: false,
+        clearConnectingDeviceId: true,
+        dialogRequest: ScannerDialogRequest(
+          title: 'Connection error',
+          message: '$error',
+          action: ScannerDialogAction.none,
+        ),
+      );
+      return false;
+    }
   }
 
   void setDeviceFilter(ScannerDeviceFilter filter) {
