@@ -21,3 +21,17 @@ final bleConnectionStatusProvider = StreamProvider<BleConnectionStatus>((ref) {
     controller.onCancel = subscription.cancel;
   });
 });
+
+final bleReconnectStateProvider = StreamProvider<BleReconnectState>((ref) {
+  final BleService service = ref.watch(bleServiceProvider);
+
+  return Stream<BleReconnectState>.multi((controller) {
+    controller.add(service.reconnectState);
+    final subscription = service.reconnectStateStream.listen(
+      controller.add,
+      onError: controller.addError,
+    );
+
+    controller.onCancel = subscription.cancel;
+  });
+});

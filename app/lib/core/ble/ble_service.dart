@@ -7,6 +7,26 @@ import 'nus_protocol.dart';
 
 enum BleConnectionStatus { disconnected, connecting, connected, disconnecting }
 
+class BleReconnectState {
+  const BleReconnectState({
+    required this.isReconnecting,
+    required this.attempt,
+    required this.maxAttempts,
+    required this.nextRetryDelay,
+  });
+
+  const BleReconnectState.idle()
+    : isReconnecting = false,
+      attempt = 0,
+      maxAttempts = 0,
+      nextRetryDelay = Duration.zero;
+
+  final bool isReconnecting;
+  final int attempt;
+  final int maxAttempts;
+  final Duration nextRetryDelay;
+}
+
 class BleServiceException implements Exception {
   const BleServiceException(this.message);
 
@@ -38,6 +58,13 @@ class BleScanDevice {
 
 class BleService {
   static const Duration connectionTimeout = Duration(seconds: 10);
+  static const List<Duration> reconnectBackoffDelays = <Duration>[
+    Duration(seconds: 2),
+    Duration(seconds: 4),
+    Duration(seconds: 8),
+    Duration(seconds: 16),
+    Duration(seconds: 30),
+  ];
 
   BleService() {
     _scanResultsSubscription = FlutterBluePlus.onScanResults.listen(
@@ -59,6 +86,8 @@ class BleService {
       StreamController<bool>.broadcast();
   final StreamController<String> _receivedLinesController =
       StreamController<String>.broadcast();
+  final StreamController<BleReconnectState> _reconnectStateController =
+      StreamController<BleReconnectState>.broadcast();
 
   final Map<String, BleScanDevice> _scanDevicesById = <String, BleScanDevice>{};
 
@@ -73,18 +102,31 @@ class BleService {
   BluetoothCharacteristic? _nusTxCharacteristic;
   BluetoothCharacteristic? _nusRxCharacteristic;
   final List<int> _txRxBuffer = <int>[];
+  BleReconnectState _reconnectState = const BleReconnectState.idle();
+  bool _manualDisconnectRequested = false;
+  bool _isAutoReconnectInProgress = false;
+  int _reconnectSessionId = 0;
+  BluetoothDevice? _reconnectTargetDevice;
+  bool _hasConnectedSession = false;
 
   BleConnectionStatus get status => _status;
   Stream<BleConnectionStatus> get statusStream => _statusController.stream;
   Stream<List<BleScanDevice>> get scanResults => _scanResultsController.stream;
   Stream<bool> get isScanning => _isScanningController.stream;
   Stream<String> get receivedLines => _receivedLinesController.stream;
+  Stream<BleReconnectState> get reconnectStateStream =>
+      _reconnectStateController.stream;
   BluetoothDevice? get connectedDevice => _connectedDevice;
+  BleReconnectState get reconnectState => _reconnectState;
+  bool get hasConnectedSession => _hasConnectedSession;
   BluetoothService? get nusService => _nusService;
   BluetoothCharacteristic? get nusTxCharacteristic => _nusTxCharacteristic;
   BluetoothCharacteristic? get nusRxCharacteristic => _nusRxCharacteristic;
 
   Future<void> connect(BluetoothDevice device) async {
+    _manualDisconnectRequested = false;
+    _reconnectTargetDevice = device;
+
     if (_connectedDevice?.remoteId == device.remoteId &&
         _status == BleConnectionStatus.connected &&
         _nusService != null &&
@@ -121,10 +163,12 @@ class BleService {
       );
 
       _connectedDevice = device;
+      _hasConnectedSession = true;
       _nusService = nusService;
       _nusTxCharacteristic = txCharacteristic;
       _nusRxCharacteristic = rxCharacteristic;
       await _subscribeToTxNotifications(txCharacteristic);
+      _setReconnectState(const BleReconnectState.idle());
       _setStatus(BleConnectionStatus.connected);
     } catch (error) {
       await _resetConnectionState(device: device);
@@ -137,7 +181,14 @@ class BleService {
     }
   }
 
-  Future<void> disconnect() async {
+  Future<void> disconnect({bool manual = true}) async {
+    if (manual) {
+      _manualDisconnectRequested = true;
+      _reconnectTargetDevice = null;
+      _cancelAutoReconnect();
+      _setReconnectState(const BleReconnectState.idle());
+    }
+
     if (_status == BleConnectionStatus.disconnected) {
       return;
     }
@@ -231,7 +282,7 @@ class BleService {
       return;
     }
 
-    await disconnect();
+    await disconnect(manual: false);
   }
 
   Future<void> _attachConnectionStatusListener(BluetoothDevice device) async {
@@ -239,8 +290,18 @@ class BleService {
     _deviceConnectionSubscription = device.connectionState.listen((state) {
       switch (state) {
         case BluetoothConnectionState.disconnected:
+          final bool manualDisconnect =
+              _manualDisconnectRequested ||
+              _status == BleConnectionStatus.disconnecting;
+          final BluetoothDevice reconnectDevice =
+              _reconnectTargetDevice ?? _connectedDevice ?? device;
+
           _clearConnectionReferences();
           _setStatus(BleConnectionStatus.disconnected);
+
+          if (!manualDisconnect) {
+            _startAutoReconnect(reconnectDevice);
+          }
           break;
         case BluetoothConnectionState.connected:
           if (_status != BleConnectionStatus.connecting) {
@@ -365,6 +426,72 @@ class BleService {
     _clearConnectionReferences();
   }
 
+  void _setReconnectState(BleReconnectState reconnectState) {
+    _reconnectState = reconnectState;
+    _reconnectStateController.add(reconnectState);
+  }
+
+  void _cancelAutoReconnect() {
+    _reconnectSessionId++;
+    _isAutoReconnectInProgress = false;
+  }
+
+  void _startAutoReconnect(BluetoothDevice device) {
+    if (_isAutoReconnectInProgress) {
+      return;
+    }
+
+    _isAutoReconnectInProgress = true;
+    final int sessionId = ++_reconnectSessionId;
+
+    unawaited(_runAutoReconnectLoop(sessionId: sessionId, device: device));
+  }
+
+  Future<void> _runAutoReconnectLoop({
+    required int sessionId,
+    required BluetoothDevice device,
+  }) async {
+    final int maxAttempts = reconnectBackoffDelays.length;
+
+    for (int index = 0; index < maxAttempts; index++) {
+      if (_shouldStopReconnect(sessionId)) {
+        _isAutoReconnectInProgress = false;
+        return;
+      }
+
+      final Duration retryDelay = reconnectBackoffDelays[index];
+      _setReconnectState(
+        BleReconnectState(
+          isReconnecting: true,
+          attempt: index + 1,
+          maxAttempts: maxAttempts,
+          nextRetryDelay: retryDelay,
+        ),
+      );
+
+      await Future<void>.delayed(retryDelay);
+
+      if (_shouldStopReconnect(sessionId)) {
+        _isAutoReconnectInProgress = false;
+        return;
+      }
+
+      try {
+        await connect(device);
+        _isAutoReconnectInProgress = false;
+        _setReconnectState(const BleReconnectState.idle());
+        return;
+      } catch (_) {}
+    }
+
+    _isAutoReconnectInProgress = false;
+    _setReconnectState(const BleReconnectState.idle());
+  }
+
+  bool _shouldStopReconnect(int sessionId) {
+    return _manualDisconnectRequested || sessionId != _reconnectSessionId;
+  }
+
   void _clearConnectionReferences() {
     _connectedDevice = null;
     _nusService = null;
@@ -382,5 +509,6 @@ class BleService {
     _scanResultsController.close();
     _isScanningController.close();
     _receivedLinesController.close();
+    _reconnectStateController.close();
   }
 }

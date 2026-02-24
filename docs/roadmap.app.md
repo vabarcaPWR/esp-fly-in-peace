@@ -27,11 +27,11 @@
   - [x] Task 1.5.2: BLE device listing on Linux desktop app
   - [x] Task 1.5.3: Firmware-first validation loop (scan + identify FlyInPeace)
   - [x] Task 1.5.4: Debug evidence checklist for firmware bring-up
-- [ ] **Phase 2: BLE Connection**
+- [x] **Phase 2: BLE Connection**
   - [x] Task 2.1: Connect to device
   - [x] Task 2.2: Connection state management
-  - [ ] Task 2.3: Auto-reconnect logic
-  - [ ] Task 2.4: Disconnect handling and UI feedback
+  - [x] Task 2.3: Auto-reconnect logic
+  - [x] Task 2.4: Disconnect handling and UI feedback
 - [ ] **Phase 3: NUS Communication**
   - [x] Task 3.1: Discover NUS service and characteristics
   - [x] Task 3.2: Subscribe to TX notifications (receive data)
@@ -704,15 +704,35 @@ Execute tasks in this order before continuing with broader app features:
 **Description**: Automatically attempt to reconnect when the device disconnects unexpectedly.
 
 **Acceptance Criteria**:
-- [ ] On unexpected disconnect, wait 2 seconds then retry
-- [ ] Retry up to 5 times with exponential backoff (2s, 4s, 8s, 16s, 30s)
-- [ ] Show "Reconnecting..." in UI during retries
-- [ ] Stop retrying if user manually disconnects
-- [ ] Stop retrying if device is out of range for all attempts
+- [x] On unexpected disconnect, wait 2 seconds then retry
+- [x] Retry up to 5 times with exponential backoff (2s, 4s, 8s, 16s, 30s)
+- [x] Show "Reconnecting..." in UI during retries
+- [x] Stop retrying if user manually disconnects
+- [x] Stop retrying if device is out of range for all attempts
 
 **Validation**:
 - Turn off ESP32-C3 briefly → app attempts reconnection
 - Turn back on → app reconnects automatically
+
+**Status Note (2026-02-24 — implementation + validation)**:
+- Auto-reconnect implemented in `BleService` with exponential backoff schedule:
+  - `2s`, `4s`, `8s`, `16s`, `30s` (`reconnectBackoffDelays`).
+- Unexpected disconnect now starts reconnect loop automatically from the BLE connection-state listener.
+- Manual disconnect path explicitly cancels pending reconnect attempts and resets reconnect state.
+- Reconnect progress exposed via `BleReconnectState` stream and provider:
+  - `bleReconnectStateProvider`.
+- UI shows reconnecting status in dashboard overlay:
+  - `Reconnecting... (attempt/maxAttempts)`.
+- Runtime and quality gates:
+  - `flutter analyze` ✅
+  - `flutter test` ✅
+  - `./scripts/app/app_test_option.sh 1 linux --no-resident` ✅
+
+**Files to create/modify**:
+- `app/lib/core/ble/ble_service.dart`
+- `app/lib/core/ble/ble_providers.dart`
+- `app/lib/features/dashboard/dashboard_provider.dart`
+- `app/lib/features/dashboard/dashboard_screen.dart`
 
 ---
 
@@ -721,15 +741,27 @@ Execute tasks in this order before continuing with broader app features:
 **Description**: Handle disconnection gracefully in the UI.
 
 **Acceptance Criteria**:
-- [ ] Disconnect button available when connected
-- [ ] On disconnect: show snackbar or banner notification
-- [ ] Dashboard screen handles disconnect (show "Disconnected" overlay, don't crash)
-- [ ] Navigate back to scanner if manual disconnect
-- [ ] Show reconnecting state during auto-reconnect attempts
+- [x] Disconnect button available when connected
+- [x] On disconnect: show snackbar or banner notification
+- [x] Dashboard screen handles disconnect (show "Disconnected" overlay, don't crash)
+- [x] Navigate back to scanner if manual disconnect
+- [x] Show reconnecting state during auto-reconnect attempts
 
 **Validation**:
 - Manual disconnect → returns to scanner
 - Unexpected disconnect → reconnecting overlay appears
+
+**Status Note (2026-02-24 — implementation + validation)**:
+- Dashboard now includes a `Disconnect` button visible only while connected.
+- Manual disconnect flow:
+  - Executes `BleService.disconnect()`.
+  - Shows snackbar `Disconnected.`.
+  - Navigates back to scanner route via `Navigator.maybePop()`.
+- Unexpected disconnect feedback:
+  - Snackbar `Connection lost.`.
+  - `Disconnected` overlay when a previous connection existed and reconnect loop is not active.
+  - `Reconnecting...` overlay while auto-reconnect attempts are running.
+- Dashboard consumes shared BLE providers, so disconnect/reconnect state changes are reflected immediately without crashes.
 
 ---
 
