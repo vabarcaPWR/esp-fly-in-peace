@@ -22,6 +22,7 @@ usage()
     echo ""
     echo "Examples:"
     echo "  ./scripts/app/app_test_option.sh 1 chrome"
+    echo "  ./scripts/app/app_test_option.sh 1 linux"
     echo "  ./scripts/app/app_test_option.sh 1 chrome --no-resident"
     echo "  ./scripts/app/app_test_option.sh 2"
     echo "  ./scripts/app/app_test_option.sh 3"
@@ -92,7 +93,12 @@ for device in devices:
         continue
 
     target_platform = str(device.get("targetPlatform", "")).lower()
-    if target == "chrome" or target_platform.startswith("android"):
+    if (
+        target == "chrome"
+        or target == "linux"
+        or target_platform.startswith("android")
+        or target_platform.startswith("linux")
+    ):
         sys.exit(0)
 
     sys.exit(1)
@@ -110,6 +116,9 @@ normalize_option1_device_id()
     case "$lowered" in
         chrome)
             echo "chrome"
+            ;;
+        linux)
+            echo "linux"
             ;;
         *)
             echo "$device_id"
@@ -141,12 +150,12 @@ for device in devices:
     dev_id = str(device.get("id", ""))
     name = str(device.get("name", ""))
     platform = str(device.get("targetPlatform", "")).lower()
-    if dev_id == "chrome" or platform.startswith("android"):
+    if dev_id in {"chrome", "linux"} or platform.startswith("android") or platform.startswith("linux"):
         print(f"  - {name} ({dev_id})")
         count += 1
 
 if count == 0:
-    print("  (no supported targets found; use chrome or android)")
+    print("  (no supported targets found; use chrome, linux, or android)")
 '
 }
 
@@ -182,7 +191,7 @@ run_option_1()
 
     if ! is_supported_option1_device "$device_id"; then
         echo -e "${RED}[APP]${NC} Unsupported target for option 1: ${device_id}" >&2
-        echo "  Supported targets for option 1 are: Chrome and Android devices/emulators." >&2
+        echo "  Supported targets for option 1 are: Chrome, Linux desktop, and Android devices/emulators." >&2
         echo "  Devices available:" >&2
         flutter devices >&2 || true
         exit 1

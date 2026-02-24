@@ -26,7 +26,7 @@ and low-power design for ESP32-C3.
 - Optimize power consumption
 - Debug I2C, BLE, FreeRTOS issues
 - Generate build/flash/monitor scripts if needed
-- Use scripts in `scripts/` for common tasks (e.g. flashing, testing) when possible, but can also run commands directly if more efficient.
+- Use scripts in `scripts/micro/` for common tasks (e.g. flashing, testing) when possible, but can also run commands directly if more efficient.
 
 ## Constraints
 

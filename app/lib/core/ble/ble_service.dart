@@ -13,6 +13,8 @@ class BleScanDevice {
     required this.name,
     required this.rssi,
     required this.hasNusService,
+    required this.hasFlyInPeaceName,
+    required this.isFlyInPeaceCompatible,
   });
 
   final BluetoothDevice device;
@@ -20,6 +22,8 @@ class BleScanDevice {
   final String name;
   final int rssi;
   final bool hasNusService;
+  final bool hasFlyInPeaceName;
+  final bool isFlyInPeaceCompatible;
 }
 
 class BleService {
@@ -101,10 +105,7 @@ class BleService {
       final bool hasFlyInPeaceName =
           normalizedName.contains('flyinpeace') ||
           normalizedName.contains('fly in peace');
-
-      if (!hasNusService && !hasFlyInPeaceName) {
-        continue;
-      }
+      final bool isFlyInPeaceCompatible = hasNusService || hasFlyInPeaceName;
 
       _scanDevicesById[remoteId] = BleScanDevice(
         device: result.device,
@@ -112,6 +113,8 @@ class BleService {
         name: chosenName,
         rssi: result.rssi,
         hasNusService: hasNusService,
+        hasFlyInPeaceName: hasFlyInPeaceName,
+        isFlyInPeaceCompatible: isFlyInPeaceCompatible,
       );
     }
 

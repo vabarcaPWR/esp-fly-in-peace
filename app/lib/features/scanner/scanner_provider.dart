@@ -7,6 +7,8 @@ import '../../core/ble/ble_service.dart';
 
 enum ScannerDialogAction { none, openAppSettings, turnOnBluetooth }
 
+enum ScannerDeviceFilter { all, compatible }
+
 class ScannerDialogRequest {
   const ScannerDialogRequest({
     required this.title,
@@ -22,6 +24,7 @@ class ScannerDialogRequest {
 class ScannerState {
   const ScannerState({
     required this.devices,
+    required this.deviceFilter,
     required this.isScanning,
     required this.scanProgress,
     required this.showScanAgain,
@@ -31,6 +34,7 @@ class ScannerState {
   factory ScannerState.initial() {
     return const ScannerState(
       devices: <BleScanDevice>[],
+      deviceFilter: ScannerDeviceFilter.all,
       isScanning: false,
       scanProgress: 0,
       showScanAgain: false,
@@ -39,13 +43,23 @@ class ScannerState {
   }
 
   final List<BleScanDevice> devices;
+  final ScannerDeviceFilter deviceFilter;
   final bool isScanning;
   final double scanProgress;
   final bool showScanAgain;
   final ScannerDialogRequest? dialogRequest;
 
+  List<BleScanDevice> get visibleDevices {
+    if (deviceFilter == ScannerDeviceFilter.all) {
+      return devices;
+    }
+
+    return devices.where((d) => d.isFlyInPeaceCompatible).toList();
+  }
+
   ScannerState copyWith({
     List<BleScanDevice>? devices,
+    ScannerDeviceFilter? deviceFilter,
     bool? isScanning,
     double? scanProgress,
     bool? showScanAgain,
@@ -54,6 +68,7 @@ class ScannerState {
   }) {
     return ScannerState(
       devices: devices ?? this.devices,
+      deviceFilter: deviceFilter ?? this.deviceFilter,
       isScanning: isScanning ?? this.isScanning,
       scanProgress: scanProgress ?? this.scanProgress,
       showScanAgain: showScanAgain ?? this.showScanAgain,
@@ -160,6 +175,10 @@ class ScannerController extends StateNotifier<ScannerState> {
 
   Future<void> refreshScan() async {
     await startScan(timeout: defaultScanTimeout);
+  }
+
+  void setDeviceFilter(ScannerDeviceFilter filter) {
+    state = state.copyWith(deviceFilter: filter);
   }
 
   Future<void> handleDialogAction() async {

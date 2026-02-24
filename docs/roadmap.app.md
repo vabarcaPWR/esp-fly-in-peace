@@ -19,8 +19,8 @@
   - [x] Task 0.6: Verify build and run on Android device/emulator
 - [x] **Phase 1: BLE Scanner**
   - [x] Task 1.1: Android BLE permissions handling
-  - [x] Task 1.2: BLE scan functionality with NUS UUID filter
-  - [x] Task 1.3: Device list UI (name, RSSI, connect button)
+  - [x] Task 1.2: BLE scan functionality (show all BLE + compatibility detection)
+  - [x] Task 1.3: Device list UI (all BLE devices, compatibility badge, connect button)
   - [x] Task 1.4: Pull-to-refresh and scan timeout
 - [ ] **Phase 2: BLE Connection**
   - [ ] Task 2.1: Connect to device
@@ -55,7 +55,8 @@
   - [ ] Task 7.1: App settings screen
   - [ ] Task 7.2: Display units (metric/imperial)
   - [ ] Task 7.3: Local persistence (shared_preferences)
-  - [ ] Task 7.4: Theme configuration (light/dark)
+  - [ ] Task 7.4: Dark mode implementation (light/dark/system)
+  - [ ] Task 7.5: Dark mode rollout across all screens
 - [ ] **Phase 8: Polish & Testing**
   - [ ] Task 8.1: Error handling audit
   - [ ] Task 8.2: UI polish and accessibility
@@ -279,7 +280,7 @@ dev_dependencies:
 
 ## Phase 1: BLE Scanner
 
-**Objective**: Implement BLE device scanning, filtering by NUS service UUID, and displaying discovered devices.  
+**Objective**: Implement BLE device scanning and display **all discovered BLE devices**, while also detecting and highlighting FlyInPeace-compatible devices (NUS UUID and/or name hint).  
 **Estimated Duration**: 2–3 days  
 **Dependencies**: Phase 0 complete
 
@@ -323,20 +324,22 @@ Required manifest permissions:
 
 ---
 
-### Task 1.2: BLE scan functionality with NUS UUID filter
+### Task 1.2: BLE scan functionality (show all BLE + compatibility detection)
 
-**Description**: Implement BLE scanning using `flutter_blue_plus`, filtered to show only devices advertising the NUS service UUID.
+**Description**: Implement BLE scanning using `flutter_blue_plus` to show all discovered BLE devices. In parallel, compute compatibility signals for FlyInPeace/NUS devices.
 
 **Acceptance Criteria**:
 - [x] Start/stop scanning via `FlutterBluePlus.startScan()` / `stopScan()`
-- [x] Filter by NUS service UUID: `6E400001-B5A3-F393-E0A9-E50E24DCCA9E`
-- [x] Also show devices with name containing "FlyInPeace" (for devices that don't advertise service UUID)
+- [x] Show all BLE scan results (no exclusion by UUID or name)
+- [x] Detect compatibility by NUS service UUID: `6E400001-B5A3-F393-E0A9-E50E24DCCA9E`
+- [x] Detect compatibility by name hint containing "FlyInPeace" (fallback when UUID is not advertised)
+- [x] Expose result model with compatibility flags to the UI/provider
 - [x] Scan timeout: 10 seconds (configurable)
 - [x] Deduplicate results (same device MAC)
-- [x] Expose scan results as a stream/provider for the UI
 
 **Validation**:
-- Turn on ESP32-C3 with BLE firmware → device appears in scan results
+- Turn on ESP32-C3 with BLE firmware → appears in scan results and marked as compatible
+- Turn on another BLE peripheral (e.g., smartwatch/headphones) → appears in scan results as non-compatible
 
 **Files to create/modify**:
 - `app/lib/core/ble/ble_service.dart`
@@ -344,23 +347,27 @@ Required manifest permissions:
 
 ---
 
-### Task 1.3: Device list UI (name, RSSI, connect button)
+### Task 1.3: Device list UI (all BLE devices, compatibility badge, connect button)
 
-**Description**: Build the scanner screen UI showing discovered BLE devices.
+**Description**: Build the scanner screen UI to show all discovered BLE devices and clearly distinguish FlyInPeace-compatible devices.
 
 **Acceptance Criteria**:
 - [x] List view showing each device: name (or "Unknown"), MAC address, RSSI signal indicator
+- [x] Compatibility badge per item: `FlyInPeace compatible` / `Other BLE device`
 - [x] "Scan" FAB button to start/stop scanning
 - [x] Scanning indicator (spinner or animation) while scan is active
-- [x] Tap on device → navigate to connection / dashboard
-- [x] Empty state: "No devices found. Make sure your vario is powered on."
+- [x] Tap on compatible device → navigate to connection / dashboard
+- [x] Non-compatible device tap shows explanatory message (no crash)
+- [x] Empty state: "No BLE devices found nearby."
 - [x] RSSI shown as signal bars or dBm value
+- [x] UI filter `All / Compatible` available (default: `All`)
 
 **Validation**:
-- Scan shows ESP32-C3 device with correct name and signal strength
+- Scan shows ESP32-C3 as compatible and other BLE devices as non-compatible
 
 **Files to create/modify**:
 - `app/lib/features/scanner/scanner_screen.dart`
+- `app/lib/features/scanner/scanner_provider.dart`
 - `app/lib/widgets/device_list_tile.dart`
 
 ---
@@ -383,6 +390,13 @@ Required manifest permissions:
 - `flutter analyze` ✅
 - `flutter test` ✅
 - `flutter build apk --debug` ✅
+
+**Status Note (2026-02-24)**:
+- Task 1.2 completed: scanner now lists all BLE devices and computes FlyInPeace compatibility flags.
+- Task 1.3 completed: compatibility badges added; non-compatible taps are handled safely.
+- Added scanner filter `All / Compatible` (default `All`).
+- `flutter analyze` ✅
+- `flutter test` ✅
 
 ---
 
@@ -968,19 +982,45 @@ Required manifest permissions:
 
 ---
 
-### Task 7.4: Theme configuration (light/dark)
+### Task 7.4: Dark mode implementation (light/dark/system)
 
-**Description**: Allow switching between light and dark themes.
+**Description**: Implement full theme-mode switching with `light`, `dark`, and `system` options, persisted locally and applied across the app.
 
 **Acceptance Criteria**:
 - [ ] Light/dark/system theme toggle
 - [ ] Dark theme optimized for outdoor use (high contrast, AMOLED-friendly)
 - [ ] Theme change is immediate
 - [ ] Persists across app restarts
+- [ ] `ThemeMode` managed by settings provider/notifier
+- [ ] `MaterialApp` wired with `theme`, `darkTheme`, and `themeMode`
+- [ ] No hardcoded colors in feature screens for text/background-critical elements (use theme tokens)
 
 **Validation**:
 - Switch theme → app updates immediately
 - Restart → theme persists
+
+**Files to create/modify**:
+- `app/lib/app.dart`
+- `app/lib/features/settings/settings_screen.dart`
+- `app/lib/features/settings/settings_provider.dart`
+- `app/lib/core/theme/app_theme.dart` (or equivalent existing theme file)
+
+---
+
+### Task 7.5: Dark mode rollout across all screens
+
+**Description**: Ensure dark mode is consistently applied to scanner, dashboard, config, and settings screens (including shared widgets).
+
+**Acceptance Criteria**:
+- [ ] Scanner screen fully readable in dark mode (lists, badges, controls)
+- [ ] Dashboard widgets readable in dark mode (high-contrast numeric values)
+- [ ] Config screen forms and validation states readable in dark mode
+- [ ] Shared widgets (`ConnectionIndicator`, `ValueDisplay`, list tiles) respect theme tokens
+- [ ] No contrast regressions in key states: loading, empty, error, disconnected
+
+**Validation**:
+- Run app in `light`, `dark`, and `system` modes and verify each main screen
+- `flutter analyze` and `flutter test` pass after theme rollout
 
 ---
 

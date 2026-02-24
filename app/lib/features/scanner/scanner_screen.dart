@@ -34,6 +34,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   @override
   Widget build(BuildContext context) {
     final ScannerState state = ref.watch(scannerControllerProvider);
+    final visibleDevices = state.visibleDevices;
 
     ref.listen<ScannerState>(scannerControllerProvider, (previous, next) {
       final ScannerDialogRequest? request = next.dialogRequest;
@@ -88,6 +89,31 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       appBar: AppBar(title: const Text('Scanner')),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: SegmentedButton<ScannerDeviceFilter>(
+                segments: const [
+                  ButtonSegment<ScannerDeviceFilter>(
+                    value: ScannerDeviceFilter.all,
+                    label: Text('All'),
+                  ),
+                  ButtonSegment<ScannerDeviceFilter>(
+                    value: ScannerDeviceFilter.compatible,
+                    label: Text('Compatible'),
+                  ),
+                ],
+                selected: <ScannerDeviceFilter>{state.deviceFilter},
+                onSelectionChanged: (selection) {
+                  final ScannerDeviceFilter selected = selection.first;
+                  ref
+                      .read(scannerControllerProvider.notifier)
+                      .setDeviceFilter(selected);
+                },
+              ),
+            ),
+          ),
           if (state.isScanning)
             LinearProgressIndicator(value: state.scanProgress.clamp(0.0, 1.0)),
           if (state.isScanning)
@@ -106,14 +132,16 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                     .read(scannerControllerProvider.notifier)
                     .refreshScan();
               },
-              child: state.devices.isEmpty
+              child: visibleDevices.isEmpty
                   ? ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.all(16),
                       children: [
                         const SizedBox(height: 80),
                         Text(
-                          'No devices found. Make sure your vario is powered on.',
+                          state.deviceFilter == ScannerDeviceFilter.all
+                              ? 'No BLE devices found nearby.'
+                              : 'No FlyInPeace-compatible devices found.',
                           textAlign: TextAlign.center,
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
@@ -137,10 +165,26 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.all(12),
                       itemBuilder: (context, index) {
-                        final device = state.devices[index];
+                        final device = visibleDevices[index];
+
+                        void handleIncompatibleTap() {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'This device is not FlyInPeace compatible.',
+                              ),
+                            ),
+                          );
+                        }
+
                         return DeviceListTile(
                           device: device,
                           onTap: () {
+                            if (!device.isFlyInPeaceCompatible) {
+                              handleIncompatibleTap();
+                              return;
+                            }
+
                             Navigator.of(context).push(
                               MaterialPageRoute<void>(
                                 builder: (_) => const DashboardScreen(),
@@ -148,6 +192,11 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                             );
                           },
                           onConnect: () {
+                            if (!device.isFlyInPeaceCompatible) {
+                              handleIncompatibleTap();
+                              return;
+                            }
+
                             Navigator.of(context).push(
                               MaterialPageRoute<void>(
                                 builder: (_) => const DashboardScreen(),
@@ -157,7 +206,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                         );
                       },
                       separatorBuilder: (_, _) => const SizedBox(height: 8),
-                      itemCount: state.devices.length,
+                      itemCount: visibleDevices.length,
                     ),
             ),
           ),

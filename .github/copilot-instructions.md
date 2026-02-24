@@ -32,7 +32,7 @@ Read `.github/PRE-PROMPT.md` for full project scope, constraints, and style guid
 
 - All new scripts must be created only in `scripts/` at repository root.
 - Do not create scripts under `micro/scripts/`, `app/scripts/`, or any nested scripts directory.
-- Scripts must be executable from project root with this exact pattern: `./scripts/my_script.sh`.
+- Scripts must be executable from project root using `./scripts/micro/<name>.sh` or `./scripts/app/<name>.sh`.
 - Scripts that operate on firmware must internally target `micro/` as needed, but invocation must remain from `.`.
 
 ## Firmware Rules (micro/)

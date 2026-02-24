@@ -188,7 +188,7 @@ For every module/component implemented in those phases:
 
 ### Task 0.4: Create build/flash/test/monitor scripts
 
-**Description**: Create bash scripts in repository-root `scripts/` for common development workflows. All scripts should accept `-p PORT` for serial port override (default: `/dev/ttyUSB0`) and be runnable as `./scripts/<name>.sh` from project root.
+**Description**: Create bash scripts in repository-root `scripts/micro/` for common firmware development workflows. All scripts should accept `-p PORT` for serial port override (default: `/dev/ttyUSB0`) and be runnable as `./scripts/micro/<name>.sh` from project root.
 
 **Acceptance Criteria**:
 - [x] `build.sh` — runs `idf.py build`, exits non-zero on failure
@@ -200,15 +200,15 @@ For every module/component implemented in those phases:
 - [x] All scripts print colored status messages (green=success, red=error)
 
 **Validation**:
-- Run `./scripts/build.sh` — build succeeds
-- Run `./scripts/test.sh` — Ceedling tests pass
+- Run `./scripts/micro/build.sh` — build succeeds
+- Run `./scripts/micro/test.sh` — Ceedling tests pass
 
 **Files to create**:
-- `scripts/build.sh`
-- `scripts/flash.sh`
-- `scripts/monitor.sh`
-- `scripts/test.sh`
-- `scripts/all.sh`
+- `scripts/micro/build.sh`
+- `scripts/micro/flash.sh`
+- `scripts/micro/monitor.sh`
+- `scripts/micro/test.sh`
+- `scripts/micro/all.sh`
 
 ---
 
@@ -256,7 +256,7 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 - [x] No crash or reboot loops
 
 **Validation**:
-- Run `./scripts/all.sh` — observe startup message in monitor output
+- Run `./scripts/micro/all.sh` — observe startup message in monitor output
 
 **Files to modify**:
 - None (verification only)
@@ -267,14 +267,14 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 
 ### Task 0.7: Create ESP-IDF environment activation script
 
-**Description**: Create a sourceable shell script `scripts/env.sh` that activates or deactivates the ESP-IDF environment (`idf.py`, toolchain, Python venv). This allows using the build/flash/monitor scripts from any terminal without manually sourcing ESP-IDF's `export.sh`.
+**Description**: Create a sourceable shell script `scripts/micro/env.sh` that activates or deactivates the ESP-IDF environment (`idf.py`, toolchain, Python venv). This allows using the build/flash/monitor scripts from any terminal without manually sourcing ESP-IDF's `export.sh`.
 
 **Usage**:
-- Activate: `source ./scripts/env.sh` or `. ./scripts/env.sh`
+- Activate: `source ./scripts/micro/env.sh` or `. ./scripts/micro/env.sh`
 - Deactivate: `idf_deactivate`
 
 **Acceptance Criteria**:
-- [x] `scripts/env.sh` exists and is sourceable (not executable directly)
+- [x] `scripts/micro/env.sh` exists and is sourceable (not executable directly)
 - [x] Sourcing it activates the ESP-IDF environment (adds `idf.py` to PATH)
 - [x] Defines an `idf_deactivate` function that restores the original PATH/environment
 - [x] Prints a colored status message indicating activation/deactivation
@@ -283,12 +283,12 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 - [x] All existing scripts (`build.sh`, `flash.sh`, etc.) work after sourcing
 
 **Validation**:
-- Open a fresh terminal, `source ./scripts/env.sh`, run `idf.py --version`
+- Open a fresh terminal, `source ./scripts/micro/env.sh`, run `idf.py --version`
 - Run `idf_deactivate`, verify `idf.py` is no longer in PATH
-- Source again, run `./scripts/build.sh` — build succeeds
+- Source again, run `./scripts/micro/build.sh` — build succeeds
 
 **Files to create**:
-- `scripts/env.sh`
+- `scripts/micro/env.sh`
 
 **Notes**:
 - ESP-IDF v5.5.2 is installed at `~/.espressif/v5.5.2/esp-idf/`.
@@ -438,7 +438,7 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 - [x] All tests pass in `ceedling test:all`
 
 **Validation**:
-- Run `./scripts/test.sh` — all tests green
+- Run `./scripts/micro/test.sh` — all tests green
 
 **Files to create**:
 - `micro/test/test_lk8ex1.c`
@@ -612,7 +612,7 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Execution Checklist (ready to run)**:
 1. Flash and open monitor:
   - `cd micro`
-  - `source ./scripts/env.sh`
+  - `source ./scripts/micro/env.sh`
   - `idf.py -p /dev/ttyUSB0 flash monitor`
 2. In nRF Connect (Android):
   - Scan and verify device name `FlyInPeace` appears.
@@ -649,7 +649,7 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 - Final verdict: PASS / FAIL
 
 **Quick Field Check (60s MVP)**:
-1. Run `./scripts/all.sh -p /dev/ttyUSB0` from repository root.
+1. Run `./scripts/micro/all.sh -p /dev/ttyUSB0` from repository root.
 2. Open nRF Connect, scan, and connect to `FlyInPeace`.
 3. Enable `Notify` on `6E400003-...` and confirm LK8EX1 lines appear.
 4. Write `PING` to `6E400002-...` and confirm firmware logs RX length.
@@ -928,7 +928,7 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 - [ ] All tests pass in `ceedling test:all`
 
 **Validation**:
-- Run `./scripts/test.sh` — all tests green
+- Run `./scripts/micro/test.sh` — all tests green
 
 **Files to create**:
 - `micro/test/test_sensor_ms5611.c`
@@ -1065,7 +1065,7 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 - [ ] All tests pass in `ceedling test:all`
 
 **Validation**:
-- Run `./scripts/test.sh` — all tests green
+- Run `./scripts/micro/test.sh` — all tests green
 
 **Files to create**:
 - `micro/test/test_sensor_bmp390.c`
@@ -1218,7 +1218,7 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 - [ ] All tests pass in `ceedling test:all`
 
 **Validation**:
-- Run `./scripts/test.sh` — all tests green
+- Run `./scripts/micro/test.sh` — all tests green
 
 **Files to create**:
 - `micro/test/test_kalman_filter.c`
@@ -1511,7 +1511,7 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 - [ ] All tests pass in `ceedling test:all`
 
 **Validation**:
-- Run `./scripts/test.sh` — all tests green
+- Run `./scripts/micro/test.sh` — all tests green
 
 **Files to create**:
 - `micro/test/test_config_manager.c`
@@ -1711,10 +1711,10 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
   - Project overview and architecture summary
   - Prerequisites (ESP-IDF version, Python, tools)
   - Build instructions (`idf.py build`)
-  - Flash instructions (`./scripts/flash.sh`)
-  - Monitor instructions (`./scripts/monitor.sh`)
+  - Flash instructions (`./scripts/micro/flash.sh`)
+  - Monitor instructions (`./scripts/micro/monitor.sh`)
   - Sensor selection via `idf.py menuconfig`
-  - Test instructions (`./scripts/test.sh`)
+  - Test instructions (`./scripts/micro/test.sh`)
   - Troubleshooting (common errors)
 
 **Validation**:
@@ -1764,7 +1764,7 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 
 **Acceptance Criteria**:
 - [ ] All `TODO` and `FIXME` comments resolved or tracked as issues
-- [ ] Code formatted with `.clang-format` (`./scripts/format.sh`)
+- [ ] Code formatted with `.clang-format` (`./scripts/micro/format.sh`)
 - [ ] No compiler warnings with `-Wall -Wextra -Werror`
 - [ ] No unused includes, variables, or functions
 - [ ] Consistent naming conventions across all components
@@ -1773,5 +1773,5 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 
 **Validation**:
 - Clean build with no warnings
-- `./scripts/test.sh` — all tests pass
+- `./scripts/micro/test.sh` — all tests pass
 - Code review checklist completed

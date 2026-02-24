@@ -146,7 +146,7 @@ BEFORE writing code for a task:
 | Test framework | Ceedling (Unity + CMock) | Host-side unit tests |
 | Config storage | NVS (Non-Volatile Storage) | |
 | Formatting | `.clang-format` (Microsoft base, Allman braces) | Applied via `clang-format` CLI |
-| Scripts | Bash scripts in `scripts/` | build, flash, test, monitor |
+| Scripts | Bash scripts in `scripts/micro/` and `scripts/app/` | build, flash, test, monitor |
 
 ### 3.2 Mobile App (Android)
 
@@ -766,12 +766,17 @@ esp-fly-in-peace/
 │   │   ├── test_lk8ex1.c
 │   │   ├── test_sensor_ms5611.c
 │   │   └── test_config_manager.c
-│   └── scripts/
-│       ├── build.sh
-│       ├── flash.sh
-│       ├── monitor.sh
-│       ├── test.sh
-│       └── all.sh                             # build + flash + monitor
+├── scripts/
+│   ├── micro/
+│   │   ├── build.sh
+│   │   ├── flash.sh
+│   │   ├── monitor.sh
+│   │   ├── test.sh
+│   │   ├── all.sh                             # build + flash + monitor
+│   │   └── env.sh
+│   └── app/
+│       ├── build_app_debug.sh
+│       └── app_test_option.sh
 │
 └── app/                                       # Mobile app root
     └── ... (structure depends on chosen technology)
@@ -906,7 +911,7 @@ Examples:
 
 ### 8.3 Build & Flash Scripts (Firmware)
 
-Scripts in `scripts/` (repository root, execute from `.` as `./scripts/<name>.sh`):
+Firmware scripts in `scripts/micro/` (repository root, execute from `.` as `./scripts/micro/<name>.sh`):
 
 | Script | Purpose | Command |
 |--------|---------|---------|
@@ -915,6 +920,7 @@ Scripts in `scripts/` (repository root, execute from `.` as `./scripts/<name>.sh
 | `monitor.sh` | Serial monitor | `idf.py -p /dev/ttyUSB0 monitor` |
 | `test.sh` | Run Ceedling unit tests | `cd test && ceedling test:all` |
 | `all.sh` | Build + flash + monitor | Chains all above |
+| `env.sh` | Activate ESP-IDF environment | `source ./scripts/micro/env.sh` |
 
 All scripts should:
 - Accept a `-p PORT` parameter for serial port override.
