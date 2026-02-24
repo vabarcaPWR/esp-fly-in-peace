@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../dashboard/raw_data_debug_screen.dart';
 import 'settings_provider.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -23,6 +24,21 @@ class SettingsScreen extends ConsumerWidget {
               onChanged: (enabled) {
                 ref.read(darkModeEnabledProvider.notifier).state = enabled;
               },
+            ),
+            const SizedBox(height: 12),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.developer_mode),
+                title: const Text('Developer tools'),
+                subtitle: const Text('Raw BLE Debug'),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const RawDataDebugScreen(),
+                    ),
+                  );
+                },
+              ),
             ),
           ],
         ),

@@ -32,11 +32,11 @@
   - [x] Task 2.2: Connection state management
   - [x] Task 2.3: Auto-reconnect logic
   - [x] Task 2.4: Disconnect handling and UI feedback
-- [ ] **Phase 3: NUS Communication**
+- [x] **Phase 3: NUS Communication**
   - [x] Task 3.1: Discover NUS service and characteristics
   - [x] Task 3.2: Subscribe to TX notifications (receive data)
-  - [ ] Task 3.3: Write to RX characteristic (reserved for future use)
-  - [ ] Task 3.4: Raw data debug screen
+  - [x] Task 3.3: Write to RX characteristic (reserved for future use)
+  - [x] Task 3.4: Raw data debug screen
 - [ ] **Phase 4: LK8EX1 Parser**
   - [ ] Task 4.1: LK8EX1 sentence parser
   - [ ] Task 4.2: Checksum validation
@@ -838,14 +838,26 @@ Execute tasks in this order before continuing with broader app features:
 **Description**: Implement sending data to the device via the NUS RX characteristic. Reserved for future firmware commands. Device config uses the separate Config Service GATT (Phase 6).
 
 **Acceptance Criteria**:
-- [ ] Function: `Future<void> sendCommand(String command)` — writes to NUS RX characteristic
-- [ ] Appends `\n` delimiter if not present
-- [ ] Handles MTU fragmentation (split long messages)
-- [ ] Returns error if not connected
-- [ ] Logs sent commands at debug level
+- [x] Function: `Future<void> sendCommand(String command)` — writes to NUS RX characteristic
+- [x] Appends `\n` delimiter if not present
+- [x] Handles MTU fragmentation (split long messages)
+- [x] Returns error if not connected
+- [x] Logs sent commands at debug level
 
 **Validation**:
 - Send text via NUS RX → device receives (verify in firmware logs)
+
+**Status Note (2026-02-24 — implementation + validation)**:
+- `BleService.sendCommand(String command)` implemented in `app/lib/core/ble/ble_service.dart`.
+- Behavior implemented:
+  - Rejects send attempts when device is not connected or RX characteristic is unavailable.
+  - Appends trailing `\n` when missing.
+  - Splits payload by effective ATT write payload size (`mtuNow - 3`) to handle fragmentation.
+  - Writes fragments sequentially to RX characteristic.
+  - Logs outgoing command at debug level via `debugPrint`.
+- Quality checks:
+  - `flutter analyze` ✅
+  - `flutter test` ✅
 
 ---
 
@@ -854,15 +866,29 @@ Execute tasks in this order before continuing with broader app features:
 **Description**: Create a debug screen showing raw BLE NUS data for development and troubleshooting.
 
 **Acceptance Criteria**:
-- [ ] Screen shows raw TX data (line by line, scrolling)
-- Text input field to send arbitrary data via NUS RX
-- Timestamp for each received line
-- "Clear" button to reset log
-- [ ] Accessible from app drawer/menu (developer tool, not user-facing)
+- [x] Screen shows raw TX data (line by line, scrolling)
+- [x] Text input field to send arbitrary data via NUS RX
+- [x] Timestamp for each received line
+- [x] "Clear" button to reset log
+- [x] Accessible from app drawer/menu (developer tool, not user-facing)
 
 **Validation**:
 - Connect to device → raw LK8EX1 sentences visible
 - Type text in input → sent via NUS RX
+
+**Status Note (2026-02-24 — implementation + validation)**:
+- New screen added: `app/lib/features/dashboard/raw_data_debug_screen.dart`.
+- Implemented UI and behavior:
+  - Live raw TX line log sourced from `BleService.receivedLines`.
+  - Timestamp displayed for each received line.
+  - Text input + `Send` button to dispatch arbitrary payloads through `sendCommand(...)`.
+  - `Clear` action to reset in-memory log.
+  - Connection indicator (`Connected`/`Disconnected`) and send error feedback.
+- Menu access (developer tool):
+  - Added entry in Settings: `Developer tools` → `Raw BLE Debug`.
+  - File updated: `app/lib/features/settings/settings_screen.dart`.
+- Runtime check:
+  - `./scripts/app/app_test_option.sh 1 linux --no-resident` ✅
 
 ---
 

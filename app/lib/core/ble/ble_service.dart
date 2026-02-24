@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
 import 'nus_protocol.dart';
@@ -230,6 +231,41 @@ class BleService {
     await FlutterBluePlus.stopScan();
   }
 
+  Future<void> sendCommand(String command) async {
+    final BluetoothCharacteristic? rxCharacteristic = _nusRxCharacteristic;
+    final BluetoothDevice? device = _connectedDevice;
+
+    if (device == null ||
+        _status != BleConnectionStatus.connected ||
+        rxCharacteristic == null) {
+      throw const BleServiceException(
+        'Cannot send command: device is not connected.',
+      );
+    }
+
+    final String normalizedCommand = command.endsWith('\n')
+        ? command
+        : '$command\n';
+    final List<int> commandBytes = utf8.encode(normalizedCommand);
+    final int mtu = device.mtuNow;
+    final int chunkSize = _calculateWriteChunkSize(mtu);
+    final bool withoutResponse =
+        rxCharacteristic.properties.writeWithoutResponse;
+
+    for (int offset = 0; offset < commandBytes.length; offset += chunkSize) {
+      final int end = (offset + chunkSize > commandBytes.length)
+          ? commandBytes.length
+          : offset + chunkSize;
+
+      await rxCharacteristic.write(
+        commandBytes.sublist(offset, end),
+        withoutResponse: withoutResponse,
+      );
+    }
+
+    debugPrint('BLE RX -> ${normalizedCommand.trimRight()}');
+  }
+
   void _handleScanResults(List<ScanResult> results) {
     for (final ScanResult result in results) {
       final String remoteId = result.device.remoteId.str;
@@ -411,6 +447,15 @@ class BleService {
 
   bool _uuidEquals(Guid guid, String expectedUuid) {
     return guid.toString().toUpperCase() == expectedUuid.toUpperCase();
+  }
+
+  int _calculateWriteChunkSize(int mtu) {
+    final int payloadSize = mtu - 3;
+    if (payloadSize <= 0) {
+      return 20;
+    }
+
+    return payloadSize;
   }
 
   Future<void> _resetConnectionState({required BluetoothDevice device}) async {
