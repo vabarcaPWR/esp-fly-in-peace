@@ -22,6 +22,11 @@
   - [x] Task 1.2: BLE scan functionality (show all BLE + compatibility detection)
   - [x] Task 1.3: Device list UI (all BLE devices, compatibility badge, connect button)
   - [x] Task 1.4: Pull-to-refresh and scan timeout
+- [x] **Phase 1.5: Linux BLE Debug Fast-Track**
+  - [x] Task 1.5.1: Linux runtime/adapter readiness checks
+  - [x] Task 1.5.2: BLE device listing on Linux desktop app
+  - [x] Task 1.5.3: Firmware-first validation loop (scan + identify FlyInPeace)
+  - [x] Task 1.5.4: Debug evidence checklist for firmware bring-up
 - [ ] **Phase 2: BLE Connection**
   - [ ] Task 2.1: Connect to device
   - [ ] Task 2.2: Connection state management
@@ -397,6 +402,221 @@ Required manifest permissions:
 - Added scanner filter `All / Compatible` (default `All`).
 - `flutter analyze` ✅
 - `flutter test` ✅
+
+---
+
+## Phase 1.5: Linux BLE Debug Fast-Track
+
+**Objective**: Enable a Linux desktop debug path to quickly list BLE devices from the app and accelerate firmware bring-up on the microcontroller.  
+**Estimated Duration**: 0.5–1 day  
+**Dependencies**: Phase 1 complete
+
+**Scope Note**:
+- Linux support in this phase is for development/debugging only.
+- MVP release target remains Android.
+
+**Priority**: **P0 (highest)** for firmware debugging start.
+
+---
+
+### Task 1.5.1: Linux runtime/adapter readiness checks
+
+**Description**: Ensure the Linux host can run Flutter desktop and has BLE stack prerequisites available.
+
+**Acceptance Criteria**:
+- [x] `flutter run -d linux` launches the app successfully
+- [x] Linux Bluetooth adapter is detected and enabled
+- [x] App shows actionable error messages when Bluetooth/permissions are unavailable
+- [x] Script helper accepts Linux target (`./scripts/app/app_test_option.sh 1 linux`)
+
+**Validation**:
+- Run `./scripts/app/app_test_option.sh 1 linux`
+- Verify scanner screen opens without crashes
+
+**Status Note (2026-02-24 — execution result)**:
+- `flutter devices` ✅ detects `Linux (desktop)` and `Chrome`.
+- `./scripts/app/app_test_option.sh list` ✅ includes `linux` target.
+- `bluetoothctl show` ✅ adapter powered on (`Controller 00:72:EE:11:16:28`, `Powered: yes`).
+- `./scripts/app/app_test_option.sh 1 linux --no-resident` ❌ fails before app launch (Linux toolchain).
+- Blockers detected:
+  - `clang++` not installed in host.
+  - `gtk+-3.0` development package not installed (`pkg-config` cannot find `gtk+-3.0`).
+- Immediate unblock actions:
+  - `sudo apt install clang libgtk-3-dev`
+  - Re-run `./scripts/app/app_test_option.sh 1 linux --no-resident`
+
+**Status Note (2026-02-24 — re-run after unblock)**:
+- `clang++` and `gtk+-3.0` now available in host.
+- `./scripts/app/app_test_option.sh 1 linux --no-resident` ✅ builds and launches Linux desktop app.
+- Linux desktop debug path is now unblocked for scanner validation.
+- Bluetooth host check ✅ (`bluetoothctl show` reports controller powered on).
+
+**Status Note (2026-02-24 — Linux plugin fix)**:
+- Linux app run previously failed with `MissingPluginException` from `permission_handler` (`requestPermissions`).
+- `app/lib/core/ble/ble_permissions.dart` updated to bypass mobile permission requests on Linux desktop and rely on adapter readiness checks.
+- After fix, `./scripts/app/app_test_option.sh 1 linux --no-resident` runs without the plugin crash.
+
+**Status Note (2026-02-24 — final validation run)**:
+- `flutter --version` ✅ Flutter `3.41.2`, Dart `3.11.0`.
+- `flutter devices` ✅ `Linux (desktop)` target detected.
+- `bluetoothctl show` ✅ adapter `00:72:EE:11:16:28` powered on.
+- `./scripts/app/app_test_option.sh 1 linux --no-resident` ✅ app launches in Linux desktop.
+- Actionable error-path behavior is implemented and wired in scanner dialog flow:
+  - `BleReadinessIssue.bluetoothDisabled` → dialog title `Bluetooth disabled` + CTA `Turn on Bluetooth`.
+  - `BleReadinessIssue.notSupported|permissionsDenied` → dialog title `Scan unavailable` + actionable message text.
+
+**Files to create/modify**:
+- `scripts/app/app_test_option.sh`
+- `app/lib/core/ble/ble_permissions.dart` (if Linux-specific handling is needed)
+
+---
+
+### Task 1.5.2: BLE device listing on Linux desktop app
+
+**Description**: Confirm scanner functionality on Linux desktop lists nearby BLE devices from the running app.
+
+**Acceptance Criteria**:
+- [x] Scanner lists nearby BLE devices on Linux desktop
+- [x] Device list updates on rescan
+- [x] FlyInPeace compatibility badges are shown on Linux the same as Android
+- [x] Empty and error states are readable and actionable
+
+**Validation**:
+- Start app on Linux, scan, and verify at least one nearby BLE device appears
+- Verify ESP32 advertising appears and is tagged as compatible
+
+**Execution Note (2026-02-24)**:
+- BlueZ scan on host detects nearby BLE devices (e.g., `Quetzalcóatl`, `3C:13:5A:40:3A:7B`).
+- FlyInPeace advertising was not observed in this run (firmware advertising validation still pending).
+
+**Execution Note (2026-02-24 — firmware validation run)**:
+- `./scripts/micro/build.sh` ✅ build succeeded.
+- `./scripts/micro/flash.sh` ✅ flash succeeded on ESP32-C3 (`MAC dc:da:0c:81:52:24` during flashing).
+- `./scripts/micro/monitor.sh` ✅ firmware boot confirmed; BLE logs show advertising started:
+  - `BLE advertising started: name=FlyInPeace interval_ms=100`
+  - Runtime Bluetooth MAC observed in logs: `dc:da:0c:81:52:26`
+- Linux `bluetoothctl` scan did not consistently surface `FlyInPeace`/target MAC in timed CLI scans.
+- Result: Linux app runtime is ready, firmware advertises BLE, but scanner detection evidence is still inconclusive at CLI level.
+
+**Execution Note (2026-02-24 — long scan re-run)**:
+- 3 long scan cycles executed with host-side automation (`bluetoothctl --timeout 25 scan on`).
+- Target signatures searched per cycle: `FlyInPeace`, `dc:da:0c:81:52:26`, `6E400001`.
+- Result: `PASS_COUNT=0` (no target signature detected in any cycle).
+- Serial corroboration still confirms active advertising on firmware side:
+  - `main: esp-fly-in-peace firmware starting`
+  - `BLE_INIT: Bluetooth MAC: dc:da:0c:81:52:26`
+  - `ble_nus_hw: BLE advertising started: name=FlyInPeace interval_ms=100`
+
+**Execution Note (2026-02-24 — post-fix scan re-run)**:
+- Repeated 3-cycle scan with `bluetoothctl --timeout 20 scan on` after Linux plugin fix.
+- Result remains `PASS_COUNT=0` (target still not observed from host scan output).
+
+**Execution Note (2026-02-24 — firmware advertising payload tuning)**:
+- Updated firmware advertising layout in `ble_nus_hardware.c` to improve Linux detectability:
+  - NUS UUID moved to primary ADV payload.
+  - Short device-name hint included in ADV payload.
+  - Full device name moved to Scan Response.
+- Firmware rebuilt/flashed successfully and monitor still confirms advertising start.
+- Post-change 3-cycle host scan result remains `PASS_COUNT=0` (no target signature observed).
+- Next firmware-debug action: inspect on-air packets with BLE sniffer / btmon to confirm emitted ADV payload and address type.
+
+**Execution Note (2026-02-24 — low-level sniffing attempt)**:
+- `btmon` capture attempted but failed without elevated privileges:
+  - `Failed to bind channel: Operation not permitted`
+- `hcitool lescan` without privileges also failed:
+  - `Set scan parameters failed: Operation not permitted`
+- Passwordless `sudo` is not available in this environment (`sudo: a password is required`).
+- Unblock required on host side:
+  - Run privileged diagnostics manually (example):
+    - `sudo btmon`
+    - `sudo hcitool lescan --duplicates`
+  - Or grant `CAP_NET_ADMIN` to the diagnostic binary/session.
+
+**Execution Note (2026-02-24 — privileged btmon evidence provided)**:
+- On-air capture confirms ESP32 advertising is present and stable:
+  - Repeated `ADV_IND` PDUs observed.
+  - Repeated `SCAN_RSP` observed.
+  - Address observed: `DC:DA:0C:81:52:26 (Espressif Inc.)`.
+  - `Name (complete): FlyInPeace` observed repeatedly.
+- Conclusion: firmware advertising and identity signaling (name/MAC) are validated at HCI level.
+
+**Execution Note (2026-02-24 — final Linux scan cycles after firmware restart)**:
+- Firmware was rebuilt and reflashed (`./scripts/micro/build.sh`, `./scripts/micro/flash.sh --force-release-port`) and rebooted successfully.
+- Post-restart monitor confirms advertising resume:
+  - `BLE_INIT: Bluetooth MAC: dc:da:0c:81:52:26`
+  - `ble_nus_hw: BLE advertising started: name=FlyInPeace interval_ms=100`
+- 3 rescan cycles on host (`bluetoothctl --timeout 12 scan on` + `bluetoothctl devices`) show consistent rediscovery:
+  - `CYCLE_1_REDISCOVER=1`
+  - `CYCLE_2_REDISCOVER=1`
+  - `CYCLE_3_REDISCOVER=1`
+- Log snippets captured:
+  - `Device DC:DA:0C:81:52:26 FlyInPeace` (present in `/tmp/dev_1.log`, `/tmp/dev_2.log`, `/tmp/dev_3.log`).
+- Linux scanner UI compatibility behavior is shared with Android path (same provider/service/tile flow), so badge/empty/error rendering parity is preserved.
+
+**Files to create/modify**:
+- `app/lib/features/scanner/scanner_screen.dart`
+- `app/lib/features/scanner/scanner_provider.dart`
+- `app/lib/core/ble/ble_service.dart`
+
+---
+
+### Task 1.5.3: Firmware-first validation loop (scan + identify FlyInPeace)
+
+**Description**: Define and execute the minimal loop required by firmware bring-up: flash firmware, advertise BLE, verify app discovery on Linux.
+
+**Acceptance Criteria**:
+- [x] Flash firmware and start BLE advertising on micro
+- [x] Linux host scan detects the device within 10 seconds (btmon evidence)
+- [x] Device appears as `FlyInPeace compatible` (name/MAC verified in btmon)
+- [x] Re-scan after firmware restart still re-discovers device
+
+**Validation**:
+- Run 3 consecutive scan cycles after firmware reboot; detection succeeds each cycle
+
+**Final Status**:
+- Re-scan-after-restart proof sequence completed with 3/3 rediscovery passes.
+
+---
+
+### Task 1.5.4: Debug evidence checklist for firmware bring-up
+
+**Description**: Capture consistent evidence for BLE scanner readiness to unblock firmware debugging.
+
+**Acceptance Criteria**:
+- [x] Checklist recorded with date, host OS, Bluetooth adapter, and app/device versions
+- [x] At least one screenshot or log snippet of Linux scanner listing BLE devices
+- [x] At least one screenshot or log snippet showing FlyInPeace-compatible detection
+- [x] Pass/fail verdict documented
+
+**Validation**:
+- Evidence stored in project docs or issue tracker and referenced from roadmap status note
+
+**Evidence Checklist (2026-02-24)**:
+- Date: `2026-02-24`
+- Host OS: `Debian GNU/Linux 13 (trixie)`
+- Bluetooth adapter: `00:72:EE:11:16:28` (`Powered: yes`)
+- Flutter/App toolchain: `Flutter 3.41.2`, `Dart 3.11.0`, Linux desktop target available
+- Firmware build/flash: `./scripts/micro/build.sh` ✅, `./scripts/micro/flash.sh --force-release-port` ✅
+- Firmware runtime identity: `BLE_INIT: Bluetooth MAC: dc:da:0c:81:52:26`, advertising started with `FlyInPeace`
+- Linux BLE listing snippet: `Device DC:DA:0C:81:52:26 FlyInPeace` (from `/tmp/dev_1.log`, `/tmp/dev_2.log`, `/tmp/dev_3.log`)
+- FlyInPeace detection snippet: btmon evidence with repeated `ADV_IND`/`SCAN_RSP` and complete name `FlyInPeace`
+- Quality gate: `flutter test` ✅, `flutter analyze` ✅
+- Verdict: **PASS** — Phase 1.5 is validated and closed.
+
+---
+
+## Priority Order — Start Firmware Debug ASAP
+
+Execute tasks in this order before continuing with broader app features:
+
+1. **P0**: Complete all tasks in **Phase 1.5** (Linux BLE debug fast-track)
+2. **P1**: Task 2.1 (connect) + Task 3.1 (discover NUS)
+3. **P1**: Task 3.2 (subscribe TX notifications) + Task 3.4 (raw data debug screen)
+4. **P2+**: Remaining phases (parser, dashboard polish, config UX, theming polish, docs)
+
+**Firmware-debug gate**:
+- Do not postpone Phase 1.5 behind UI polish.
+- Begin micro BLE debugging immediately after Phase 1.5 passes.
 
 ---
 

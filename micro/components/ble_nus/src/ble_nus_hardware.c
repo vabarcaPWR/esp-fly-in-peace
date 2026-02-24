@@ -20,6 +20,7 @@
 #define BLE_NUS_RX_MAX_LEN 512U
 #define BLE_NUS_DEFAULT_CONN_HANDLE 0xFFFFU
 #define BLE_NUS_DEFAULT_MTU BLE_ATT_MTU_DFLT
+#define BLE_NUS_ADV_SHORT_NAME_LEN 6U
 
 static const char *TAG = "ble_nus_hw";
 static uint16_t s_tx_value_handle;
@@ -48,14 +49,23 @@ static uint16_t adv_interval_ms_to_units(uint16_t interval_ms)
 
 static int ble_nus_hardware_set_advertising_data(void)
 {
+    const char *device_name = ble_nus_model_get_device_name();
+    uint8_t device_name_len = (uint8_t)strlen(device_name);
+    uint8_t short_name_len = device_name_len;
+    if (short_name_len > BLE_NUS_ADV_SHORT_NAME_LEN)
+    {
+        short_name_len = BLE_NUS_ADV_SHORT_NAME_LEN;
+    }
+
     struct ble_hs_adv_fields adv_fields;
     memset(&adv_fields, 0, sizeof(adv_fields));
     adv_fields.flags = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
-    adv_fields.tx_pwr_lvl_is_present = 1;
-    adv_fields.tx_pwr_lvl = BLE_HS_ADV_TX_PWR_LVL_AUTO;
-    adv_fields.name = (uint8_t *)ble_nus_model_get_device_name();
-    adv_fields.name_len = (uint8_t)strlen(ble_nus_model_get_device_name());
-    adv_fields.name_is_complete = 1;
+    adv_fields.uuids128 = (ble_uuid128_t *)&NUS_SERVICE_UUID;
+    adv_fields.num_uuids128 = 1;
+    adv_fields.uuids128_is_complete = 1;
+    adv_fields.name = (uint8_t *)device_name;
+    adv_fields.name_len = short_name_len;
+    adv_fields.name_is_complete = (short_name_len == device_name_len);
 
     int field_result = ble_gap_adv_set_fields(&adv_fields);
     if (field_result)
@@ -66,9 +76,11 @@ static int ble_nus_hardware_set_advertising_data(void)
 
     struct ble_hs_adv_fields scan_rsp_fields;
     memset(&scan_rsp_fields, 0, sizeof(scan_rsp_fields));
-    scan_rsp_fields.uuids128 = (ble_uuid128_t *)&NUS_SERVICE_UUID;
-    scan_rsp_fields.num_uuids128 = 1;
-    scan_rsp_fields.uuids128_is_complete = 1;
+    scan_rsp_fields.tx_pwr_lvl_is_present = 1;
+    scan_rsp_fields.tx_pwr_lvl = BLE_HS_ADV_TX_PWR_LVL_AUTO;
+    scan_rsp_fields.name = (uint8_t *)device_name;
+    scan_rsp_fields.name_len = device_name_len;
+    scan_rsp_fields.name_is_complete = 1;
 
     int scan_rsp_result = ble_gap_adv_rsp_set_fields(&scan_rsp_fields);
     if (scan_rsp_result)

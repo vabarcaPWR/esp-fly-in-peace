@@ -23,6 +23,9 @@ class BleReadiness {
 class BlePermissions {
   const BlePermissions();
 
+  bool get _isLinuxDesktop =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.linux;
+
   Future<BleReadiness> ensureReadyForScan() async {
     if (kIsWeb) {
       return const BleReadiness(
@@ -46,6 +49,19 @@ class BlePermissions {
         issue: BleReadinessIssue.notSupported,
         message: 'Bluetooth LE is not supported on this device.',
       );
+    }
+
+    if (_isLinuxDesktop) {
+      final BluetoothAdapterState linuxAdapterState =
+          await FlutterBluePlus.adapterState.first;
+      if (linuxAdapterState != BluetoothAdapterState.on) {
+        return const BleReadiness(
+          issue: BleReadinessIssue.bluetoothDisabled,
+          message: 'Bluetooth is turned off. Please enable Bluetooth and retry.',
+        );
+      }
+
+      return const BleReadiness(issue: BleReadinessIssue.none, message: 'Ready');
     }
 
     final Map<Permission, PermissionStatus> statuses = await <Permission>[
@@ -110,6 +126,10 @@ class BlePermissions {
   }
 
   Future<bool> openAppPermissionsSettings() async {
+    if (_isLinuxDesktop) {
+      return false;
+    }
+
     return openAppSettings();
   }
 }
