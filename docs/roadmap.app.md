@@ -29,12 +29,12 @@
   - [x] Task 1.5.4: Debug evidence checklist for firmware bring-up
 - [ ] **Phase 2: BLE Connection**
   - [x] Task 2.1: Connect to device
-  - [ ] Task 2.2: Connection state management
+  - [x] Task 2.2: Connection state management
   - [ ] Task 2.3: Auto-reconnect logic
   - [ ] Task 2.4: Disconnect handling and UI feedback
 - [ ] **Phase 3: NUS Communication**
   - [x] Task 3.1: Discover NUS service and characteristics
-  - [ ] Task 3.2: Subscribe to TX notifications (receive data)
+  - [x] Task 3.2: Subscribe to TX notifications (receive data)
   - [ ] Task 3.3: Write to RX characteristic (reserved for future use)
   - [ ] Task 3.4: Raw data debug screen
 - [ ] **Phase 4: LK8EX1 Parser**
@@ -671,17 +671,31 @@ Execute tasks in this order before continuing with broader app features:
 **Description**: Track and expose BLE connection state throughout the app.
 
 **Acceptance Criteria**:
-- [ ] Connection states: `disconnected`, `connecting`, `connected`, `disconnecting`
-- [ ] State exposed via provider/stream (accessible from any screen)
-- [ ] State updates immediately on connect/disconnect events
-- [ ] All screens can react to connection state changes
+- [x] Connection states: `disconnected`, `connecting`, `connected`, `disconnecting`
+- [x] State exposed via provider/stream (accessible from any screen)
+- [x] State updates immediately on connect/disconnect events
+- [x] All screens can react to connection state changes
 
 **Validation**:
 - Connection indicator widget shows correct state at all times
 
+**Status Note (2026-02-24 — implementation + validation)**:
+- Shared BLE service/provider introduced in `app/lib/core/ble/ble_providers.dart`.
+- Global connection state stream exposed via `bleConnectionStatusProvider` and usable from any feature.
+- `ScannerController` and `Dashboard` now consume the same `BleService` instance, removing local placeholder state.
+- Dashboard indicator now reflects real BLE connection state (`connected` vs non-connected).
+- Immediate state updates are emitted from BLE connect/disconnect callbacks in `BleService`.
+- Quality checks:
+  - `flutter analyze` ✅
+  - `flutter test` ✅
+  - `./scripts/app/app_test_option.sh 1 linux --no-resident` ✅
+
 **Files to create/modify**:
+- `app/lib/core/ble/ble_providers.dart`
 - `app/lib/core/ble/ble_service.dart`
 - `app/lib/features/scanner/scanner_provider.dart` (or a connection_provider)
+- `app/lib/features/dashboard/dashboard_provider.dart`
+- `app/lib/features/dashboard/dashboard_screen.dart`
 
 ---
 
@@ -766,14 +780,24 @@ Execute tasks in this order before continuing with broader app features:
 **Description**: Subscribe to the TX characteristic to receive LK8EX1 data from the device.
 
 **Acceptance Criteria**:
-- [ ] Enable notifications on TX characteristic
-- [ ] Receive notification callbacks with data bytes
-- [ ] Reassemble fragmented messages (buffer until `\r\n` delimiter)
-- [ ] Expose received lines as a `Stream<String>` for consumers
-- [ ] Handle subscription errors
+- [x] Enable notifications on TX characteristic
+- [x] Receive notification callbacks with data bytes
+- [x] Reassemble fragmented messages (buffer until `\r\n` delimiter)
+- [x] Expose received lines as a `Stream<String>` for consumers
+- [x] Handle subscription errors
 
 **Validation**:
 - Connect to device → LK8EX1 sentences appear in stream
+
+**Status Note (2026-02-24 — implementation + validation)**:
+- TX notifications are enabled right after successful NUS discovery (`setNotifyValue(true)`).
+- Notification callbacks are consumed from TX `lastValueStream`.
+- Fragment reassembly implemented in `BleService` with internal byte buffer until `\r\n` delimiter.
+- Completed lines are exposed through `BleService.receivedLines` as `Stream<String>`.
+- Notification setup/runtime errors are surfaced as `BleServiceException` or stream errors.
+- Quality checks:
+  - `flutter analyze` ✅
+  - `flutter test` ✅
 
 ---
 

@@ -24,14 +24,6 @@ class DashboardScreen extends ConsumerWidget {
           const ValueDisplay(label: 'Vario', value: '--', unit: 'm/s'),
           const SizedBox(height: 8),
           const ValueDisplay(label: 'Pressure', value: '--', unit: 'Pa'),
-          const SizedBox(height: 16),
-          OutlinedButton.icon(
-            onPressed: () {
-              ref.read(dashboardConnectedProvider.notifier).state = !connected;
-            },
-            icon: const Icon(Icons.sync),
-            label: const Text('Toggle connection placeholder'),
-          ),
         ],
       ),
     );

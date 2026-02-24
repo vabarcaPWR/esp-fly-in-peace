@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/ble/ble_providers.dart';
 import '../../core/ble/ble_permissions.dart';
 import '../../core/ble/ble_service.dart';
 
@@ -92,12 +93,6 @@ class ScannerState {
 
 final blePermissionsProvider = Provider<BlePermissions>((ref) {
   return const BlePermissions();
-});
-
-final bleServiceProvider = Provider<BleService>((ref) {
-  final BleService service = BleService();
-  ref.onDispose(service.dispose);
-  return service;
 });
 
 final scannerControllerProvider =

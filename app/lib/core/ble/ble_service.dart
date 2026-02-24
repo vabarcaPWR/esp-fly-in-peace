@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 
@@ -56,23 +57,28 @@ class BleService {
       StreamController<List<BleScanDevice>>.broadcast();
   final StreamController<bool> _isScanningController =
       StreamController<bool>.broadcast();
+    final StreamController<String> _receivedLinesController =
+      StreamController<String>.broadcast();
 
   final Map<String, BleScanDevice> _scanDevicesById = <String, BleScanDevice>{};
 
   StreamSubscription<List<ScanResult>>? _scanResultsSubscription;
   StreamSubscription<bool>? _isScanningSubscription;
   StreamSubscription<BluetoothConnectionState>? _deviceConnectionSubscription;
+  StreamSubscription<List<int>>? _txNotificationSubscription;
 
   BleConnectionStatus _status = BleConnectionStatus.disconnected;
   BluetoothDevice? _connectedDevice;
   BluetoothService? _nusService;
   BluetoothCharacteristic? _nusTxCharacteristic;
   BluetoothCharacteristic? _nusRxCharacteristic;
+  final List<int> _txRxBuffer = <int>[];
 
   BleConnectionStatus get status => _status;
   Stream<BleConnectionStatus> get statusStream => _statusController.stream;
   Stream<List<BleScanDevice>> get scanResults => _scanResultsController.stream;
   Stream<bool> get isScanning => _isScanningController.stream;
+  Stream<String> get receivedLines => _receivedLinesController.stream;
   BluetoothDevice? get connectedDevice => _connectedDevice;
   BluetoothService? get nusService => _nusService;
   BluetoothCharacteristic? get nusTxCharacteristic => _nusTxCharacteristic;
@@ -118,6 +124,7 @@ class BleService {
       _nusService = nusService;
       _nusTxCharacteristic = txCharacteristic;
       _nusRxCharacteristic = rxCharacteristic;
+      await _subscribeToTxNotifications(txCharacteristic);
       _setStatus(BleConnectionStatus.connected);
     } catch (error) {
       await _resetConnectionState(device: device);
@@ -140,6 +147,8 @@ class BleService {
 
     await _deviceConnectionSubscription?.cancel();
     _deviceConnectionSubscription = null;
+    await _txNotificationSubscription?.cancel();
+    _txNotificationSubscription = null;
 
     if (device != null) {
       try {
@@ -244,6 +253,68 @@ class BleService {
     });
   }
 
+  Future<void> _subscribeToTxNotifications(
+    BluetoothCharacteristic txCharacteristic,
+  ) async {
+    try {
+      await txCharacteristic.setNotifyValue(true);
+    } catch (error) {
+      throw BleServiceException(
+        'Failed to enable TX notifications on NUS characteristic: $error',
+      );
+    }
+
+    await _txNotificationSubscription?.cancel();
+    _txNotificationSubscription = txCharacteristic.lastValueStream.listen(
+      _handleTxNotificationValue,
+      onError: (Object error, StackTrace stackTrace) {
+        _receivedLinesController.addError(
+          BleServiceException(
+            'Failed to process TX notifications: $error',
+          ),
+          stackTrace,
+        );
+      },
+    );
+  }
+
+  void _handleTxNotificationValue(List<int> value) {
+    if (value.isEmpty) {
+      return;
+    }
+
+    _txRxBuffer.addAll(value);
+    _emitCompletedLinesFromBuffer();
+  }
+
+  void _emitCompletedLinesFromBuffer() {
+    const int carriageReturn = 13;
+    const int lineFeed = 10;
+
+    while (true) {
+      int delimiterIndex = -1;
+      for (int index = 0; index < _txRxBuffer.length - 1; index++) {
+        if (_txRxBuffer[index] == carriageReturn &&
+            _txRxBuffer[index + 1] == lineFeed) {
+          delimiterIndex = index;
+          break;
+        }
+      }
+
+      if (delimiterIndex < 0) {
+        return;
+      }
+
+      final List<int> lineBytes = _txRxBuffer.sublist(0, delimiterIndex);
+      _txRxBuffer.removeRange(0, delimiterIndex + 2);
+
+      final String line = utf8.decode(lineBytes, allowMalformed: true);
+      if (line.isNotEmpty) {
+        _receivedLinesController.add(line);
+      }
+    }
+  }
+
   Future<void> _negotiateMtu(BluetoothDevice device) async {
     try {
       await device.requestMtu(512);
@@ -257,7 +328,9 @@ class BleService {
       }
     }
 
-    throw const BleServiceException('NUS service not found on connected device.');
+    throw const BleServiceException(
+      'NUS service not found on connected device.',
+    );
   }
 
   BluetoothCharacteristic _findCharacteristic({
@@ -284,6 +357,8 @@ class BleService {
   Future<void> _resetConnectionState({required BluetoothDevice device}) async {
     await _deviceConnectionSubscription?.cancel();
     _deviceConnectionSubscription = null;
+    await _txNotificationSubscription?.cancel();
+    _txNotificationSubscription = null;
 
     try {
       await device.disconnect();
@@ -297,14 +372,17 @@ class BleService {
     _nusService = null;
     _nusTxCharacteristic = null;
     _nusRxCharacteristic = null;
+    _txRxBuffer.clear();
   }
 
   void dispose() {
     _scanResultsSubscription?.cancel();
     _isScanningSubscription?.cancel();
     _deviceConnectionSubscription?.cancel();
+    _txNotificationSubscription?.cancel();
     _statusController.close();
     _scanResultsController.close();
     _isScanningController.close();
+    _receivedLinesController.close();
   }
 }
