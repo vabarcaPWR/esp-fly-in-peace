@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+ROOT_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 MICRO_DIR="${ROOT_DIR}/micro"
 PORT="/dev/ttyUSB0"
 PORT_EXPLICIT=false
@@ -60,21 +60,21 @@ done
 
 if ! command -v idf.py >/dev/null 2>&1; then
     if [[ -f "${SCRIPT_DIR}/env.sh" ]]; then
-        echo -e "${YELLOW}[ENV]${NC} idf.py not found. Sourcing scripts/env.sh..."
+        echo -e "${YELLOW}[ENV]${NC} idf.py not found. Sourcing scripts/micro/env.sh..."
         # shellcheck source=/dev/null
         source "${SCRIPT_DIR}/env.sh"
     fi
 fi
 
 if ! command -v idf.py >/dev/null 2>&1; then
-    echo -e "${RED}[MONITOR]${NC} idf.py is not available. Source ESP-IDF env first:" >&2
-    echo "  source ./scripts/env.sh" >&2
+    echo -e "${RED}[FLASH]${NC} idf.py is not available. Source ESP-IDF env first:" >&2
+    echo "  source ./scripts/micro/env.sh" >&2
     exit 1
 fi
 
 if [[ ! -e "$PORT" ]]; then
     if [[ "$PORT_EXPLICIT" == true ]]; then
-        echo -e "${RED}[MONITOR]${NC} Selected port does not exist: ${PORT}" >&2
+        echo -e "${RED}[FLASH]${NC} Selected port does not exist: ${PORT}" >&2
         exit 1
     fi
 
@@ -82,7 +82,7 @@ if [[ ! -e "$PORT" ]]; then
         echo -e "${YELLOW}[PORT]${NC} ${PORT} not found. Using detected port: ${detected_port}"
         PORT="$detected_port"
     else
-        echo -e "${RED}[MONITOR]${NC} No serial port detected (/dev/ttyUSB* or /dev/ttyACM*)." >&2
+        echo -e "${RED}[FLASH]${NC} No serial port detected (/dev/ttyUSB* or /dev/ttyACM*)." >&2
         echo "  Connect the board and retry, or pass one explicitly with -p." >&2
         exit 1
     fi
@@ -94,12 +94,12 @@ if command -v fuser >/dev/null 2>&1 && fuser "$PORT" >/dev/null 2>&1; then
         fuser -k "$PORT" >/dev/null 2>&1 || true
         sleep 1
         if command -v fuser >/dev/null 2>&1 && fuser "$PORT" >/dev/null 2>&1; then
-            echo -e "${RED}[MONITOR]${NC} Unable to release busy port: ${PORT}" >&2
+            echo -e "${RED}[FLASH]${NC} Unable to release busy port: ${PORT}" >&2
             echo "  Try closing the process manually and retry." >&2
             exit 1
         fi
     else
-        echo -e "${RED}[MONITOR]${NC} Port is busy: ${PORT}" >&2
+        echo -e "${RED}[FLASH]${NC} Port is busy: ${PORT}" >&2
         echo "  Process using the port:" >&2
         fuser "$PORT" >&2 || true
         echo "  Close the process manually or retry with --force-release-port." >&2
@@ -108,5 +108,11 @@ if command -v fuser >/dev/null 2>&1 && fuser "$PORT" >/dev/null 2>&1; then
 fi
 
 cd "$MICRO_DIR"
-echo -e "${GREEN}[MONITOR]${NC} Opening monitor on ${PORT}... (Ctrl+] to exit)"
-idf.py -p "$PORT" monitor
+echo -e "${GREEN}[FLASH]${NC} Flashing to ${PORT}..."
+
+if idf.py -p "$PORT" flash; then
+    echo -e "${GREEN}[FLASH]${NC} Flash succeeded ✔"
+else
+    echo -e "${RED}[FLASH]${NC} Flash failed ✘" >&2
+    exit 1
+fi

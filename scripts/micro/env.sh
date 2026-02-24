@@ -1,9 +1,9 @@
 # env.sh — ESP-IDF environment activation/deactivation
 # Usage:
-#   Activate:   source ./scripts/env.sh   (or . ./scripts/env.sh)
+#   Activate:   source ./scripts/micro/env.sh   (or . ./scripts/micro/env.sh)
 #   Deactivate: idf_deactivate
 #
-# DO NOT execute directly (./scripts/env.sh) — must be sourced to modify the shell.
+# DO NOT execute directly (./scripts/micro/env.sh) — must be sourced to modify the shell.
 
 _GREEN='\033[0;32m'
 _YELLOW='\033[0;33m'
@@ -12,7 +12,7 @@ _NC='\033[0m'
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     echo -e "${_RED}[ENV]${_NC} This script must be sourced, not executed." >&2
-    echo -e "      Usage: ${_YELLOW}source ./scripts/env.sh${_NC}" >&2
+    echo -e "      Usage: ${_YELLOW}source ./scripts/micro/env.sh${_NC}" >&2
     exit 1
 fi
 

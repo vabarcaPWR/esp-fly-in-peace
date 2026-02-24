@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+ROOT_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 APP_DIR="${ROOT_DIR}/app"
 APK_PATH="${APP_DIR}/build/app/outputs/flutter-apk/app-debug.apk"
 
@@ -13,7 +13,7 @@ NC='\033[0m'
 
 usage()
 {
-    echo "Usage: ./scripts/app_test_option.sh <1|2|3|list> [device-id] [extra args...]"
+    echo "Usage: ./scripts/app/app_test_option.sh <1|2|3|list> [device-id] [extra args...]"
     echo ""
     echo "  1  Run app in development mode on selected Flutter device"
     echo "  2  Install debug APK with adb"
@@ -21,11 +21,11 @@ usage()
     echo "  list  Show supported devices for option 1"
     echo ""
     echo "Examples:"
-    echo "  ./scripts/app_test_option.sh 1 chrome"
-    echo "  ./scripts/app_test_option.sh 1 chrome --no-resident"
-    echo "  ./scripts/app_test_option.sh 2"
-    echo "  ./scripts/app_test_option.sh 3"
-    echo "  ./scripts/app_test_option.sh list"
+    echo "  ./scripts/app/app_test_option.sh 1 chrome"
+    echo "  ./scripts/app/app_test_option.sh 1 chrome --no-resident"
+    echo "  ./scripts/app/app_test_option.sh 2"
+    echo "  ./scripts/app/app_test_option.sh 3"
+    echo "  ./scripts/app/app_test_option.sh list"
     echo ""
     echo "Tip: list devices with: cd app && flutter devices"
 }
@@ -165,7 +165,7 @@ run_option_1()
 
     if [[ -z "$device_id" ]]; then
         echo -e "${RED}[APP]${NC} Option 1 requires an explicit device-id." >&2
-        echo "  Example: ./scripts/app_test_option.sh 1 chrome" >&2
+        echo "  Example: ./scripts/app/app_test_option.sh 1 chrome" >&2
         echo "  Devices available:" >&2
         flutter devices >&2 || true
         exit 1

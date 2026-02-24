@@ -273,7 +273,7 @@ dev_dependencies:
 - `flutter pub get` ✅
 - `flutter analyze` ✅
 - `flutter test` ✅
-- `flutter build apk --debug` ✅ (`scripts/build_app_debug.sh` with `JAVA_HOME=/home/vabarca/.local/jdk-17`)
+- `flutter build apk --debug` ✅ (`scripts/app/build_app_debug.sh` with `JAVA_HOME=/home/vabarca/.local/jdk-17`)
 
 ---
 
