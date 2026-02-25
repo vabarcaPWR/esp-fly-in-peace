@@ -33,10 +33,10 @@
   - [x] Task 3.5: Connection state management
   - [x] Task 3.6: BLE + LK8EX1 integration (send simulated frames)
   - [x] Task 3.7: Verify with nRF Connect
-- [ ] **Phase 4: LED Indicator**
-  - [ ] Task 4.1: WS2812 driver via RMT peripheral
-  - [ ] Task 4.2: LED state machine (patterns per `led_state_e`)
-  - [ ] Task 4.3: Integration with BLE connection state
+- [x] **Phase 4: LED Indicator**
+  - [x] Task 4.1: WS2812 driver via RMT peripheral
+  - [x] Task 4.2: LED state machine (patterns per `led_state_e`)
+  - [x] Task 4.3: Integration with BLE connection state
 - [ ] **Phase 5: Sensor HAL (Compile-Time Abstraction)**
   - [ ] Task 5.1: Kconfig sensor selection (`choice SENSOR_DRIVER`)
   - [ ] Task 5.2: `sensor_hal` public API and compile-time dispatch
@@ -678,14 +678,26 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Description**: Create the `led_indicator` component that drives the WS2812 RGB LED using the ESP32-C3's RMT peripheral.
 
 **Acceptance Criteria**:
-- [ ] Component `led_indicator` created in `micro/components/led_indicator/`
-- [ ] `esp_err_t led_indicator_init(void)` — configures RMT channel on GPIO 8, creates LED task (Priority 1, 2048 bytes)
-- [ ] Internal functions to set RGB color and turn off LED via RMT
-- [ ] Uses ESP-IDF `led_strip` component or direct RMT encoding for WS2812 timing
-- [ ] GPIO 8 (WS2812 data pin on DevKitC-02 v1.1)
+- [x] Component `led_indicator` created in `micro/components/led_indicator/`
+- [x] `esp_err_t led_indicator_init(void)` — configures RMT channel on GPIO 8, creates LED task (Priority 1, 2048 bytes)
+- [x] Internal functions to set RGB color and turn off LED via RMT
+- [x] Uses ESP-IDF `led_strip` component or direct RMT encoding for WS2812 timing
+- [x] GPIO 8 (WS2812 data pin on DevKitC-02 v1.1)
 
 **Validation**:
 - Flash firmware, LED lights up with a test color
+
+**Status Note (2026-02-24 — implementation + build validation)**:
+- New component added: `micro/components/led_indicator/`.
+- Public API implemented: `led_indicator_init`, `led_indicator_deinit`, `led_indicator_set_state`, `led_indicator_get_state`.
+- Internal split applied per project rule:
+  - `led_indicator_conductor.c`
+  - `led_indicator_model.c`
+  - `led_indicator_hardware.c`
+- WS2812 hardware backend implemented with `espressif/led_strip` over RMT on GPIO 8.
+- Build validation:
+  - `./scripts/micro/build.sh` ✅
+
 
 **Files to create**:
 - `micro/components/led_indicator/CMakeLists.txt`
@@ -699,21 +711,31 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Description**: Implement the LED state machine per architecture §8.3 with all defined states and patterns.
 
 **Acceptance Criteria**:
-- [ ] `led_state_e` enum: `LED_STATE_BOOT`, `LED_STATE_BLE_DISCONNECTED`, `LED_STATE_BLE_CONNECTED`, `LED_STATE_WIFI_ENABLED`, `LED_STATE_ERROR`
-- [ ] `esp_err_t led_indicator_set_state(led_state_e state)` — thread-safe (queue-based, depth 1, overwrite)
-- [ ] `led_state_e led_indicator_get_state(void)` — returns current state
-- [ ] Pattern definitions per architecture §8.3:
+- [x] `led_state_e` enum: `LED_STATE_BOOT`, `LED_STATE_BLE_DISCONNECTED`, `LED_STATE_BLE_CONNECTED`, `LED_STATE_WIFI_ENABLED`, `LED_STATE_ERROR`
+- [x] `esp_err_t led_indicator_set_state(led_state_e state)` — thread-safe (queue-based, depth 1, overwrite)
+- [x] `led_state_e led_indicator_get_state(void)` — returns current state
+- [x] Pattern definitions per architecture §8.3:
   - `BOOT`: Blue solid (on during initialization)
   - `BLE_DISCONNECTED`: Red blink (100 ms ON / 1900 ms OFF)
   - `BLE_CONNECTED`: Green blink (100 ms ON / 4900 ms OFF)
   - `WIFI_ENABLED`: Blue blink (stub for future)
   - `ERROR`: Red fast blink (100 ms ON / 100 ms OFF)
-- [ ] LED task runs at 10 Hz (100 ms tick), evaluates on/off state within pattern cycle
-- [ ] Default state on boot: `LED_STATE_BOOT` → transitions to `LED_STATE_BLE_DISCONNECTED` after init
+- [x] LED task runs at 10 Hz (100 ms tick), evaluates on/off state within pattern cycle
+- [x] Default state on boot: `LED_STATE_BOOT` → transitions to `LED_STATE_BLE_DISCONNECTED` after init
 
 **Validation**:
 - Boot → blue solid → red blink after init completes
 - Verify all patterns with visual inspection
+
+**Status Note (2026-02-24 — implementation + host validation)**:
+- State machine implemented in `led_indicator_model.c` and consumed by a dedicated LED task (`10 Hz`) in `led_indicator_conductor.c`.
+- Queue-based state updates implemented with depth `1` and `xQueueOverwrite` semantics.
+- Pattern timing implemented exactly at 100 ms tick resolution:
+  - `BOOT`: solid blue
+  - `BLE_DISCONNECTED`: 1 tick ON / 19 ticks OFF
+  - `BLE_CONNECTED`: 1 tick ON / 49 ticks OFF
+  - `WIFI_ENABLED`: blue blink (stub)
+  - `ERROR`: 1 tick ON / 1 tick OFF
 
 ---
 
@@ -722,14 +744,25 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Description**: Register a BLE state callback to automatically change LED state on connect/disconnect.
 
 **Acceptance Criteria**:
-- [ ] `ble_nus_register_state_callback()` used to hook BLE state changes
-- [ ] BLE connect → `led_indicator_set_state(LED_STATE_BLE_CONNECTED)` (green)
-- [ ] BLE disconnect → `led_indicator_set_state(LED_STATE_BLE_DISCONNECTED)` (red)
-- [ ] `esp_err_t led_indicator_deinit(void)` cleans up task and RMT resources
-- [ ] Transition is immediate and visible
+- [x] `ble_nus_register_state_callback()` used to hook BLE state changes
+- [x] BLE connect → `led_indicator_set_state(LED_STATE_BLE_CONNECTED)` (green)
+- [x] BLE disconnect → `led_indicator_set_state(LED_STATE_BLE_DISCONNECTED)` (red)
+- [x] `esp_err_t led_indicator_deinit(void)` cleans up task and RMT resources
+- [x] Transition is immediate and visible
 
 **Validation**:
 - Connect/disconnect from phone, observe LED color changes
+
+**Status Note (2026-02-24 — integration + regression validation)**:
+- `main.c` now initializes `led_indicator` before BLE module setup.
+- BLE state callback registered via `ble_nus_register_state_callback(...)` and mapped to LED states:
+  - connected → `LED_STATE_BLE_CONNECTED`
+  - disconnected → `LED_STATE_BLE_DISCONNECTED`
+- Boot default transitions to `LED_STATE_BLE_DISCONNECTED` after module usage configuration.
+- Main target updated to require `led_indicator` component.
+- Regression validation:
+  - `./scripts/micro/build.sh` ✅
+  - `./scripts/micro/test.sh` ✅
 
 ---
 

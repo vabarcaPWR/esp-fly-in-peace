@@ -5,6 +5,7 @@
 #include "ble_nus.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "led_indicator.h"
 #include "lk8ex1.h"
 #include <esp_log.h>
 
@@ -25,6 +26,16 @@ static void ble_rx_log_callback(const uint8_t *data, uint16_t len)
         return;
 
     ESP_LOGI(TAG, "BLE RX: len=%u", len);
+}
+
+static void ble_led_state_callback(bool connected, uint16_t conn_handle)
+{
+    (void)conn_handle;
+
+    led_state_e next_state = connected ? LED_STATE_BLE_CONNECTED : LED_STATE_BLE_DISCONNECTED;
+    esp_err_t set_state_result = led_indicator_set_state(next_state);
+    if (ESP_OK != set_state_result)
+        ESP_LOGW(TAG, "led_indicator_set_state failed: err=0x%x", set_state_result);
 }
 
 static bool build_simulated_lk8ex1_sentence(char *sentence, size_t sentence_size)
@@ -108,18 +119,34 @@ static esp_err_t initialize_ble_nus_module(void)
 
 static esp_err_t initialize_modules(void)
 {
-    return initialize_ble_nus_module();
+    esp_err_t led_result = led_indicator_init();
+    if (ESP_OK != led_result)
+        return led_result;
+
+    esp_err_t ble_result = initialize_ble_nus_module();
+    if (ESP_OK != ble_result)
+    {
+        led_indicator_set_state(LED_STATE_ERROR);
+        return ble_result;
+    }
+
+    return ESP_OK;
 }
 
 static esp_err_t configure_ble_nus_module_usage(void)
 {
     ble_nus_register_rx_callback(ble_rx_log_callback);
+    ble_nus_register_state_callback(ble_led_state_callback);
     return ESP_OK;
 }
 
 static esp_err_t configure_modules_usage(void)
 {
-    return configure_ble_nus_module_usage();
+    esp_err_t ble_usage_result = configure_ble_nus_module_usage();
+    if (ESP_OK != ble_usage_result)
+        return ble_usage_result;
+
+    return led_indicator_set_state(LED_STATE_BLE_DISCONNECTED);
 }
 
 static esp_err_t create_lk8ex1_sender_thread(application_threads_t *threads)
