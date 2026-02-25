@@ -4,11 +4,20 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 APP_DIR="${ROOT_DIR}/app"
+FLUTTER_ENV_HELPER="${ROOT_DIR}/scripts/app/flutter_env.sh"
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
+
+if [[ ! -f "${FLUTTER_ENV_HELPER}" ]]; then
+    echo -e "${RED}[APP]${NC} Missing helper script: ${FLUTTER_ENV_HELPER}" >&2
+    exit 1
+fi
+
+# shellcheck source=/dev/null
+source "${FLUTTER_ENV_HELPER}"
 
 usage()
 {
@@ -93,10 +102,7 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
     exit 0
 fi
 
-if ! command -v flutter >/dev/null 2>&1; then
-    echo -e "${RED}[APP]${NC} flutter is not available in PATH." >&2
-    exit 1
-fi
+ensure_flutter_available "APP"
 
 if ! resolve_java_home; then
     echo -e "${RED}[APP]${NC} Compatible Java runtime not found (required Java 17..21)." >&2

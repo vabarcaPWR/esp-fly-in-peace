@@ -993,7 +993,29 @@ Execute tasks in this order before continuing with broader app features:
 
 - Final verdict (overall): PASS
 - Blocking issues (if any): None in matrix validation scope
-- Next action: Optional physical coordinated run with real BLE stream for hardware evidence extension
+- Next action: Execute physical coordinated run with real BLE stream for hardware evidence extension
+
+#### Phase 3.5 Coordinated Run Report (hardware-backed attempt)
+- Date/Time: 2026-02-25
+- Operator: GitHub Copilot
+- Firmware hash/profile: `b4a7c7e` / board flashed + booted (serial monitor evidence)
+- App hash/build: `b4a7c7e` / `flutter run` (`linux`, `chrome --no-resident`)
+- BLE source (`FlyInPeace` | `BlueFlyVario`): `FlyInPeace` detected in 30s BLE scan (`DC:DA:0C:81:52:26`)
+
+| Case | Expected | Observed | Verdict (PASS/FAIL) | Notes |
+|---|---|---|---|---|
+| A1/M1 nominal | valid | N/A | FAIL | Physical source detected, but frame capture not executed in inspector session |
+| A2/M2 climb | valid | N/A | FAIL | Physical source detected, but frame capture not executed in inspector session |
+| A3/M3 sink | valid | N/A | FAIL | Physical source detected, but frame capture not executed in inspector session |
+| A4/M4 edge-placeholder-alt | warning | N/A | FAIL | Physical source detected, but frame capture not executed in inspector session |
+| A5/M5 edge-placeholder-bat | warning | N/A | FAIL | Physical source detected, but frame capture not executed in inspector session |
+| A6/M6 malformed-checksum | error | N/A | FAIL | Physical source detected, but frame capture not executed in inspector session |
+| A7/M7 malformed-shape | error | N/A | FAIL | Physical source detected, but frame capture not executed in inspector session |
+| A8/M8 interoperability-bluefly | valid/warning | N/A | FAIL | BlueFlyVario device not present in this run |
+
+- Final verdict (overall): FAIL
+- Blocking issues (if any): Missing interactive frame-inspector capture evidence for A1–A7 and missing BlueFlyVario source for A8
+- Next action: Run guided 10-minute inspector session with app connected to `FlyInPeace`, switch firmware profiles from app RX commands, then repeat A8 with a BlueFlyVario source
 
 ### Shared Validation Matrix (app ↔ micro)
 
@@ -1626,6 +1648,11 @@ bluetoothctl --timeout 10 scan on || true
 - [ ] `app/README.md` with: project description, prerequisites (Flutter SDK, Android SDK), build steps, run steps
 - [ ] Minimum Android version documented
 - [ ] How to generate release APK
+
+**Status Note (2026-02-25 — scripts/runtime doc update)**:
+- `app/README.md` updated with repository-root app script usage and terminal execution examples.
+- Documented Flutter auto-detection behavior used by app scripts.
+- Shared helper introduced and referenced: `scripts/app/flutter_env.sh` (`ensure_flutter_available`).
 
 **Files to create**:
 - `app/README.md`

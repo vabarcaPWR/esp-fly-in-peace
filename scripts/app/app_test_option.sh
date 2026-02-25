@@ -5,11 +5,20 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 APP_DIR="${ROOT_DIR}/app"
 APK_PATH="${APP_DIR}/build/app/outputs/flutter-apk/app-debug.apk"
+FLUTTER_ENV_HELPER="${ROOT_DIR}/scripts/app/flutter_env.sh"
 
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
+
+if [[ ! -f "${FLUTTER_ENV_HELPER}" ]]; then
+    echo -e "${RED}[APP]${NC} Missing helper script: ${FLUTTER_ENV_HELPER}" >&2
+    exit 1
+fi
+
+# shellcheck source=/dev/null
+source "${FLUTTER_ENV_HELPER}"
 
 usage()
 {
@@ -128,7 +137,7 @@ normalize_option1_device_id()
 
 list_supported_option1_devices()
 {
-    require_command flutter
+    ensure_flutter_available "APP"
     require_python3
     ensure_repo_layout
 
@@ -161,7 +170,7 @@ if count == 0:
 
 run_option_1()
 {
-    require_command flutter
+    ensure_flutter_available "APP"
     require_python3
     ensure_repo_layout
 
@@ -203,7 +212,7 @@ run_option_1()
 
 run_option_2()
 {
-    require_command flutter
+    ensure_flutter_available "APP"
     require_command adb
     ensure_repo_layout
 
@@ -233,7 +242,7 @@ run_option_2()
 
 run_option_3()
 {
-    require_command flutter
+    ensure_flutter_available "APP"
     ensure_repo_layout
 
     echo -e "${GREEN}[APP]${NC} Option 3 selected: analyze + test"

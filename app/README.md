@@ -1,17 +1,35 @@
 # fly_in_peace
 
-A new Flutter project.
+Flutter companion app for `esp-fly-in-peace`.
 
-## Getting Started
+## Run from repository root
 
-This project is a starting point for a Flutter application.
+Use project scripts from `.`:
 
-A few resources to get you started if this is your first Flutter project:
+- `./scripts/app/app_test_option.sh list`
+- `./scripts/app/app_test_option.sh 1 linux`
+- `./scripts/app/app_test_option.sh 1 chrome`
+- `./scripts/app/app_test_option.sh 3`
+- `./scripts/app/build_app_debug.sh`
+
+## Flutter auto-detection in scripts
+
+App scripts automatically try to locate `flutter` when it is not available in the current terminal `PATH`.
+
+Checked locations:
+
+- `/snap/bin`
+- `/var/lib/snapd/snap/bin`
+- `~/flutter/bin`
+- `~/development/flutter/bin`
+- `~/sdk/flutter/bin`
+
+Shared helper used by scripts: `scripts/app/flutter_env.sh`.
+
+If Flutter is still not found, add Flutter to your shell `PATH` or install Flutter and retry.
+
+## Flutter references
 
 - [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
 - [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
 - [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.

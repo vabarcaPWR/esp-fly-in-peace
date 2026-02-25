@@ -741,6 +741,7 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Cross-Roadmap Verdict Sync (2026-02-25)**:
 - App Task 3.5.4 matrix run completed with `8/8` PASS using `app/test/core/utils/lk8ex1_phase35_matrix_test.dart`.
 - Shared Phase 3.5 verdict copied from app roadmap: **PASS** (host simulated matrix validation scope).
+- Physical coordinated attempt (same date): `FlyInPeace` advertising/scan evidence is now **PASS**, but end-to-end A1–A8 app frame-capture evidence remains **FAIL** (pending interactive inspector run and BlueFlyVario source for A8).
 
 ### Shared Validation Matrix (micro ↔ app)
 
