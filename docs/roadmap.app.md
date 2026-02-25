@@ -37,6 +37,11 @@
   - [x] Task 3.2: Subscribe to TX notifications (receive data)
   - [x] Task 3.3: Write to RX characteristic (reserved for future use)
   - [x] Task 3.4: Raw data debug screen
+- [ ] **Phase 3.5: Frame Inspector + Interop Fast-Track (P0)**
+  - [ ] Task 3.5.1: Parsed-frame inspection screen (field-level LK8EX1 validation)
+  - [ ] Task 3.5.2: Frame correctness verdict engine (valid/warning/error)
+  - [ ] Task 3.5.3: Multi-device compatibility layer (FlyInPeace + BlueFlyVario)
+  - [ ] Task 3.5.4: Cross-device integration validation with simulated profiles
 - [ ] **Phase 4: LK8EX1 Parser**
   - [ ] Task 4.1: LK8EX1 sentence parser
   - [ ] Task 4.2: Checksum validation
@@ -609,14 +614,14 @@ Required manifest permissions:
 
 Execute tasks in this order before continuing with broader app features:
 
-1. **P0**: Complete all tasks in **Phase 1.5** (Linux BLE debug fast-track)
-2. **P1**: Task 2.1 (connect) + Task 3.1 (discover NUS)
-3. **P1**: Task 3.2 (subscribe TX notifications) + Task 3.4 (raw data debug screen)
-4. **P2+**: Remaining phases (parser, dashboard polish, config UX, theming polish, docs)
+1. **P0**: Complete all tasks in **Phase 3.5** (Frame Inspector + Interop Fast-Track)
+2. **P0**: Complete all tasks in **micro Phase 3.5** (App Debug Stream Fast-Track)
+3. **P1**: Continue with parser/dashboard work once cross-device frame debugging is stable
+4. **P2+**: Remaining phases (config UX, theming polish, docs)
 
 **Firmware-debug gate**:
-- Do not postpone Phase 1.5 behind UI polish.
-- Begin micro BLE debugging immediately after Phase 1.5 passes.
+- Do not postpone Phase 3.5 behind UI polish.
+- Prioritize app/micro debug-loop closure before new feature expansion.
 
 ---
 
@@ -889,6 +894,150 @@ Execute tasks in this order before continuing with broader app features:
   - File updated: `app/lib/features/settings/settings_screen.dart`.
 - Runtime check:
   - `./scripts/app/app_test_option.sh 1 linux --no-resident` ✅
+
+---
+
+## Phase 3.5: Frame Inspector + Interop Fast-Track (P0)
+
+**Objective**: Enable rapid app/firmware integration by inspecting parsed LK8EX1 fields in real time and validating compatibility with multiple BLE variometer devices (including BlueFlyVario).
+**Estimated Duration**: 1–2 days
+**Dependencies**: Phase 3 complete
+
+### Task 3.5.1: Parsed-frame inspection screen
+
+**Description**: Add a dedicated debug screen that displays decoded LK8EX1 fields per frame to evaluate semantic correctness.
+
+**Acceptance Criteria**:
+- [ ] Screen shows per-frame fields: pressure, altitude, vario, temperature, battery, checksum state, timestamp
+- [ ] Frame source metadata visible (device id/name/profile)
+- [ ] Supports scrolling history and selecting one frame for detailed inspection
+
+**Validation**:
+- Connect to simulated stream and verify field values update in real time
+
+### Task 3.5.2: Frame correctness verdict engine
+
+**Description**: Add deterministic rules to classify each frame as `valid`, `warning`, or `error`.
+
+**Acceptance Criteria**:
+- [ ] `valid`: checksum and required fields OK
+- [ ] `warning`: placeholder values (e.g., `99999`, `999`) or borderline ranges
+- [ ] `error`: checksum mismatch, malformed sentence, or impossible field combinations
+- [ ] Verdict is visible in UI with reason text per frame
+
+**Validation**:
+- Inject known test frames and verify expected verdict class
+
+### Task 3.5.3: Multi-device compatibility (FlyInPeace + BlueFlyVario)
+
+**Description**: Support interoperability with other BLE variometer devices, starting with BlueFlyVario, while preserving FlyInPeace compatibility detection.
+
+**Acceptance Criteria**:
+- [ ] Scanner identifies FlyInPeace and BlueFlyVario-class devices with explicit compatibility badges
+- [ ] Connection/discovery flow works for both compatibility profiles
+- [ ] Frame-inspection pipeline can parse/visualize incoming telemetry from both profiles
+- [ ] Unknown BLE devices remain listed but clearly marked as unsupported/non-profiled
+
+**Validation**:
+- Run scan/connection/debug session with FlyInPeace and BlueFlyVario (or equivalent test captures)
+
+### Task 3.5.4: Cross-device integration validation with simulated profiles
+
+**Description**: Validate app frame inspector against micro simulated profiles (`nominal`, `climb`, `sink`, `edge`) and record evidence.
+
+**Acceptance Criteria**:
+- [ ] Every simulated profile can be consumed and inspected in app
+- [ ] Field-level values and verdicts match expected profile behavior
+- [ ] Evidence checklist recorded (date, firmware profile, device profile, verdict)
+
+**Validation**:
+- Execute coordinated test pass with micro Phase 3.5 outputs and document results
+
+### Shared Validation Matrix (app ↔ micro)
+
+Use this matrix as the single source of truth for Phase 3.5 sign-off.
+
+| Case | Profile | Example sentence expectation | App expected verdict | Notes |
+|---|---|---|---|---|
+| A1 | nominal | Stable pressure/altitude/vario, valid checksum | valid | Baseline integration gate |
+| A2 | climb | Positive vario trend, coherent pressure drop | valid | Verify trend continuity for ≥ 30 s |
+| A3 | sink | Negative vario trend, coherent pressure rise | valid | Verify no sign inversion in app fields |
+| A4 | edge-placeholder-alt | `altitude=99999` | warning | Reason: placeholder altitude |
+| A5 | edge-placeholder-bat | `battery=999` | warning | Reason: placeholder battery |
+| A6 | malformed-checksum | Corrupted checksum | error | Parser/verdict engine must reject |
+| A7 | malformed-shape | Missing field/count mismatch | error | Parser/verdict engine must reject |
+| A8 | interoperability-bluefly | BlueFlyVario-style BLE source with LK8EX1-compatible payload | valid or warning | Valid if checksum/fields are correct |
+
+### Coordinated Evidence Checklist (required)
+
+- [ ] Session date/time recorded
+- [ ] Firmware git hash + profile used recorded
+- [ ] App git hash + frame-inspector build recorded
+- [ ] BLE source profile recorded (`FlyInPeace` or `BlueFlyVario`)
+- [ ] At least 5 captured frames per matrix case stored
+- [ ] Verdict/result for each case (PASS/FAIL) recorded
+- [ ] Final integration verdict copied to both roadmaps
+
+### Execution Report Template (copy/paste)
+
+Use this exact template at the end of each coordinated run:
+
+```markdown
+#### Phase 3.5 Coordinated Run Report
+- Date/Time:
+- Operator:
+- Firmware hash/profile:
+- App hash/build:
+- BLE source (`FlyInPeace` | `BlueFlyVario`):
+
+| Case | Expected | Observed | Verdict (PASS/FAIL) | Notes |
+|---|---|---|---|---|
+| A1/M1 nominal | valid |  |  |  |
+| A2/M2 climb | valid |  |  |  |
+| A3/M3 sink | valid |  |  |  |
+| A4/M4 edge-placeholder-alt | warning |  |  |  |
+| A5/M5 edge-placeholder-bat | warning |  |  |  |
+| A6/M6 malformed-checksum | error |  |  |  |
+| A7/M7 malformed-shape | error |  |  |  |
+| A8/M8 interoperability-bluefly | valid/warning |  |  |  |
+
+- Final verdict (overall): PASS / FAIL
+- Blocking issues (if any):
+- Next action:
+```
+
+### Quick Runbook (10 minutes)
+
+1. **Prepare firmware stream (2 min)**
+  - Flash/start firmware with simulated LK8EX1 profile (`nominal` by default).
+  - Confirm BLE advertising and NUS TX notifications active.
+2. **Launch app debug flow (2 min)**
+  - Open app debug build and navigate to frame inspector screen.
+  - Connect to target source (`FlyInPeace` or `BlueFlyVario`).
+3. **Validate baseline cases (3 min)**
+  - Run `A1/A2/A3` (nominal/climb/sink) and confirm `valid` verdict.
+  - Record at least 5 frames per case.
+4. **Validate edge/error cases (2 min)**
+  - Run `A4/A5` placeholder cases and confirm `warning`.
+  - Run `A6/A7` malformed cases and confirm `error`.
+5. **Interop + closure (1 min)**
+  - Run `A8` with BlueFlyVario-compatible source profile.
+  - Fill Execution Report Template and copy final verdict to micro roadmap.
+
+### Command Pack (copy/paste)
+
+Run from repository root (`.`):
+
+```bash
+# 1) Launch app for BLE debug (Linux desktop)
+./scripts/app/app_test_option.sh 1 linux
+
+# 2) Alternative web debug target
+./scripts/app/app_test_option.sh 1 chrome
+
+# 3) Optional BLE scan trigger for quick sanity
+bluetoothctl --timeout 10 scan on || true
+```
 
 ---
 

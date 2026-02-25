@@ -33,6 +33,10 @@
   - [x] Task 3.5: Connection state management
   - [x] Task 3.6: BLE + LK8EX1 integration (send simulated frames)
   - [x] Task 3.7: Verify with nRF Connect
+- [ ] **Phase 3.5: App Debug Stream Fast-Track (P0)**
+  - [ ] Task 3.5.1: Define deterministic LK8EX1 simulated-frame profiles for app debugging
+  - [ ] Task 3.5.2: Expose debug profile selection for integration tests (nominal/climb/sink/edge-cases)
+  - [ ] Task 3.5.3: Validate end-to-end with app frame inspector and record evidence
 - [x] **Phase 4: LED Indicator**
   - [x] Task 4.1: WS2812 driver via RMT peripheral
   - [x] Task 4.2: LED state machine (patterns per `led_state_e`)
@@ -662,6 +666,144 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Objective**: Drive the onboard WS2812 RGB LED to indicate device state using the state machine defined in the architecture.  
 **Estimated Duration**: 1–2 days  
 **Dependencies**: Phase 3 (BLE state callbacks for integration)  
+
+---
+
+## Phase 3.5: App Debug Stream Fast-Track (P0)
+
+**Objective**: Prioritize app integration by streaming deterministic simulated LK8EX1 frames as early as possible, enabling frame-level debugging from the app before real sensor pipeline completion.
+**Estimated Duration**: 0.5–1 day
+**Dependencies**: Phase 3 complete
+
+**Priority Rule (override)**:
+- Execute Phase 3.5 before starting new hardware features not required for app integration.
+- Do not postpone this phase behind LED, sensor, or UI-polish related work.
+
+### Task 3.5.1: Deterministic LK8EX1 simulation profiles
+
+**Description**: Define stable, repeatable LK8EX1 simulation profiles to feed app parser/debug tooling.
+
+**Acceptance Criteria**:
+- [ ] Profile `nominal`: stable flight-like values with valid checksum
+- [ ] Profile `climb`: positive vario trend with realistic pressure/altitude relation
+- [ ] Profile `sink`: negative vario trend with realistic pressure/altitude relation
+- [ ] Profile `edge`: includes placeholders (`99999`, `999`) and boundary numeric values
+- [ ] Frame cadence fixed at debug target (default 4 Hz)
+
+**Validation**:
+- Capture at least 30 seconds per profile and verify deterministic field behavior between runs
+
+### Task 3.5.2: Debug profile selection for integration tests
+
+**Description**: Provide a simple mechanism to switch simulation profile during app-integration sessions.
+
+**Acceptance Criteria**:
+- [ ] Profile switch mechanism documented (build-time flag, compile-time constant, or runtime command)
+- [ ] Default profile remains `nominal` to preserve current behavior
+- [ ] Switching profile does not break BLE advertising or NUS notifications
+
+**Validation**:
+- Switch profile, reconnect app, confirm profile-specific frame behavior is visible in app debug tools
+
+### Task 3.5.3: End-to-end validation with app frame inspector
+
+**Description**: Validate simulated streams against the app frame-inspection screen and record evidence for integration sign-off.
+
+**Acceptance Criteria**:
+- [ ] App receives simulated LK8EX1 frames for all debug profiles
+- [ ] App visual inspector can classify frames as valid/invalid by fields and checksum
+- [ ] Evidence captured for each profile (sample frames + verdict)
+- [ ] Final pass/fail verdict documented in both app and micro roadmaps
+
+**Validation**:
+- Run coordinated session with app debug screen, verify field-level interpretation and correctness verdicts
+
+### Shared Validation Matrix (micro ↔ app)
+
+Use this matrix as the single source of truth for Phase 3.5 sign-off.
+
+| Case | Profile | Example sentence expectation | App expected verdict | Notes |
+|---|---|---|---|---|
+| M1 | nominal | Stable pressure/altitude/vario, valid checksum | valid | Baseline integration gate |
+| M2 | climb | Positive vario trend, coherent pressure drop | valid | Verify trend continuity for ≥ 30 s |
+| M3 | sink | Negative vario trend, coherent pressure rise | valid | Verify no sign inversion in app fields |
+| M4 | edge-placeholder-alt | `altitude=99999` | warning | Reason: placeholder altitude |
+| M5 | edge-placeholder-bat | `battery=999` | warning | Reason: placeholder battery |
+| M6 | malformed-checksum | Corrupted checksum | error | Parser must reject as invalid frame |
+| M7 | malformed-shape | Missing field/count mismatch | error | Parser must flag malformed sentence |
+| M8 | interoperability-bluefly | BlueFlyVario-style BLE source with LK8EX1-compatible payload | valid or warning | Valid if checksum/fields are correct |
+
+### Coordinated Evidence Checklist (required)
+
+- [ ] Session date/time recorded
+- [ ] Firmware git hash + profile used recorded
+- [ ] App git hash + debug screen version recorded
+- [ ] BLE source profile recorded (`FlyInPeace` or `BlueFlyVario`)
+- [ ] At least 5 captured frames per matrix case stored
+- [ ] Verdict/result for each case (PASS/FAIL) recorded
+- [ ] Final integration verdict copied to both roadmaps
+
+### Execution Report Template (copy/paste)
+
+Use this exact template at the end of each coordinated run:
+
+```markdown
+#### Phase 3.5 Coordinated Run Report
+- Date/Time:
+- Operator:
+- Firmware hash/profile:
+- App hash/build:
+- BLE source (`FlyInPeace` | `BlueFlyVario`):
+
+| Case | Expected | Observed | Verdict (PASS/FAIL) | Notes |
+|---|---|---|---|---|
+| M1/A1 nominal | valid |  |  |  |
+| M2/A2 climb | valid |  |  |  |
+| M3/A3 sink | valid |  |  |  |
+| M4/A4 edge-placeholder-alt | warning |  |  |  |
+| M5/A5 edge-placeholder-bat | warning |  |  |  |
+| M6/A6 malformed-checksum | error |  |  |  |
+| M7/A7 malformed-shape | error |  |  |  |
+| M8/A8 interoperability-bluefly | valid/warning |  |  |  |
+
+- Final verdict (overall): PASS / FAIL
+- Blocking issues (if any):
+- Next action:
+```
+
+### Quick Runbook (10 minutes)
+
+1. **Prepare firmware stream (2 min)**
+  - Build/flash firmware and start monitor.
+  - Select/confirm simulation profile (`nominal`, `climb`, `sink`, `edge`).
+2. **Start app inspection session (2 min)**
+  - Open app frame inspector and connect over BLE.
+  - Confirm first LK8EX1 frames arrive.
+3. **Validate nominal/trend cases (3 min)**
+  - Execute `M1/M2/M3` and confirm app verdict is `valid`.
+  - Capture at least 5 frames per case.
+4. **Validate edge/error cases (2 min)**
+  - Execute `M4/M5` and confirm `warning`.
+  - Execute `M6/M7` and confirm `error`.
+5. **Interop + closure (1 min)**
+  - Execute `M8` with BlueFlyVario-compatible source profile.
+  - Fill Execution Report Template and copy final verdict to app roadmap.
+
+### Command Pack (copy/paste)
+
+Run from repository root (`.`):
+
+```bash
+# 1) Build + flash firmware
+./scripts/micro/build.sh
+./scripts/micro/flash.sh
+
+# 2) Start monitor (new terminal)
+./scripts/micro/monitor.sh
+
+# 3) Optional quick BLE evidence (new terminal)
+bluetoothctl --timeout 10 scan on || true
+```
  
 **Refactorización (obligatoria)**:
 - Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
