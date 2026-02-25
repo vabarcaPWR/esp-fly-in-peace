@@ -8,6 +8,8 @@ import 'nus_protocol.dart';
 
 enum BleConnectionStatus { disconnected, connecting, connected, disconnecting }
 
+enum BleCompatibilityProfile { flyInPeace, blueFlyVario, unsupported }
+
 class BleReconnectState {
   const BleReconnectState({
     required this.isReconnecting,
@@ -45,7 +47,8 @@ class BleScanDevice {
     required this.rssi,
     required this.hasNusService,
     required this.hasFlyInPeaceName,
-    required this.isFlyInPeaceCompatible,
+    required this.hasBlueFlyName,
+    required this.compatibilityProfile,
   });
 
   final BluetoothDevice device;
@@ -54,7 +57,12 @@ class BleScanDevice {
   final int rssi;
   final bool hasNusService;
   final bool hasFlyInPeaceName;
-  final bool isFlyInPeaceCompatible;
+  final bool hasBlueFlyName;
+  final BleCompatibilityProfile compatibilityProfile;
+
+  bool get isFlyInPeaceCompatible {
+    return compatibilityProfile != BleCompatibilityProfile.unsupported;
+  }
 }
 
 class BleService {
@@ -123,6 +131,25 @@ class BleService {
   BluetoothService? get nusService => _nusService;
   BluetoothCharacteristic? get nusTxCharacteristic => _nusTxCharacteristic;
   BluetoothCharacteristic? get nusRxCharacteristic => _nusRxCharacteristic;
+
+  static BleCompatibilityProfile detectCompatibilityProfile(String name) {
+    final String normalizedName = name.toLowerCase();
+    final bool hasFlyInPeaceName =
+        normalizedName.contains('flyinpeace') ||
+        normalizedName.contains('fly in peace');
+    if (hasFlyInPeaceName) {
+      return BleCompatibilityProfile.flyInPeace;
+    }
+
+    final bool hasBlueFlyName =
+        normalizedName.contains('blueflyvario') ||
+        normalizedName.contains('bluefly');
+    if (hasBlueFlyName) {
+      return BleCompatibilityProfile.blueFlyVario;
+    }
+
+    return BleCompatibilityProfile.unsupported;
+  }
 
   Future<void> connect(BluetoothDevice device) async {
     _manualDisconnectRequested = false;
@@ -284,7 +311,11 @@ class BleService {
       final bool hasFlyInPeaceName =
           normalizedName.contains('flyinpeace') ||
           normalizedName.contains('fly in peace');
-      final bool isFlyInPeaceCompatible = hasNusService || hasFlyInPeaceName;
+      final bool hasBlueFlyName =
+          normalizedName.contains('blueflyvario') ||
+          normalizedName.contains('bluefly');
+      final BleCompatibilityProfile compatibilityProfile =
+          detectCompatibilityProfile(chosenName);
 
       _scanDevicesById[remoteId] = BleScanDevice(
         device: result.device,
@@ -293,7 +324,8 @@ class BleService {
         rssi: result.rssi,
         hasNusService: hasNusService,
         hasFlyInPeaceName: hasFlyInPeaceName,
-        isFlyInPeaceCompatible: isFlyInPeaceCompatible,
+        hasBlueFlyName: hasBlueFlyName,
+        compatibilityProfile: compatibilityProfile,
       );
     }
 

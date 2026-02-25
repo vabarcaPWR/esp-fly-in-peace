@@ -154,7 +154,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                         Text(
                           state.deviceFilter == ScannerDeviceFilter.all
                               ? 'No BLE devices found nearby.'
-                              : 'No FlyInPeace-compatible devices found.',
+                              : 'No profiled devices (FlyInPeace / BlueFlyVario) found.',
                           textAlign: TextAlign.center,
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
@@ -184,7 +184,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text(
-                                'This device is not FlyInPeace compatible.',
+                                'This device is unsupported or non-profiled.',
                               ),
                             ),
                           );

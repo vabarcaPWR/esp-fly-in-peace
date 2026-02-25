@@ -18,6 +18,9 @@ class DeviceListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isCompatible = device.isFlyInPeaceCompatible;
     final ColorScheme colorScheme = Theme.of(context).colorScheme;
+    final String compatibilityLabel = _profileLabel(
+      device.compatibilityProfile,
+    );
 
     return Card(
       child: ListTile(
@@ -37,9 +40,7 @@ class DeviceListTile extends StatelessWidget {
               spacing: 6,
               children: [
                 _CompatibilityChip(
-                  label: isCompatible
-                      ? 'FlyInPeace compatible'
-                      : 'Other BLE device',
+                  label: compatibilityLabel,
                   isCompatible: isCompatible,
                 ),
                 if (device.hasNusService)
@@ -54,6 +55,17 @@ class DeviceListTile extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _profileLabel(BleCompatibilityProfile profile) {
+    switch (profile) {
+      case BleCompatibilityProfile.flyInPeace:
+        return 'FlyInPeace profiled';
+      case BleCompatibilityProfile.blueFlyVario:
+        return 'BlueFlyVario profiled';
+      case BleCompatibilityProfile.unsupported:
+        return 'Unsupported / non-profiled';
+    }
   }
 
   IconData _rssiIcon(int rssi) {

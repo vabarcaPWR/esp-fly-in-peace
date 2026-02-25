@@ -684,26 +684,42 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Description**: Define stable, repeatable LK8EX1 simulation profiles to feed app parser/debug tooling.
 
 **Acceptance Criteria**:
-- [ ] Profile `nominal`: stable flight-like values with valid checksum
-- [ ] Profile `climb`: positive vario trend with realistic pressure/altitude relation
-- [ ] Profile `sink`: negative vario trend with realistic pressure/altitude relation
-- [ ] Profile `edge`: includes placeholders (`99999`, `999`) and boundary numeric values
-- [ ] Frame cadence fixed at debug target (default 4 Hz)
+- [x] Profile `nominal`: stable flight-like values with valid checksum
+- [x] Profile `climb`: positive vario trend with realistic pressure/altitude relation
+- [x] Profile `sink`: negative vario trend with realistic pressure/altitude relation
+- [x] Profile `edge`: includes placeholders (`99999`, `999`) and boundary numeric values
+- [x] Frame cadence fixed at debug target (default 4 Hz)
 
 **Validation**:
 - Capture at least 30 seconds per profile and verify deterministic field behavior between runs
+
+**Status Note (2026-02-25 — implementation + build validation)**:
+- Deterministic profile generator implemented in `micro/main/main.c` with fixed-sequence frames at `LK8EX1_TX_PERIOD_MS=250` (4 Hz).
+- Profiles implemented: `nominal`, `climb`, `sink`, `edge`.
+- Additional debug-only profiles implemented for validation matrix support: `malformed-checksum`, `malformed-shape`.
 
 ### Task 3.5.2: Debug profile selection for integration tests
 
 **Description**: Provide a simple mechanism to switch simulation profile during app-integration sessions.
 
 **Acceptance Criteria**:
-- [ ] Profile switch mechanism documented (build-time flag, compile-time constant, or runtime command)
-- [ ] Default profile remains `nominal` to preserve current behavior
-- [ ] Switching profile does not break BLE advertising or NUS notifications
+- [x] Profile switch mechanism documented (build-time flag, compile-time constant, or runtime command)
+- [x] Default profile remains `nominal` to preserve current behavior
+- [x] Switching profile does not break BLE advertising or NUS notifications
 
 **Validation**:
 - Switch profile, reconnect app, confirm profile-specific frame behavior is visible in app debug tools
+
+**Implemented Switch Mechanism**:
+- Runtime BLE RX command parsing in firmware (`ble_rx_log_callback`) with profile queue handoff to TX task.
+- Supported commands (case-insensitive substring match):
+  - `PROFILE NOMINAL`
+  - `PROFILE CLIMB`
+  - `PROFILE SINK`
+  - `PROFILE EDGE`
+  - `PROFILE MALFORMED_CHECKSUM`
+  - `PROFILE MALFORMED_SHAPE`
+- Compile-time default preserved via `LK8EX1_SIM_PROFILE_DEFAULT` macro (`nominal` by default).
 
 ### Task 3.5.3: End-to-end validation with app frame inspector
 
@@ -717,6 +733,14 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 
 **Validation**:
 - Run coordinated session with app debug screen, verify field-level interpretation and correctness verdicts
+
+**Status Note (2026-02-25 — firmware side ready)**:
+- Firmware now emits deterministic frames for all required debug profiles and keeps BLE/NUS streaming path unchanged.
+- Pending closure items are app-side coordinated evidence capture and final shared verdict entry.
+
+**Cross-Roadmap Verdict Sync (2026-02-25)**:
+- App Task 3.5.4 matrix run completed with `8/8` PASS using `app/test/core/utils/lk8ex1_phase35_matrix_test.dart`.
+- Shared Phase 3.5 verdict copied from app roadmap: **PASS** (host simulated matrix validation scope).
 
 ### Shared Validation Matrix (micro ↔ app)
 
