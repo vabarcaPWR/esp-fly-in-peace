@@ -396,6 +396,10 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Validation**:
 - Unit tests verify correct output for known inputs
 
+**Status Note (2026-02-27 — LK8EX1 commercial-format alignment)**:
+- [x] Formatter output aligned to commercial-compatible field shape: pressure in Pa and temperature rendered with one decimal digit from `temperature_dc`.
+- [x] Sentence compatibility target validated against examples such as `$LK8EX1,102108,99999,1,19.8,999,*36` (payload/checksum model unchanged).
+
 **Files to create**:
 - `micro/components/lk8ex1/CMakeLists.txt`
 - `micro/components/lk8ex1/include/lk8ex1.h`
@@ -431,7 +435,7 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 
 **Acceptance Criteria**:
 - [x] Test file `micro/test/test_lk8ex1.c` exists
-- [x] Test: format with typical values produces correct sentence (e.g., `$LK8EX1,101325,99999,50,235,999*XX\r\n`)
+- [x] Test: format with typical values produces correct sentence (e.g., `$LK8EX1,101325,99999,50,23.5,999*XX\r\n`)
 - [x] Test: format with `altitude_m = 99999` (no GPS) works correctly
 - [x] Test: format with `battery_mv = 999` (no battery) works correctly
 - [x] Test: checksum matches manual XOR calculation
@@ -443,6 +447,10 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 
 **Validation**:
 - Run `./scripts/micro/test.sh` — all tests green
+
+**Status Note (2026-02-27 — test updates + execution status)**:
+- [x] LK8EX1 unit expectations updated for decimal temperature output and Pa pressure output.
+- [ ] Full Ceedling rerun is currently blocked on this workstation by pre-existing config issue (`:paths -> :support -> support/mocks` missing).
 
 **Files to create**:
 - `micro/test/test_lk8ex1.c`

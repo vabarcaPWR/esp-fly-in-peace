@@ -39,6 +39,7 @@ class _RawDataDebugScreenState extends ConsumerState<RawDataDebugScreen> {
   String? _lastSavedRecordingPath;
   String? _lastSavedCsvRecordingPath;
   String? _selectedOutputDirectory;
+  bool _autoScrollEnabled = true;
 
   @override
   void initState() {
@@ -51,6 +52,10 @@ class _RawDataDebugScreenState extends ConsumerState<RawDataDebugScreen> {
           setState(() {
             _entries.add(RawDataEntry(timestamp: DateTime.now(), line: line));
           });
+
+          if (!_autoScrollEnabled) {
+            return;
+          }
 
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!_scrollController.hasClients) {
@@ -98,6 +103,21 @@ class _RawDataDebugScreenState extends ConsumerState<RawDataDebugScreen> {
       appBar: AppBar(
         title: const Text('Raw BLE Debug'),
         actions: [
+          IconButton(
+            onPressed: () {
+              setState(() {
+                _autoScrollEnabled = !_autoScrollEnabled;
+              });
+            },
+            icon: Icon(
+              _autoScrollEnabled
+                  ? Icons.vertical_align_bottom
+                  : Icons.vertical_align_bottom_outlined,
+            ),
+            tooltip: _autoScrollEnabled
+                ? 'Disable autoscroll'
+                : 'Enable autoscroll',
+          ),
           IconButton(
             onPressed: _entries.isEmpty
                 ? null

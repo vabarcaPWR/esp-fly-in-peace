@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../dashboard/frame_inspector_screen.dart';
-import '../dashboard/raw_data_debug_screen.dart';
+import '../dashboard/ble_debug_console_screen.dart';
 import 'settings_provider.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -28,34 +27,19 @@ class SettingsScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             Card(
-              child: Column(
-                children: [
-                  ListTile(
-                    leading: const Icon(Icons.data_object),
-                    title: const Text('Frame Inspector'),
-                    subtitle: const Text('Parsed LK8EX1 fields and verdicts'),
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const FrameInspectorScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  const Divider(height: 1),
-                  ListTile(
-                    leading: const Icon(Icons.developer_mode),
-                    title: const Text('Raw BLE Debug'),
-                    subtitle: const Text('Raw TX lines + RX command sender'),
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const RawDataDebugScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                ],
+              child: ListTile(
+                leading: const Icon(Icons.bug_report),
+                title: const Text('BLE Debug Console'),
+                subtitle: const Text(
+                  'Frame Inspector + Raw BLE Debug in one feature',
+                ),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const BleDebugConsoleScreen(),
+                    ),
+                  );
+                },
               ),
             ),
           ],

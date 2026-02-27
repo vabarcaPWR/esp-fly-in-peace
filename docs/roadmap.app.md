@@ -899,6 +899,12 @@ Execute tasks in this order before continuing with broader app features:
 - Runtime check:
   - `./scripts/app/app_test_option.sh 1 linux --no-resident` ✅
 
+**Status Note (2026-02-27 — debug tooling consolidation)**:
+- [x] Developer debug flow consolidated into one entrypoint: `BLE Debug Console` (`Frame Inspector` + `Raw BLE Debug` tabs).
+- [x] Previous separate menu entries were replaced by a single Settings route.
+- [x] Autoscroll toggle added in both tabs to allow manual history inspection without forced scroll-to-bottom.
+- [x] Validation executed: `./scripts/app/app_test_option.sh 3` (analyze + tests PASS).
+
 ---
 
 ## Phase 3.5: Frame Inspector + Interop Fast-Track (P0)
@@ -958,6 +964,13 @@ Execute tasks in this order before continuing with broader app features:
 - Compatibility profiles implemented in scan layer: `flyInPeace`, `blueFlyVario`, `unsupported`.
 - Device list badges and unsupported labeling updated accordingly.
 - Runtime proof with physical BlueFlyVario remains part of coordinated validation in Task 3.5.4.
+
+**Status Note (2026-02-27 — compatibility hardening + protocol alignment)**:
+- [x] BlueFlyVario compatibility detection extended to include service UUID (`0000FFE0-0000-1000-8000-00805F9B34FB`) in addition to name hints.
+- [x] Scanner deduplicates equivalent compatible entries and keeps two rows only when protocol-level capabilities differ.
+- [x] Device cards now display protocol distinction when split is intentional (`NUS`, `BlueFly UART`, `Generic UART`).
+- [x] LK8EX1 parser accepts commercial decimal temperature frames (e.g., `19.8`) while preserving legacy integer-decicelsius parsing.
+- [x] Validation executed: `./scripts/app/app_test_option.sh 3` (analyze + tests PASS).
 
 ### Task 3.5.4: Cross-device integration validation with simulated profiles
 
