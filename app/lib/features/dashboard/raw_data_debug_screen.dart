@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -39,7 +40,7 @@ class _RawDataDebugScreenState extends ConsumerState<RawDataDebugScreen> {
   String? _lastSavedRecordingPath;
   String? _lastSavedCsvRecordingPath;
   String? _selectedOutputDirectory;
-  int _autoscrollGeneration = 0;
+  int? _autoscrollFrameCallbackId;
 
   @override
   void initState() {
@@ -53,34 +54,14 @@ class _RawDataDebugScreenState extends ConsumerState<RawDataDebugScreen> {
             _entries.add(RawDataEntry(timestamp: DateTime.now(), line: line));
           });
 
-          if (!ref.read(rawBleDebugAutoscrollEnabledProvider)) {
-            return;
-          }
-
-          final int expectedGeneration = _autoscrollGeneration;
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!ref.read(rawBleDebugAutoscrollEnabledProvider)) {
-              return;
-            }
-            if (expectedGeneration != _autoscrollGeneration) {
-              return;
-            }
-            if (!_scrollController.hasClients) {
-              return;
-            }
-
-            _scrollController.animateTo(
-              _scrollController.position.maxScrollExtent,
-              duration: const Duration(milliseconds: 180),
-              curve: Curves.easeOut,
-            );
-          });
+          _scheduleAutoscrollIfNeeded();
         });
   }
 
   @override
   void dispose() {
     _receivedLinesSubscription?.cancel();
+    _cancelScheduledAutoscroll();
     _sendController.dispose();
     _filePrefixController.dispose();
     _scrollController.dispose();
@@ -118,12 +99,7 @@ class _RawDataDebugScreenState extends ConsumerState<RawDataDebugScreen> {
                 value: ref.watch(rawBleDebugAutoscrollEnabledProvider),
                 onChanged: (bool enabled) {
                   if (!enabled) {
-                    _autoscrollGeneration++;
-                    if (_scrollController.hasClients) {
-                      _scrollController.jumpTo(
-                        _scrollController.position.pixels,
-                      );
-                    }
+                    _cancelScheduledAutoscroll();
                   }
                   ref
                           .read(rawBleDebugAutoscrollEnabledProvider.notifier)
@@ -556,5 +532,43 @@ class _RawDataDebugScreenState extends ConsumerState<RawDataDebugScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('File opened')));
+  }
+
+  void _scheduleAutoscrollIfNeeded() {
+    if (!ref.read(rawBleDebugAutoscrollEnabledProvider)) {
+      return;
+    }
+    if (_autoscrollFrameCallbackId != null) {
+      return;
+    }
+
+    _autoscrollFrameCallbackId = SchedulerBinding.instance
+        .scheduleFrameCallback((_) {
+          _autoscrollFrameCallbackId = null;
+          if (!mounted || !ref.read(rawBleDebugAutoscrollEnabledProvider)) {
+            return;
+          }
+          if (!_scrollController.hasClients) {
+            return;
+          }
+
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+          );
+        });
+  }
+
+  void _cancelScheduledAutoscroll() {
+    final int? callbackId = _autoscrollFrameCallbackId;
+    if (callbackId != null) {
+      SchedulerBinding.instance.cancelFrameCallbackWithId(callbackId);
+      _autoscrollFrameCallbackId = null;
+    }
+
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(_scrollController.position.pixels);
+    }
   }
 }

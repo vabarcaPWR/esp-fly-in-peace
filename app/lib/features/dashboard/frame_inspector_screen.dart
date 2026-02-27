@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -46,7 +47,7 @@ class _FrameInspectorScreenState extends ConsumerState<FrameInspectorScreen> {
   final List<InspectedFrame> _frames = <InspectedFrame>[];
   StreamSubscription<String>? _receivedLinesSubscription;
   int? _selectedFrameIndex;
-  int _autoscrollGeneration = 0;
+  int? _autoscrollFrameCallbackId;
 
   @override
   void initState() {
@@ -61,6 +62,7 @@ class _FrameInspectorScreenState extends ConsumerState<FrameInspectorScreen> {
   @override
   void dispose() {
     _receivedLinesSubscription?.cancel();
+    _cancelScheduledAutoscroll();
     _historyScrollController.dispose();
     super.dispose();
   }
@@ -98,12 +100,7 @@ class _FrameInspectorScreenState extends ConsumerState<FrameInspectorScreen> {
                 value: ref.watch(frameInspectorAutoscrollEnabledProvider),
                 onChanged: (bool enabled) {
                   if (!enabled) {
-                    _autoscrollGeneration++;
-                    if (_historyScrollController.hasClients) {
-                      _historyScrollController.jumpTo(
-                        _historyScrollController.position.pixels,
-                      );
-                    }
+                    _cancelScheduledAutoscroll();
                   }
                   ref
                           .read(
@@ -210,28 +207,7 @@ class _FrameInspectorScreenState extends ConsumerState<FrameInspectorScreen> {
       _selectedFrameIndex ??= _frames.length - 1;
     });
 
-    if (!ref.read(frameInspectorAutoscrollEnabledProvider)) {
-      return;
-    }
-
-    final int expectedGeneration = _autoscrollGeneration;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!ref.read(frameInspectorAutoscrollEnabledProvider)) {
-        return;
-      }
-      if (expectedGeneration != _autoscrollGeneration) {
-        return;
-      }
-      if (!_historyScrollController.hasClients) {
-        return;
-      }
-
-      _historyScrollController.animateTo(
-        _historyScrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOut,
-      );
-    });
+    _scheduleAutoscrollIfNeeded();
   }
 
   void _clearFrames() {
@@ -239,6 +215,44 @@ class _FrameInspectorScreenState extends ConsumerState<FrameInspectorScreen> {
       _frames.clear();
       _selectedFrameIndex = null;
     });
+  }
+
+  void _scheduleAutoscrollIfNeeded() {
+    if (!ref.read(frameInspectorAutoscrollEnabledProvider)) {
+      return;
+    }
+    if (_autoscrollFrameCallbackId != null) {
+      return;
+    }
+
+    _autoscrollFrameCallbackId = SchedulerBinding.instance
+        .scheduleFrameCallback((_) {
+          _autoscrollFrameCallbackId = null;
+          if (!mounted || !ref.read(frameInspectorAutoscrollEnabledProvider)) {
+            return;
+          }
+          if (!_historyScrollController.hasClients) {
+            return;
+          }
+
+          _historyScrollController.animateTo(
+            _historyScrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+          );
+        });
+  }
+
+  void _cancelScheduledAutoscroll() {
+    final int? callbackId = _autoscrollFrameCallbackId;
+    if (callbackId != null) {
+      SchedulerBinding.instance.cancelFrameCallbackWithId(callbackId);
+      _autoscrollFrameCallbackId = null;
+    }
+
+    if (_historyScrollController.hasClients) {
+      _historyScrollController.jumpTo(_historyScrollController.position.pixels);
+    }
   }
 
   String _frameTitle(InspectedFrame frame) {

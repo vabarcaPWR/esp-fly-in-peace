@@ -198,8 +198,8 @@ static bool lk8ex1_parse_profile_from_command(const uint8_t *data, uint16_t len,
     {
         command[i] = (char)toupper((unsigned char)command[i]);
     }
-
     if (strstr(command, "NOMINAL"))
+
     {
         *profile = LK8EX1_SIM_PROFILE_NOMINAL;
         return true;
