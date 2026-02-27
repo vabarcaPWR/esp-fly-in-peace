@@ -1,3 +1,9 @@
+---
+name: app
+description: Senior Flutter/Dart developer for the Android companion app with BLE integration.
+tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob"]
+---
+
 # Agent: Mobile App
 
 ## Role

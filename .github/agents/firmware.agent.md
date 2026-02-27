@@ -1,3 +1,9 @@
+---
+name: firmware
+description: ESP-IDF and FreeRTOS embedded engineer for ESP32-C3 firmware development.
+tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob"]
+---
+
 # Agent: Firmware
 
 ## Role

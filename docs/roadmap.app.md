@@ -42,6 +42,10 @@
   - [x] Task 3.5.2: Frame correctness verdict engine (valid/warning/error)
   - [x] Task 3.5.3: Multi-device compatibility layer (FlyInPeace + BlueFlyVario)
   - [x] Task 3.5.4: Cross-device integration validation with simulated profiles
+- [ ] **Phase 3.6: BLE Session Recording (P1)**
+  - [x] Task 3.6.1: File logging service for received BLE stream
+  - [x] Task 3.6.2: Recorder controls in app (start/stop/save path)
+  - [x] Task 3.6.3: Session metadata + export validation
 - [ ] **Phase 4: LK8EX1 Parser**
   - [ ] Task 4.1: LK8EX1 sentence parser
   - [ ] Task 4.2: Checksum validation
@@ -1017,6 +1021,11 @@ Execute tasks in this order before continuing with broader app features:
 - Blocking issues (if any): Missing interactive frame-inspector capture evidence for A1–A7 and missing BlueFlyVario source for A8
 - Next action: Run guided 10-minute inspector session with app connected to `FlyInPeace`, switch firmware profiles from app RX commands, then repeat A8 with a BlueFlyVario source
 
+**Status Note (2026-02-25 — compatibility rerun execution)**:
+- App compatibility layer remains active (NUS-first + generic telemetry fallback) and passes static/runtime checks: `./scripts/app/app_test_option.sh 3`.
+- Firmware compatibility image was flashed and verified over BLE host scan as `BlueFlyVario` (`DC:DA:0C:81:52:26`).
+- A8 physical closure is still pending a real BlueFlyVario connection session in frame inspector (scan evidence alone is not enough).
+
 ### Shared Validation Matrix (app ↔ micro)
 
 Use this matrix as the single source of truth for Phase 3.5 sign-off.
@@ -1102,6 +1111,62 @@ Run from repository root (`.`):
 # 3) Optional BLE scan trigger for quick sanity
 bluetoothctl --timeout 10 scan on || true
 ```
+
+---
+
+## Phase 3.6: BLE Session Recording (P1)
+
+**Objective**: Allow developers/pilots to persist raw BLE telemetry lines to a local file while connected, for offline analysis and debugging.
+**Estimated Duration**: 1–2 days
+**Dependencies**: Phase 3 complete (active BLE stream), Phase 3.5 recommended (inspection flow already available)
+
+### Task 3.6.1: File logging service for received BLE stream
+
+**Description**: Create an app-side recorder service that subscribes to BLE received lines and writes them to a timestamped log file.
+
+**Acceptance Criteria**:
+- [x] Recorder can subscribe/unsubscribe to BLE stream without breaking existing UI streams
+- [x] Log file is created per session with UTC timestamp-based name
+- [x] Each line is stored with timestamp + raw payload
+- [x] Recorder handles disconnected state safely (flush/close file)
+
+**Validation**:
+- Connect to BLE source for at least 30 seconds and verify resulting file contains received lines and timestamps
+
+### Task 3.6.2: Recorder controls in app (start/stop/save path)
+
+**Description**: Add user controls in debug flow to start and stop recording, and show where the file was saved.
+
+**Acceptance Criteria**:
+- [x] Start/Stop recording actions available only when BLE is connected
+- [x] UI feedback visible: idle / recording / saved / error
+- [x] Saved file path is displayed and copyable from UI
+
+**Validation**:
+- Start recording, receive data, stop recording, and verify app displays saved file path
+
+### Task 3.6.3: Session metadata + export validation
+
+**Description**: Attach basic metadata to recording sessions and validate exported files for analysis readiness.
+
+**Acceptance Criteria**:
+- [x] Metadata includes device id/name, profile, app build, session start/end time
+- [x] Exported file format documented (plain text or CSV)
+- [ ] At least one sample recording attached to roadmap evidence notes
+
+**Validation**:
+- Run one end-to-end recording session and verify metadata completeness + file readability
+
+**Status Note (2026-02-25 — implementation + static validation)**:
+- Recorder service implemented in `app/lib/core/ble/ble_stream_recorder.dart` with dual export (`.log` + `.csv`) per session.
+- Session metadata written to exports: `device_id`, `device_name`, compatibility `profile`, `app_build`, `started_at_utc`, `stopped_at_utc`.
+- Raw BLE Debug UI enhanced in `app/lib/features/dashboard/raw_data_debug_screen.dart` with:
+  - file prefix input,
+  - output folder selector,
+  - start/stop controls,
+  - saved path copy action.
+- Validation commands executed: `flutter pub get`, `./scripts/app/app_test_option.sh 3` (analyze + tests PASS).
+- Pending closure for final evidence item: attach at least one real generated sample recording path/content snapshot.
 
 ---
 

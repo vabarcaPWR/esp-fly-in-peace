@@ -65,6 +65,20 @@ class BleScanDevice {
   }
 }
 
+class _BleTelemetryPipe {
+  const _BleTelemetryPipe({
+    required this.service,
+    required this.txCharacteristic,
+    required this.rxCharacteristic,
+    required this.usesNus,
+  });
+
+  final BluetoothService service;
+  final BluetoothCharacteristic txCharacteristic;
+  final BluetoothCharacteristic rxCharacteristic;
+  final bool usesNus;
+}
+
 class BleService {
   static const Duration connectionTimeout = Duration(seconds: 10);
   static const List<Duration> reconnectBackoffDelays = <Duration>[
@@ -77,6 +91,12 @@ class BleService {
 
   BleService() {
     _scanResultsSubscription = FlutterBluePlus.onScanResults.listen(
+      _handleScanResults,
+      onError: (Object error, StackTrace stackTrace) {
+        _scanResultsController.addError(error, stackTrace);
+      },
+    );
+    _legacyScanResultsSubscription = FlutterBluePlus.scanResults.listen(
       _handleScanResults,
       onError: (Object error, StackTrace stackTrace) {
         _scanResultsController.addError(error, stackTrace);
@@ -101,6 +121,7 @@ class BleService {
   final Map<String, BleScanDevice> _scanDevicesById = <String, BleScanDevice>{};
 
   StreamSubscription<List<ScanResult>>? _scanResultsSubscription;
+  StreamSubscription<List<ScanResult>>? _legacyScanResultsSubscription;
   StreamSubscription<bool>? _isScanningSubscription;
   StreamSubscription<BluetoothConnectionState>? _deviceConnectionSubscription;
   StreamSubscription<List<int>>? _txNotificationSubscription;
@@ -132,7 +153,10 @@ class BleService {
   BluetoothCharacteristic? get nusTxCharacteristic => _nusTxCharacteristic;
   BluetoothCharacteristic? get nusRxCharacteristic => _nusRxCharacteristic;
 
-  static BleCompatibilityProfile detectCompatibilityProfile(String name) {
+  static BleCompatibilityProfile detectCompatibilityProfile(
+    String name, {
+    bool hasNusService = false,
+  }) {
     final String normalizedName = name.toLowerCase();
     final bool hasFlyInPeaceName =
         normalizedName.contains('flyinpeace') ||
@@ -146,6 +170,10 @@ class BleService {
         normalizedName.contains('bluefly');
     if (hasBlueFlyName) {
       return BleCompatibilityProfile.blueFlyVario;
+    }
+
+    if (hasNusService) {
+      return BleCompatibilityProfile.flyInPeace;
     }
 
     return BleCompatibilityProfile.unsupported;
@@ -178,24 +206,18 @@ class BleService {
       await _negotiateMtu(device);
 
       final List<BluetoothService> services = await device.discoverServices();
-      final BluetoothService nusService = _findNusService(services);
-      final BluetoothCharacteristic txCharacteristic = _findCharacteristic(
-        service: nusService,
-        uuid: NusProtocol.txCharacteristicUuid,
-        roleName: 'TX (notify)',
-      );
-      final BluetoothCharacteristic rxCharacteristic = _findCharacteristic(
-        service: nusService,
-        uuid: NusProtocol.rxCharacteristicUuid,
-        roleName: 'RX (write)',
+      final BleCompatibilityProfile profile = _resolveProfileForDevice(device);
+      final _BleTelemetryPipe telemetryPipe = _findTelemetryPipe(
+        services: services,
+        profile: profile,
       );
 
       _connectedDevice = device;
       _hasConnectedSession = true;
-      _nusService = nusService;
-      _nusTxCharacteristic = txCharacteristic;
-      _nusRxCharacteristic = rxCharacteristic;
-      await _subscribeToTxNotifications(txCharacteristic);
+      _nusService = telemetryPipe.service;
+      _nusTxCharacteristic = telemetryPipe.txCharacteristic;
+      _nusRxCharacteristic = telemetryPipe.rxCharacteristic;
+      await _subscribeToTxNotifications(telemetryPipe.txCharacteristic);
       _setReconnectState(const BleReconnectState.idle());
       _setStatus(BleConnectionStatus.connected);
     } catch (error) {
@@ -242,8 +264,23 @@ class BleService {
   Future<void> startScan({
     Duration timeout = const Duration(seconds: 10),
   }) async {
-    _scanDevicesById.clear();
-    _scanResultsController.add(const <BleScanDevice>[]);
+    try {
+      await FlutterBluePlus.stopScan();
+    } catch (_) {}
+
+    if (_scanDevicesById.isNotEmpty) {
+      final List<BleScanDevice> existingDevices =
+          _scanDevicesById.values.toList()
+            ..sort((a, b) => b.rssi.compareTo(a.rssi));
+      _scanResultsController.add(existingDevices);
+    }
+
+    final bool isLinuxDesktop =
+        !kIsWeb && defaultTargetPlatform == TargetPlatform.linux;
+    if (isLinuxDesktop) {
+      await FlutterBluePlus.startScan(timeout: timeout);
+      return;
+    }
 
     await FlutterBluePlus.startScan(
       timeout: timeout,
@@ -315,7 +352,7 @@ class BleService {
           normalizedName.contains('blueflyvario') ||
           normalizedName.contains('bluefly');
       final BleCompatibilityProfile compatibilityProfile =
-          detectCompatibilityProfile(chosenName);
+          detectCompatibilityProfile(chosenName, hasNusService: hasNusService);
 
       _scanDevicesById[remoteId] = BleScanDevice(
         device: result.device,
@@ -389,7 +426,7 @@ class BleService {
       await txCharacteristic.setNotifyValue(true);
     } catch (error) {
       throw BleServiceException(
-        'Failed to enable TX notifications on NUS characteristic: $error',
+        'Failed to enable notifications on telemetry characteristic: $error',
       );
     }
 
@@ -448,16 +485,110 @@ class BleService {
     } catch (_) {}
   }
 
-  BluetoothService _findNusService(List<BluetoothService> services) {
+  BleCompatibilityProfile _resolveProfileForDevice(BluetoothDevice device) {
+    final BleScanDevice? scannedDevice = _scanDevicesById[device.remoteId.str];
+    if (scannedDevice != null) {
+      return scannedDevice.compatibilityProfile;
+    }
+
+    return detectCompatibilityProfile(device.platformName.trim());
+  }
+
+  _BleTelemetryPipe _findTelemetryPipe({
+    required List<BluetoothService> services,
+    required BleCompatibilityProfile profile,
+  }) {
+    if (services.isEmpty) {
+      throw const BleServiceException(
+        'No GATT services found on connected device.',
+      );
+    }
+
+    final BluetoothService? nusService = _tryFindNusService(services);
+    if (nusService != null) {
+      return _buildNusTelemetryPipe(nusService);
+    }
+
+    if (profile == BleCompatibilityProfile.flyInPeace) {
+      throw const BleServiceException(
+        'NUS service not found on connected FlyInPeace device.',
+      );
+    }
+
+    final _BleTelemetryPipe? genericPipe = _tryFindGenericTelemetryPipe(
+      services,
+    );
+    if (genericPipe != null) {
+      return genericPipe;
+    }
+
+    throw const BleServiceException(
+      'No compatible BLE telemetry service found (NUS/generic UART).',
+    );
+  }
+
+  BluetoothService? _tryFindNusService(List<BluetoothService> services) {
     for (final BluetoothService service in services) {
       if (_uuidEquals(service.uuid, NusProtocol.serviceUuid)) {
         return service;
       }
     }
 
-    throw const BleServiceException(
-      'NUS service not found on connected device.',
+    return null;
+  }
+
+  _BleTelemetryPipe _buildNusTelemetryPipe(BluetoothService service) {
+    final BluetoothCharacteristic txCharacteristic = _findCharacteristic(
+      service: service,
+      uuid: NusProtocol.txCharacteristicUuid,
+      roleName: 'TX (notify)',
     );
+    final BluetoothCharacteristic rxCharacteristic = _findCharacteristic(
+      service: service,
+      uuid: NusProtocol.rxCharacteristicUuid,
+      roleName: 'RX (write)',
+    );
+
+    return _BleTelemetryPipe(
+      service: service,
+      txCharacteristic: txCharacteristic,
+      rxCharacteristic: rxCharacteristic,
+      usesNus: true,
+    );
+  }
+
+  _BleTelemetryPipe? _tryFindGenericTelemetryPipe(
+    List<BluetoothService> services,
+  ) {
+    for (final BluetoothService service in services) {
+      BluetoothCharacteristic? notifyCharacteristic;
+      BluetoothCharacteristic? writeCharacteristic;
+
+      for (final BluetoothCharacteristic characteristic
+          in service.characteristics) {
+        final CharacteristicProperties props = characteristic.properties;
+
+        if (notifyCharacteristic == null && (props.notify || props.indicate)) {
+          notifyCharacteristic = characteristic;
+        }
+
+        if (writeCharacteristic == null &&
+            (props.write || props.writeWithoutResponse)) {
+          writeCharacteristic = characteristic;
+        }
+      }
+
+      if (notifyCharacteristic != null && writeCharacteristic != null) {
+        return _BleTelemetryPipe(
+          service: service,
+          txCharacteristic: notifyCharacteristic,
+          rxCharacteristic: writeCharacteristic,
+          usesNus: false,
+        );
+      }
+    }
+
+    return null;
   }
 
   BluetoothCharacteristic _findCharacteristic({
@@ -579,6 +710,7 @@ class BleService {
 
   void dispose() {
     _scanResultsSubscription?.cancel();
+    _legacyScanResultsSubscription?.cancel();
     _isScanningSubscription?.cancel();
     _deviceConnectionSubscription?.cancel();
     _txNotificationSubscription?.cancel();

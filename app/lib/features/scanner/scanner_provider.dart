@@ -31,6 +31,8 @@ class ScannerState {
     required this.connectingDeviceId,
     required this.scanProgress,
     required this.showScanAgain,
+    required this.connectionStatus,
+    required this.connectedDeviceId,
     required this.dialogRequest,
   });
 
@@ -43,6 +45,8 @@ class ScannerState {
       connectingDeviceId: null,
       scanProgress: 0,
       showScanAgain: false,
+      connectionStatus: BleConnectionStatus.disconnected,
+      connectedDeviceId: null,
       dialogRequest: null,
     );
   }
@@ -54,7 +58,11 @@ class ScannerState {
   final String? connectingDeviceId;
   final double scanProgress;
   final bool showScanAgain;
+  final BleConnectionStatus connectionStatus;
+  final String? connectedDeviceId;
   final ScannerDialogRequest? dialogRequest;
+
+  bool get isConnected => connectionStatus == BleConnectionStatus.connected;
 
   List<BleScanDevice> get visibleDevices {
     if (deviceFilter == ScannerDeviceFilter.all) {
@@ -73,6 +81,9 @@ class ScannerState {
     bool clearConnectingDeviceId = false,
     double? scanProgress,
     bool? showScanAgain,
+    BleConnectionStatus? connectionStatus,
+    String? connectedDeviceId,
+    bool clearConnectedDeviceId = false,
     ScannerDialogRequest? dialogRequest,
     bool clearDialog = false,
   }) {
@@ -86,6 +97,10 @@ class ScannerState {
           : (connectingDeviceId ?? this.connectingDeviceId),
       scanProgress: scanProgress ?? this.scanProgress,
       showScanAgain: showScanAgain ?? this.showScanAgain,
+      connectionStatus: connectionStatus ?? this.connectionStatus,
+      connectedDeviceId: clearConnectedDeviceId
+          ? null
+          : (connectedDeviceId ?? this.connectedDeviceId),
       dialogRequest: clearDialog ? null : (dialogRequest ?? this.dialogRequest),
     );
   }
@@ -114,6 +129,11 @@ class ScannerController extends StateNotifier<ScannerState> {
       state = state.copyWith(devices: devices);
     });
     _isScanningSubscription = _bleService.isScanning.listen(_handleScanning);
+    _connectionStatusSubscription = _bleService.statusStream.listen(
+      _handleConnectionStatus,
+    );
+
+    _handleConnectionStatus(_bleService.status);
   }
 
   static const Duration defaultScanTimeout = Duration(seconds: 10);
@@ -123,6 +143,7 @@ class ScannerController extends StateNotifier<ScannerState> {
 
   StreamSubscription<List<BleScanDevice>>? _scanResultsSubscription;
   StreamSubscription<bool>? _isScanningSubscription;
+  StreamSubscription<BleConnectionStatus>? _connectionStatusSubscription;
   Timer? _progressTimer;
   DateTime? _scanStartedAt;
   Duration _activeScanTimeout = defaultScanTimeout;
@@ -197,6 +218,7 @@ class ScannerController extends StateNotifier<ScannerState> {
       state = state.copyWith(
         isConnecting: false,
         clearConnectingDeviceId: true,
+        connectedDeviceId: scanDevice.remoteId,
       );
       return true;
     } catch (error) {
@@ -253,6 +275,19 @@ class ScannerController extends StateNotifier<ScannerState> {
     state = state.copyWith(isScanning: true, showScanAgain: false);
   }
 
+  void _handleConnectionStatus(BleConnectionStatus connectionStatus) {
+    final String? connectedDeviceId =
+        connectionStatus == BleConnectionStatus.connected
+        ? _bleService.connectedDevice?.remoteId.str
+        : null;
+
+    state = state.copyWith(
+      connectionStatus: connectionStatus,
+      connectedDeviceId: connectedDeviceId,
+      clearConnectedDeviceId: connectionStatus != BleConnectionStatus.connected,
+    );
+  }
+
   ScannerDialogRequest _dialogForReadiness(BleReadiness readiness) {
     switch (readiness.issue) {
       case BleReadinessIssue.permissionsPermanentlyDenied:
@@ -294,6 +329,11 @@ class ScannerController extends StateNotifier<ScannerState> {
     _progressTimer?.cancel();
     _scanResultsSubscription?.cancel();
     _isScanningSubscription?.cancel();
+    _connectionStatusSubscription?.cancel();
     super.dispose();
+  }
+
+  Future<void> disconnectDevice() async {
+    await _bleService.disconnect();
   }
 }

@@ -2,9 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
+import 'package:file_selector/file_selector.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/ble/ble_providers.dart';
 import '../../core/ble/ble_service.dart';
+import '../../core/ble/ble_stream_recorder.dart';
 
 class RawDataEntry {
   const RawDataEntry({required this.timestamp, required this.line});
@@ -22,10 +26,19 @@ class RawDataDebugScreen extends ConsumerStatefulWidget {
 
 class _RawDataDebugScreenState extends ConsumerState<RawDataDebugScreen> {
   final TextEditingController _sendController = TextEditingController();
+  final TextEditingController _filePrefixController = TextEditingController(
+    text: 'ble_session',
+  );
   final ScrollController _scrollController = ScrollController();
   final List<RawDataEntry> _entries = <RawDataEntry>[];
   StreamSubscription<String>? _receivedLinesSubscription;
   String? _sendError;
+  String? _recordingError;
+  String? _activeRecordingPath;
+  String? _activeCsvRecordingPath;
+  String? _lastSavedRecordingPath;
+  String? _lastSavedCsvRecordingPath;
+  String? _selectedOutputDirectory;
 
   @override
   void initState() {
@@ -57,6 +70,7 @@ class _RawDataDebugScreenState extends ConsumerState<RawDataDebugScreen> {
   void dispose() {
     _receivedLinesSubscription?.cancel();
     _sendController.dispose();
+    _filePrefixController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -67,6 +81,18 @@ class _RawDataDebugScreenState extends ConsumerState<RawDataDebugScreen> {
         ref.watch(bleConnectionStatusProvider).valueOrNull ??
         ref.read(bleServiceProvider).status;
     final bool isConnected = connectionStatus == BleConnectionStatus.connected;
+    final BleStreamRecorder recorder = ref.read(bleStreamRecorderProvider);
+    final bool isRecording = recorder.isRecording;
+
+    if (isRecording && _activeRecordingPath == null) {
+      _activeRecordingPath = recorder.currentFilePath;
+      _activeCsvRecordingPath = recorder.currentCsvFilePath;
+    }
+
+    if (!isRecording && _lastSavedRecordingPath == null) {
+      _lastSavedRecordingPath = recorder.lastSavedFilePath;
+      _lastSavedCsvRecordingPath = recorder.lastSavedCsvFilePath;
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -104,6 +130,138 @@ class _RawDataDebugScreenState extends ConsumerState<RawDataDebugScreen> {
               ],
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: TextField(
+              controller: _filePrefixController,
+              enabled: !isRecording,
+              decoration: const InputDecoration(
+                labelText: 'File name prefix',
+                hintText: 'ble_session',
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _selectedOutputDirectory == null
+                        ? 'Output folder: default app documents/ble_logs'
+                        : 'Output folder: $_selectedOutputDirectory',
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: isRecording
+                      ? null
+                      : () async {
+                          await _pickOutputDirectory();
+                        },
+                  icon: const Icon(Icons.folder_open),
+                  label: const Text('Select folder'),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Row(
+              children: [
+                FilledButton.icon(
+                  onPressed: (isConnected && !isRecording)
+                      ? () async {
+                          await _startRecording();
+                        }
+                      : null,
+                  icon: const Icon(Icons.fiber_manual_record),
+                  label: const Text('Start recording'),
+                ),
+                const SizedBox(width: 8),
+                FilledButton.tonalIcon(
+                  onPressed: isRecording
+                      ? () async {
+                          await _stopRecording();
+                        }
+                      : null,
+                  icon: const Icon(Icons.stop),
+                  label: const Text('Stop'),
+                ),
+              ],
+            ),
+          ),
+          if (isRecording)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  _activeRecordingPath == null
+                      ? 'Recording started'
+                      : 'Recording LOG: $_activeRecordingPath\nRecording CSV: ${_activeCsvRecordingPath ?? '-'}',
+                ),
+              ),
+            ),
+          if (!isRecording && _lastSavedRecordingPath != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Saved LOG: $_lastSavedRecordingPath\nSaved CSV: ${_lastSavedCsvRecordingPath ?? '-'}',
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: _lastSavedRecordingPath == null
+                        ? null
+                        : () async {
+                            await _copySavedPathToClipboard();
+                          },
+                    icon: const Icon(Icons.copy),
+                    tooltip: 'Copy path',
+                  ),
+                  IconButton(
+                    onPressed: _lastSavedRecordingPath == null
+                        ? null
+                        : () async {
+                            await _openSavedFile(_lastSavedRecordingPath);
+                          },
+                    icon: const Icon(Icons.description),
+                    tooltip: 'Open LOG',
+                  ),
+                  IconButton(
+                    onPressed: _lastSavedCsvRecordingPath == null
+                        ? null
+                        : () async {
+                            await _openSavedFile(_lastSavedCsvRecordingPath);
+                          },
+                    icon: const Icon(Icons.table_chart),
+                    tooltip: 'Open CSV',
+                  ),
+                  IconButton(
+                    onPressed: _lastSavedRecordingPath == null
+                        ? null
+                        : () async {
+                            await _openSavedFolder();
+                          },
+                    icon: const Icon(Icons.folder_open),
+                    tooltip: 'Open folder',
+                  ),
+                ],
+              ),
+            ),
+          if (_recordingError != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  _recordingError!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ),
+            ),
           Expanded(
             child: _entries.isEmpty
                 ? const Center(child: Text('No raw data received yet.'))
@@ -191,5 +349,177 @@ class _RawDataDebugScreenState extends ConsumerState<RawDataDebugScreen> {
         _sendError = '$error';
       });
     }
+  }
+
+  Future<void> _startRecording() async {
+    setState(() {
+      _recordingError = null;
+    });
+
+    try {
+      final String path = await ref
+          .read(bleStreamRecorderProvider)
+          .startRecording(
+            outputDirectoryPath: _selectedOutputDirectory,
+            filePrefix: _filePrefixController.text,
+          );
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _activeRecordingPath = path;
+        _activeCsvRecordingPath = ref
+            .read(bleStreamRecorderProvider)
+            .currentCsvFilePath;
+        _lastSavedRecordingPath = null;
+        _lastSavedCsvRecordingPath = null;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _recordingError = '$error';
+      });
+    }
+  }
+
+  Future<void> _stopRecording() async {
+    setState(() {
+      _recordingError = null;
+    });
+
+    try {
+      final String? savedPath = await ref
+          .read(bleStreamRecorderProvider)
+          .stopRecording();
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _activeRecordingPath = null;
+        _activeCsvRecordingPath = null;
+        _lastSavedRecordingPath = savedPath;
+        _lastSavedCsvRecordingPath = ref
+            .read(bleStreamRecorderProvider)
+            .lastSavedCsvFilePath;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _recordingError = '$error';
+      });
+    }
+  }
+
+  Future<void> _pickOutputDirectory() async {
+    setState(() {
+      _recordingError = null;
+    });
+
+    try {
+      final String? selected = await getDirectoryPath();
+      if (!mounted || selected == null || selected.trim().isEmpty) {
+        return;
+      }
+
+      setState(() {
+        _selectedOutputDirectory = selected;
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _recordingError = '$error';
+      });
+    }
+  }
+
+  Future<void> _copySavedPathToClipboard() async {
+    final String? savedPath = _lastSavedRecordingPath;
+    final String? savedCsvPath = _lastSavedCsvRecordingPath;
+    if (savedPath == null || savedPath.isEmpty) {
+      return;
+    }
+
+    final String textToCopy = 'log=$savedPath\ncsv=${savedCsvPath ?? ''}'
+        .trimRight();
+    await Clipboard.setData(ClipboardData(text: textToCopy));
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Saved path copied')));
+  }
+
+  Future<void> _openSavedFolder() async {
+    final String? savedPath = _lastSavedRecordingPath;
+    if (savedPath == null || savedPath.isEmpty) {
+      return;
+    }
+
+    final String normalizedPath = savedPath.replaceAll('\\', '/');
+    final int separatorIndex = normalizedPath.lastIndexOf('/');
+    final String folderPath = separatorIndex > 0
+        ? normalizedPath.substring(0, separatorIndex)
+        : normalizedPath;
+
+    final Uri folderUri = Uri.file(folderPath);
+    final bool opened = await launchUrl(
+      folderUri,
+      mode: LaunchMode.externalApplication,
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    if (!opened) {
+      setState(() {
+        _recordingError = 'Could not open folder: $folderPath';
+      });
+      return;
+    }
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Folder opened')));
+  }
+
+  Future<void> _openSavedFile(String? filePath) async {
+    if (filePath == null || filePath.isEmpty) {
+      return;
+    }
+
+    final Uri fileUri = Uri.file(filePath);
+    final bool opened = await launchUrl(
+      fileUri,
+      mode: LaunchMode.externalApplication,
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    if (!opened) {
+      setState(() {
+        _recordingError = 'Could not open file: $filePath';
+      });
+      return;
+    }
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('File opened')));
   }
 }

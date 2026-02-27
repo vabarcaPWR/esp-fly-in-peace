@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/ble/ble_service.dart';
 import '../../widgets/device_list_tile.dart';
 import '../dashboard/dashboard_screen.dart';
 import 'scanner_provider.dart';
@@ -89,6 +90,40 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       appBar: AppBar(title: const Text('Scanner')),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+            child: Card(
+              child: ListTile(
+                leading: Icon(
+                  state.isConnected
+                      ? Icons.bluetooth_connected
+                      : Icons.bluetooth_disabled,
+                  color: state.isConnected
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.outline,
+                ),
+                title: Text(state.isConnected ? 'Connected' : 'Disconnected'),
+                subtitle: state.connectedDeviceId == null
+                    ? null
+                    : Text('Device: ${state.connectedDeviceId}'),
+                trailing: state.isConnected
+                    ? FilledButton.icon(
+                        onPressed:
+                            state.connectionStatus ==
+                                BleConnectionStatus.disconnecting
+                            ? null
+                            : () async {
+                                await ref
+                                    .read(scannerControllerProvider.notifier)
+                                    .disconnectDevice();
+                              },
+                        icon: const Icon(Icons.link_off),
+                        label: const Text('Disconnect'),
+                      )
+                    : null,
+              ),
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
             child: Align(

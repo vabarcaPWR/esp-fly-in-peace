@@ -16,6 +16,10 @@
 #define LK8EX1_TX_TASK_PRIORITY 3U
 #define LK8EX1_PROFILE_COMMAND_MAX_LEN 64U
 
+#ifndef BLE_COMPAT_DEVICE_NAME
+#define BLE_COMPAT_DEVICE_NAME "FlyInPeace"
+#endif
+
 #ifndef LK8EX1_SIM_PROFILE_DEFAULT
 #define LK8EX1_SIM_PROFILE_DEFAULT LK8EX1_SIM_PROFILE_NOMINAL
 #endif
@@ -411,7 +415,7 @@ static void lk8ex1_simulated_sender_task(void *param)
 static esp_err_t initialize_ble_nus_module(void)
 {
     ble_nus_cfg_t ble_config = {
-        .device_name = BLE_NUS_DEFAULT_DEVICE_NAME,
+        .device_name = BLE_COMPAT_DEVICE_NAME,
         .adv_interval_ms = BLE_NUS_DEFAULT_ADV_INTERVAL_MS,
     };
 

@@ -206,6 +206,39 @@ run_option_1()
         exit 1
     fi
 
+    if [[ "$device_id" == "linux" ]]; then
+        local clang_bin_dir=""
+        local clang_path=""
+        local linker_path=""
+
+        if command -v clang >/dev/null 2>&1; then
+            clang_path="$(readlink -f "$(command -v clang)" 2>/dev/null || true)"
+            clang_bin_dir="$(dirname "${clang_path}")"
+        fi
+
+        if [[ -n "$clang_bin_dir" && ! -x "${clang_bin_dir}/ld" && ! -x "${clang_bin_dir}/ld.lld" ]]; then
+            linker_path="$(command -v ld 2>/dev/null || true)"
+            if [[ -n "$linker_path" ]]; then
+                if [[ -w "$clang_bin_dir" ]]; then
+                    ln -sfn "$linker_path" "${clang_bin_dir}/ld"
+                    echo -e "${YELLOW}[APP]${NC} Added linker symlink: ${clang_bin_dir}/ld -> ${linker_path}"
+                elif command -v sudo >/dev/null 2>&1 && [[ -t 0 ]]; then
+                    echo -e "${YELLOW}[APP]${NC} Linux linker missing in ${clang_bin_dir}; requesting sudo to add symlink."
+                    sudo ln -sfn "$linker_path" "${clang_bin_dir}/ld" || true
+                fi
+            fi
+        fi
+
+        if [[ -n "$clang_bin_dir" && ! -x "${clang_bin_dir}/ld" && ! -x "${clang_bin_dir}/ld.lld" ]]; then
+            echo -e "${RED}[APP]${NC} Linux toolchain issue detected: missing linker in ${clang_bin_dir}" >&2
+            echo "  Flutter Linux build may fail with: Failed to find any of [ld.lld, ld]" >&2
+            echo "  Fix (requires sudo):" >&2
+            echo "    sudo ln -s /usr/bin/ld ${clang_bin_dir}/ld" >&2
+            echo "  Alternative: install llvm linker tools (lld/binutils)." >&2
+            exit 1
+        fi
+    fi
+
     echo -e "${YELLOW}[APP]${NC} Using target: ${device_id}"
     flutter run -d "$device_id" "${extra_args[@]}"
 }

@@ -742,6 +742,9 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 - App Task 3.5.4 matrix run completed with `8/8` PASS using `app/test/core/utils/lk8ex1_phase35_matrix_test.dart`.
 - Shared Phase 3.5 verdict copied from app roadmap: **PASS** (host simulated matrix validation scope).
 - Physical coordinated attempt (same date): `FlyInPeace` advertising/scan evidence is now **PASS**, but end-to-end A1–A8 app frame-capture evidence remains **FAIL** (pending interactive inspector run and BlueFlyVario source for A8).
+- Compatibility rerun (same date): firmware rebuilt/flashed with `BLE_COMPAT_DEVICE_NAME="BlueFlyVario"`; host BLE scan evidence captured as `DC:DA:0C:81:52:26 BlueFlyVario`.
+- Validation commands executed: `./scripts/micro/build.sh`, `./scripts/micro/test.sh` (`27/27` PASS), `./scripts/micro/flash.sh --force-release-port`.
+- App roadmap sync (same date): Phase `3.6` BLE Session Recording implemented on app side with dual export (`.log` + `.csv`) and session metadata capture; no firmware code changes required.
 
 ### Shared Validation Matrix (micro ↔ app)
 
