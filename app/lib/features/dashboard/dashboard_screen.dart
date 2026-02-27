@@ -46,7 +46,26 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     });
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Dashboard')),
+      appBar: AppBar(
+        title: const Text('Dashboard'),
+        actions: [
+          TextButton.icon(
+            onPressed: () async {
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              _manualDisconnectPending = true;
+              await ref.read(bleServiceProvider).disconnect();
+              if (!mounted) {
+                return;
+              }
+              scaffoldMessenger.showSnackBar(
+                const SnackBar(content: Text('Disconnected.')),
+              );
+            },
+            icon: const Icon(Icons.link_off),
+            label: const Text('Disconnect'),
+          ),
+        ],
+      ),
       body: Stack(
         children: [
           ListView(
@@ -59,27 +78,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               const ValueDisplay(label: 'Vario', value: '--', unit: 'm/s'),
               const SizedBox(height: 8),
               const ValueDisplay(label: 'Pressure', value: '--', unit: 'Pa'),
-              const SizedBox(height: 16),
-              if (connected)
-                FilledButton.icon(
-                  onPressed: () async {
-                    final navigator = Navigator.of(context);
-                    final scaffoldMessenger = ScaffoldMessenger.of(context);
-
-                    _manualDisconnectPending = true;
-                    await ref.read(bleServiceProvider).disconnect();
-                    if (!mounted) {
-                      return;
-                    }
-
-                    scaffoldMessenger.showSnackBar(
-                      const SnackBar(content: Text('Disconnected.')),
-                    );
-                    navigator.maybePop();
-                  },
-                  icon: const Icon(Icons.link_off),
-                  label: const Text('Disconnect'),
-                ),
             ],
           ),
           if (reconnectState.isReconnecting)

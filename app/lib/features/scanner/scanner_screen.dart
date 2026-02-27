@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/ble/ble_service.dart';
 import '../../widgets/device_list_tile.dart';
-import '../dashboard/dashboard_screen.dart';
 import 'scanner_provider.dart';
 
 class ScannerScreen extends ConsumerStatefulWidget {
@@ -106,21 +105,19 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                 subtitle: state.connectedDeviceId == null
                     ? null
                     : Text('Device: ${state.connectedDeviceId}'),
-                trailing: state.isConnected
-                    ? FilledButton.icon(
-                        onPressed:
-                            state.connectionStatus ==
-                                BleConnectionStatus.disconnecting
-                            ? null
-                            : () async {
-                                await ref
-                                    .read(scannerControllerProvider.notifier)
-                                    .disconnectDevice();
-                              },
-                        icon: const Icon(Icons.link_off),
-                        label: const Text('Disconnect'),
-                      )
-                    : null,
+                trailing: FilledButton.icon(
+                  onPressed:
+                      state.connectionStatus ==
+                          BleConnectionStatus.disconnecting
+                      ? null
+                      : () async {
+                          await ref
+                              .read(scannerControllerProvider.notifier)
+                              .disconnectDevice();
+                        },
+                  icon: const Icon(Icons.link_off),
+                  label: const Text('Disconnect'),
+                ),
               ),
             ),
           ),
@@ -225,23 +222,14 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                           );
                         }
 
-                        Future<void> connectAndOpenDashboard() async {
+                        Future<void> connectToDevice() async {
                           if (state.isConnecting) {
                             return;
                           }
 
-                          final bool connected = await ref
+                          await ref
                               .read(scannerControllerProvider.notifier)
                               .connectToDevice(device);
-                          if (!mounted || !connected) {
-                            return;
-                          }
-
-                          await Navigator.of(this.context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => const DashboardScreen(),
-                            ),
-                          );
                         }
 
                         return DeviceListTile(
@@ -252,7 +240,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                               return;
                             }
 
-                            await connectAndOpenDashboard();
+                            await connectToDevice();
                           },
                           onConnect: () async {
                             if (!device.isFlyInPeaceCompatible) {
@@ -260,7 +248,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                               return;
                             }
 
-                            await connectAndOpenDashboard();
+                            await connectToDevice();
                           },
                         );
                       },

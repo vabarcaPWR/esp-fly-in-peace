@@ -39,7 +39,7 @@ class _RawDataDebugScreenState extends ConsumerState<RawDataDebugScreen> {
   String? _lastSavedRecordingPath;
   String? _lastSavedCsvRecordingPath;
   String? _selectedOutputDirectory;
-  bool _autoScrollEnabled = true;
+  int _autoscrollGeneration = 0;
 
   @override
   void initState() {
@@ -53,11 +53,18 @@ class _RawDataDebugScreenState extends ConsumerState<RawDataDebugScreen> {
             _entries.add(RawDataEntry(timestamp: DateTime.now(), line: line));
           });
 
-          if (!_autoScrollEnabled) {
+          if (!ref.read(rawBleDebugAutoscrollEnabledProvider)) {
             return;
           }
 
+          final int expectedGeneration = _autoscrollGeneration;
           WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!ref.read(rawBleDebugAutoscrollEnabledProvider)) {
+              return;
+            }
+            if (expectedGeneration != _autoscrollGeneration) {
+              return;
+            }
             if (!_scrollController.hasClients) {
               return;
             }
@@ -103,20 +110,28 @@ class _RawDataDebugScreenState extends ConsumerState<RawDataDebugScreen> {
       appBar: AppBar(
         title: const Text('Raw BLE Debug'),
         actions: [
-          IconButton(
-            onPressed: () {
-              setState(() {
-                _autoScrollEnabled = !_autoScrollEnabled;
-              });
-            },
-            icon: Icon(
-              _autoScrollEnabled
-                  ? Icons.vertical_align_bottom
-                  : Icons.vertical_align_bottom_outlined,
-            ),
-            tooltip: _autoScrollEnabled
-                ? 'Disable autoscroll'
-                : 'Enable autoscroll',
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Auto'),
+              Switch(
+                value: ref.watch(rawBleDebugAutoscrollEnabledProvider),
+                onChanged: (bool enabled) {
+                  if (!enabled) {
+                    _autoscrollGeneration++;
+                    if (_scrollController.hasClients) {
+                      _scrollController.jumpTo(
+                        _scrollController.position.pixels,
+                      );
+                    }
+                  }
+                  ref
+                          .read(rawBleDebugAutoscrollEnabledProvider.notifier)
+                          .state =
+                      enabled;
+                },
+              ),
+            ],
           ),
           IconButton(
             onPressed: _entries.isEmpty

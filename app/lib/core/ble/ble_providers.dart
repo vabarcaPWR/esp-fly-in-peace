@@ -48,3 +48,11 @@ final bleStreamRecorderProvider = Provider<BleStreamRecorder>((ref) {
   });
   return recorder;
 });
+
+final frameInspectorAutoscrollEnabledProvider = StateProvider<bool>((ref) {
+  return true;
+});
+
+final rawBleDebugAutoscrollEnabledProvider = StateProvider<bool>((ref) {
+  return true;
+});

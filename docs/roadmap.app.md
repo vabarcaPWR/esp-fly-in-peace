@@ -82,6 +82,35 @@
   - [ ] Task 9.2: User guide with screenshots
   - [ ] Task 9.3: Architecture documentation
 
+## Status Notes Index
+
+- [Phase 0 status (2026-02-23)](#status-note-phase0-2026-02-23)
+- [Phase 1 status (2026-02-23)](#status-note-phase1-2026-02-23)
+- [Phase 1 status (2026-02-24)](#status-note-phase1-2026-02-24)
+- [Phase 1.5 execution result](#status-note-phase15-execution-result)
+- [Phase 1.5 re-run after unblock](#status-note-phase15-rerun)
+- [Phase 1.5 Linux plugin fix](#status-note-phase15-plugin-fix)
+- [Phase 1.5 final validation run](#status-note-phase15-final-validation)
+- [Phase 2.1 implementation + validation](#status-note-phase21-implementation)
+- [Phase 2.2 implementation + validation](#status-note-phase22-implementation)
+- [Phase 2.3 implementation + validation](#status-note-phase23-implementation)
+- [Phase 2.4 implementation + validation](#status-note-phase24-implementation)
+- [Phase 3.1 implementation + validation](#status-note-phase31-implementation)
+- [Phase 3.2 implementation + validation](#status-note-phase32-implementation)
+- [Phase 3.3 implementation + validation](#status-note-phase33-implementation)
+- [Phase 3.4 implementation + validation](#status-note-phase34-implementation)
+- [Phase 3.4 debug tooling consolidation](#status-note-phase34-debug-consolidation)
+- [Phase 3.5.1 implementation + static validation](#status-note-phase351-implementation)
+- [Phase 3.5.2 implementation + static validation](#status-note-phase352-implementation)
+- [Phase 3.5.3 implementation + static validation](#status-note-phase353-implementation)
+- [Phase 3.5 compatibility hardening + protocol alignment](#status-note-phase35-compat-hardening)
+- [Phase 3.5 UX/branding flow updates](#status-note-phase35-ux-branding)
+- [Phase 3.5 autoscroll stability fix](#status-note-phase35-autoscroll-fix)
+- [Phase 3.5 matrix validation completed](#status-note-phase35-matrix-validation)
+- [Phase 3.5 compatibility rerun execution](#status-note-phase35-compat-rerun)
+- [Phase 3.6 implementation + static validation](#status-note-phase36-implementation)
+- [Phase 9.1 scripts/runtime doc update](#status-note-phase91-doc-update)
+
 ---
 
 ## Cross-Phase Rule — `conductor-model-hardware`
@@ -284,6 +313,7 @@ dev_dependencies:
 
 **Notes**: This is the gate for Phase 0. Do not proceed to Phase 1 until this passes.
 
+<a id="status-note-phase0-2026-02-23"></a>
 **Status Note (2026-02-23)**:
 - `flutter pub get` ✅
 - `flutter analyze` ✅
@@ -400,11 +430,13 @@ Required manifest permissions:
 - Pull down → scan restarts
 - Wait 10 seconds → scan stops, "Scan again" visible
 
+<a id="status-note-phase1-2026-02-23"></a>
 **Status Note (2026-02-23)**:
 - `flutter analyze` ✅
 - `flutter test` ✅
 - `flutter build apk --debug` ✅
 
+<a id="status-note-phase1-2026-02-24"></a>
 **Status Note (2026-02-24)**:
 - Task 1.2 completed: scanner now lists all BLE devices and computes FlyInPeace compatibility flags.
 - Task 1.3 completed: compatibility badges added; non-compatible taps are handled safely.
@@ -442,6 +474,7 @@ Required manifest permissions:
 - Run `./scripts/app/app_test_option.sh 1 linux`
 - Verify scanner screen opens without crashes
 
+<a id="status-note-phase15-execution-result"></a>
 **Status Note (2026-02-24 — execution result)**:
 - `flutter devices` ✅ detects `Linux (desktop)` and `Chrome`.
 - `./scripts/app/app_test_option.sh list` ✅ includes `linux` target.
@@ -454,17 +487,20 @@ Required manifest permissions:
   - `sudo apt install clang libgtk-3-dev`
   - Re-run `./scripts/app/app_test_option.sh 1 linux --no-resident`
 
+<a id="status-note-phase15-rerun"></a>
 **Status Note (2026-02-24 — re-run after unblock)**:
 - `clang++` and `gtk+-3.0` now available in host.
 - `./scripts/app/app_test_option.sh 1 linux --no-resident` ✅ builds and launches Linux desktop app.
 - Linux desktop debug path is now unblocked for scanner validation.
 - Bluetooth host check ✅ (`bluetoothctl show` reports controller powered on).
 
+<a id="status-note-phase15-plugin-fix"></a>
 **Status Note (2026-02-24 — Linux plugin fix)**:
 - Linux app run previously failed with `MissingPluginException` from `permission_handler` (`requestPermissions`).
 - `app/lib/core/ble/ble_permissions.dart` updated to bypass mobile permission requests on Linux desktop and rely on adapter readiness checks.
 - After fix, `./scripts/app/app_test_option.sh 1 linux --no-resident` runs without the plugin crash.
 
+<a id="status-note-phase15-final-validation"></a>
 **Status Note (2026-02-24 — final validation run)**:
 - `flutter --version` ✅ Flutter `3.41.2`, Dart `3.11.0`.
 - `flutter devices` ✅ `Linux (desktop)` target detected.
@@ -657,6 +693,7 @@ Execute tasks in this order before continuing with broader app features:
 **Validation**:
 - Tap device in scanner → connection established, services discovered
 
+<a id="status-note-phase21-implementation"></a>
 **Status Note (2026-02-24 — implementation + validation)**:
 - `app/lib/core/ble/ble_service.dart` now implements `connect(BluetoothDevice device)` with:
   - 10s connection timeout (`connectionTimeout = Duration(seconds: 10)`).
@@ -688,6 +725,7 @@ Execute tasks in this order before continuing with broader app features:
 **Validation**:
 - Connection indicator widget shows correct state at all times
 
+<a id="status-note-phase22-implementation"></a>
 **Status Note (2026-02-24 — implementation + validation)**:
 - Shared BLE service/provider introduced in `app/lib/core/ble/ble_providers.dart`.
 - Global connection state stream exposed via `bleConnectionStatusProvider` and usable from any feature.
@@ -723,6 +761,7 @@ Execute tasks in this order before continuing with broader app features:
 - Turn off ESP32-C3 briefly → app attempts reconnection
 - Turn back on → app reconnects automatically
 
+<a id="status-note-phase23-implementation"></a>
 **Status Note (2026-02-24 — implementation + validation)**:
 - Auto-reconnect implemented in `BleService` with exponential backoff schedule:
   - `2s`, `4s`, `8s`, `16s`, `30s` (`reconnectBackoffDelays`).
@@ -760,6 +799,7 @@ Execute tasks in this order before continuing with broader app features:
 - Manual disconnect → returns to scanner
 - Unexpected disconnect → reconnecting overlay appears
 
+<a id="status-note-phase24-implementation"></a>
 **Status Note (2026-02-24 — implementation + validation)**:
 - Dashboard now includes a `Disconnect` button visible only while connected.
 - Manual disconnect flow:
@@ -802,6 +842,7 @@ Execute tasks in this order before continuing with broader app features:
 **Validation**:
 - Connect to device → NUS service and chars found and logged
 
+<a id="status-note-phase31-implementation"></a>
 **Status Note (2026-02-24 — implementation + validation)**:
 - NUS discovery is executed immediately after connection in `BleService.connect(...)`.
 - Implemented checks:
@@ -830,6 +871,7 @@ Execute tasks in this order before continuing with broader app features:
 **Validation**:
 - Connect to device → LK8EX1 sentences appear in stream
 
+<a id="status-note-phase32-implementation"></a>
 **Status Note (2026-02-24 — implementation + validation)**:
 - TX notifications are enabled right after successful NUS discovery (`setNotifyValue(true)`).
 - Notification callbacks are consumed from TX `lastValueStream`.
@@ -856,6 +898,7 @@ Execute tasks in this order before continuing with broader app features:
 **Validation**:
 - Send text via NUS RX → device receives (verify in firmware logs)
 
+<a id="status-note-phase33-implementation"></a>
 **Status Note (2026-02-24 — implementation + validation)**:
 - `BleService.sendCommand(String command)` implemented in `app/lib/core/ble/ble_service.dart`.
 - Behavior implemented:
@@ -885,6 +928,7 @@ Execute tasks in this order before continuing with broader app features:
 - Connect to device → raw LK8EX1 sentences visible
 - Type text in input → sent via NUS RX
 
+<a id="status-note-phase34-implementation"></a>
 **Status Note (2026-02-24 — implementation + validation)**:
 - New screen added: `app/lib/features/dashboard/raw_data_debug_screen.dart`.
 - Implemented UI and behavior:
@@ -899,6 +943,7 @@ Execute tasks in this order before continuing with broader app features:
 - Runtime check:
   - `./scripts/app/app_test_option.sh 1 linux --no-resident` ✅
 
+<a id="status-note-phase34-debug-consolidation"></a>
 **Status Note (2026-02-27 — debug tooling consolidation)**:
 - [x] Developer debug flow consolidated into one entrypoint: `BLE Debug Console` (`Frame Inspector` + `Raw BLE Debug` tabs).
 - [x] Previous separate menu entries were replaced by a single Settings route.
@@ -925,6 +970,7 @@ Execute tasks in this order before continuing with broader app features:
 **Validation**:
 - Connect to simulated stream and verify field values update in real time
 
+<a id="status-note-phase351-implementation"></a>
 **Status Note (2026-02-25 — implementation + static validation)**:
 - New screen implemented: `FrameInspectorScreen` with frame history, selection, metadata, and detail panel.
 - Navigation integrated from Settings > Frame Inspector.
@@ -943,6 +989,7 @@ Execute tasks in this order before continuing with broader app features:
 **Validation**:
 - Inject known test frames and verify expected verdict class
 
+<a id="status-note-phase352-implementation"></a>
 **Status Note (2026-02-25 — implementation + static validation)**:
 - `Lk8ex1Parser` now exposes parse metadata (`hasChecksum`, `checksumValid`, `errorReason`) for deterministic classification.
 - Verdict engine implemented (`valid`, `warning`, `error`) with explicit reason strings and UI chip rendering.
@@ -960,16 +1007,32 @@ Execute tasks in this order before continuing with broader app features:
 **Validation**:
 - Run scan/connection/debug session with FlyInPeace and BlueFlyVario (or equivalent test captures)
 
+<a id="status-note-phase353-implementation"></a>
 **Status Note (2026-02-25 — implementation + static validation)**:
 - Compatibility profiles implemented in scan layer: `flyInPeace`, `blueFlyVario`, `unsupported`.
 - Device list badges and unsupported labeling updated accordingly.
 - Runtime proof with physical BlueFlyVario remains part of coordinated validation in Task 3.5.4.
 
+<a id="status-note-phase35-compat-hardening"></a>
 **Status Note (2026-02-27 — compatibility hardening + protocol alignment)**:
 - [x] BlueFlyVario compatibility detection extended to include service UUID (`0000FFE0-0000-1000-8000-00805F9B34FB`) in addition to name hints.
 - [x] Scanner deduplicates equivalent compatible entries and keeps two rows only when protocol-level capabilities differ.
 - [x] Device cards now display protocol distinction when split is intentional (`NUS`, `BlueFly UART`, `Generic UART`).
 - [x] LK8EX1 parser accepts commercial decimal temperature frames (e.g., `19.8`) while preserving legacy integer-decicelsius parsing.
+- [x] Validation executed: `./scripts/app/app_test_option.sh 3` (analyze + tests PASS).
+
+<a id="status-note-phase35-ux-branding"></a>
+**Status Note (2026-02-27 — UX/branding flow updates)**:
+- [x] App title/label updated to `FLY IN PEACE` across Flutter app title and platform-visible metadata (Android/Web/iOS/Linux/macOS/Windows resources).
+- [x] Scanner no longer auto-navigates to Dashboard immediately after connect; user remains in scanner flow after successful connection.
+- [x] Disconnect action kept permanently visible in scanner status card and dashboard app bar (not hidden when disconnected).
+- [x] Validation executed: `./scripts/app/app_test_option.sh 3` (analyze + tests PASS).
+
+<a id="status-note-phase35-autoscroll-fix"></a>
+**Status Note (2026-02-27 — autoscroll stability fix)**:
+- [x] Fixed autoscroll state persistence in debug tools by moving toggle state to providers.
+- [x] Added guard checks before deferred scroll callbacks so pending callbacks cannot force-scroll when autoscroll is OFF.
+- [x] Replaced autoscroll icon toggle with explicit ON/OFF switch in both Frame Inspector and Raw BLE Debug views.
 - [x] Validation executed: `./scripts/app/app_test_option.sh 3` (analyze + tests PASS).
 
 ### Task 3.5.4: Cross-device integration validation with simulated profiles
@@ -984,6 +1047,7 @@ Execute tasks in this order before continuing with broader app features:
 **Validation**:
 - Execute coordinated test pass with micro Phase 3.5 outputs and document results
 
+<a id="status-note-phase35-matrix-validation"></a>
 **Status Note (2026-02-25 — matrix validation completed)**:
 - Validation executed with automated matrix test: `app/test/core/utils/lk8ex1_phase35_matrix_test.dart`.
 - Command/result: `flutter test test/core/utils/lk8ex1_phase35_matrix_test.dart` → `8 passed, 0 failed`.
@@ -1034,6 +1098,7 @@ Execute tasks in this order before continuing with broader app features:
 - Blocking issues (if any): Missing interactive frame-inspector capture evidence for A1–A7 and missing BlueFlyVario source for A8
 - Next action: Run guided 10-minute inspector session with app connected to `FlyInPeace`, switch firmware profiles from app RX commands, then repeat A8 with a BlueFlyVario source
 
+<a id="status-note-phase35-compat-rerun"></a>
 **Status Note (2026-02-25 — compatibility rerun execution)**:
 - App compatibility layer remains active (NUS-first + generic telemetry fallback) and passes static/runtime checks: `./scripts/app/app_test_option.sh 3`.
 - Firmware compatibility image was flashed and verified over BLE host scan as `BlueFlyVario` (`DC:DA:0C:81:52:26`).
@@ -1170,6 +1235,7 @@ bluetoothctl --timeout 10 scan on || true
 **Validation**:
 - Run one end-to-end recording session and verify metadata completeness + file readability
 
+<a id="status-note-phase36-implementation"></a>
 **Status Note (2026-02-25 — implementation + static validation)**:
 - Recorder service implemented in `app/lib/core/ble/ble_stream_recorder.dart` with dual export (`.log` + `.csv`) per session.
 - Session metadata written to exports: `device_id`, `device_name`, compatibility `profile`, `app_build`, `started_at_utc`, `stopped_at_utc`.
@@ -1727,6 +1793,7 @@ bluetoothctl --timeout 10 scan on || true
 - [ ] Minimum Android version documented
 - [ ] How to generate release APK
 
+<a id="status-note-phase91-doc-update"></a>
 **Status Note (2026-02-25 — scripts/runtime doc update)**:
 - `app/README.md` updated with repository-root app script usage and terminal execution examples.
 - Documented Flutter auto-detection behavior used by app scripts.

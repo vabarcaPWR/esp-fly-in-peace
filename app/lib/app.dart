@@ -22,7 +22,7 @@ class FlyInPeaceApp extends StatelessWidget {
     );
 
     return MaterialApp(
-      title: 'Fly in Peace',
+      title: 'FLY IN PEACE',
       debugShowCheckedModeBanner: false,
       themeMode: ThemeMode.system,
       theme: ThemeData(

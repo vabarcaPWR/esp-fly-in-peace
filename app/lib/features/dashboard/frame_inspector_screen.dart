@@ -46,7 +46,7 @@ class _FrameInspectorScreenState extends ConsumerState<FrameInspectorScreen> {
   final List<InspectedFrame> _frames = <InspectedFrame>[];
   StreamSubscription<String>? _receivedLinesSubscription;
   int? _selectedFrameIndex;
-  bool _autoScrollEnabled = true;
+  int _autoscrollGeneration = 0;
 
   @override
   void initState() {
@@ -90,20 +90,30 @@ class _FrameInspectorScreenState extends ConsumerState<FrameInspectorScreen> {
       appBar: AppBar(
         title: const Text('Frame Inspector'),
         actions: [
-          IconButton(
-            onPressed: () {
-              setState(() {
-                _autoScrollEnabled = !_autoScrollEnabled;
-              });
-            },
-            icon: Icon(
-              _autoScrollEnabled
-                  ? Icons.vertical_align_bottom
-                  : Icons.vertical_align_bottom_outlined,
-            ),
-            tooltip: _autoScrollEnabled
-                ? 'Disable autoscroll'
-                : 'Enable autoscroll',
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Auto'),
+              Switch(
+                value: ref.watch(frameInspectorAutoscrollEnabledProvider),
+                onChanged: (bool enabled) {
+                  if (!enabled) {
+                    _autoscrollGeneration++;
+                    if (_historyScrollController.hasClients) {
+                      _historyScrollController.jumpTo(
+                        _historyScrollController.position.pixels,
+                      );
+                    }
+                  }
+                  ref
+                          .read(
+                            frameInspectorAutoscrollEnabledProvider.notifier,
+                          )
+                          .state =
+                      enabled;
+                },
+              ),
+            ],
           ),
           IconButton(
             onPressed: _frames.isEmpty ? null : _clearFrames,
@@ -200,11 +210,18 @@ class _FrameInspectorScreenState extends ConsumerState<FrameInspectorScreen> {
       _selectedFrameIndex ??= _frames.length - 1;
     });
 
-    if (!_autoScrollEnabled) {
+    if (!ref.read(frameInspectorAutoscrollEnabledProvider)) {
       return;
     }
 
+    final int expectedGeneration = _autoscrollGeneration;
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!ref.read(frameInspectorAutoscrollEnabledProvider)) {
+        return;
+      }
+      if (expectedGeneration != _autoscrollGeneration) {
+        return;
+      }
       if (!_historyScrollController.hasClients) {
         return;
       }
