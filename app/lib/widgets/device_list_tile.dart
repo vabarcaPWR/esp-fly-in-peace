@@ -43,8 +43,10 @@ class DeviceListTile extends StatelessWidget {
                   label: compatibilityLabel,
                   isCompatible: isCompatible,
                 ),
-                if (device.hasNusService)
-                  const _CompatibilityChip(label: 'NUS', isCompatible: true),
+                _CompatibilityChip(
+                  label: _protocolLabel(device),
+                  isCompatible: isCompatible,
+                ),
               ],
             ),
           ],
@@ -66,6 +68,16 @@ class DeviceListTile extends StatelessWidget {
       case BleCompatibilityProfile.unsupported:
         return 'Unsupported / non-profiled';
     }
+  }
+
+  String _protocolLabel(BleScanDevice device) {
+    if (device.hasNusService) {
+      return 'Protocol: NUS';
+    }
+    if (device.hasBlueFlyService) {
+      return 'Protocol: BlueFly UART';
+    }
+    return 'Protocol: Generic UART';
   }
 
   IconData _rssiIcon(int rssi) {

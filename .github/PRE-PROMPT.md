@@ -1008,7 +1008,7 @@ $LK8EX1,101325,99999,50,235,999,*checksum\r\n
 ```
 
 ### BLE Advertising
-
+- Device name ALWAYS is `FlyInPeace` (configurable via NVS).
 - Device name: configurable via NVS (default: `"FlyInPeace"`)
 - Advertise NUS service UUID in advertisement data.
 - Advertising interval: 100–200 ms (when not connected), optimizable for power.

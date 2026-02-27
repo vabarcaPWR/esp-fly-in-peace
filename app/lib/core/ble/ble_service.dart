@@ -48,6 +48,7 @@ class BleScanDevice {
     required this.hasNusService,
     required this.hasFlyInPeaceName,
     required this.hasBlueFlyName,
+    required this.hasBlueFlyService,
     required this.compatibilityProfile,
   });
 
@@ -58,6 +59,7 @@ class BleScanDevice {
   final bool hasNusService;
   final bool hasFlyInPeaceName;
   final bool hasBlueFlyName;
+  final bool hasBlueFlyService;
   final BleCompatibilityProfile compatibilityProfile;
 
   bool get isFlyInPeaceCompatible {
@@ -156,6 +158,7 @@ class BleService {
   static BleCompatibilityProfile detectCompatibilityProfile(
     String name, {
     bool hasNusService = false,
+    bool hasBlueFlyService = false,
   }) {
     final String normalizedName = name.toLowerCase();
     final bool hasFlyInPeaceName =
@@ -169,6 +172,10 @@ class BleService {
         normalizedName.contains('blueflyvario') ||
         normalizedName.contains('bluefly');
     if (hasBlueFlyName) {
+      return BleCompatibilityProfile.blueFlyVario;
+    }
+
+    if (hasBlueFlyService) {
       return BleCompatibilityProfile.blueFlyVario;
     }
 
@@ -343,6 +350,14 @@ class BleService {
       final bool hasNusService = result.advertisementData.serviceUuids.any(
         (Guid guid) => guid.toString().toUpperCase() == NusProtocol.serviceUuid,
       );
+      final bool hasBlueFlyService = result.advertisementData.serviceUuids.any((
+        Guid guid,
+      ) {
+        final String uuid = guid.toString().toUpperCase();
+        return NusProtocol.blueFlyServiceUuids.any(
+          (String blueFlyUuid) => blueFlyUuid.toUpperCase() == uuid,
+        );
+      });
 
       final String normalizedName = chosenName.toLowerCase();
       final bool hasFlyInPeaceName =
@@ -352,16 +367,24 @@ class BleService {
           normalizedName.contains('blueflyvario') ||
           normalizedName.contains('bluefly');
       final BleCompatibilityProfile compatibilityProfile =
-          detectCompatibilityProfile(chosenName, hasNusService: hasNusService);
+          detectCompatibilityProfile(
+            chosenName,
+            hasNusService: hasNusService,
+            hasBlueFlyService: hasBlueFlyService,
+          );
 
+      final BleScanDevice? existing = _scanDevicesById[remoteId];
       _scanDevicesById[remoteId] = BleScanDevice(
         device: result.device,
         remoteId: remoteId,
         name: chosenName,
         rssi: result.rssi,
-        hasNusService: hasNusService,
-        hasFlyInPeaceName: hasFlyInPeaceName,
-        hasBlueFlyName: hasBlueFlyName,
+        hasNusService: existing?.hasNusService == true || hasNusService,
+        hasFlyInPeaceName:
+            existing?.hasFlyInPeaceName == true || hasFlyInPeaceName,
+        hasBlueFlyName: existing?.hasBlueFlyName == true || hasBlueFlyName,
+        hasBlueFlyService:
+            existing?.hasBlueFlyService == true || hasBlueFlyService,
         compatibilityProfile: compatibilityProfile,
       );
     }

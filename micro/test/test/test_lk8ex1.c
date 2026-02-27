@@ -59,10 +59,10 @@ void test_format_typical_values(void)
     TEST_ASSERT_EQUAL_CHAR('\r', buffer[len - 2]);
     TEST_ASSERT_EQUAL_CHAR('\n', buffer[len - 1]);
 
-    TEST_ASSERT_NOT_NULL(strstr(buffer, "1013"));
+    TEST_ASSERT_NOT_NULL(strstr(buffer, "101325"));
     TEST_ASSERT_NOT_NULL(strstr(buffer, "1000"));
     TEST_ASSERT_NOT_NULL(strstr(buffer, ",50,"));
-    TEST_ASSERT_NOT_NULL(strstr(buffer, ",235,"));
+    TEST_ASSERT_NOT_NULL(strstr(buffer, ",23.5,"));
     TEST_ASSERT_NOT_NULL(strstr(buffer, ",85,*"));
 
     TEST_ASSERT_TRUE(lk8ex1_validate(buffer));
@@ -73,7 +73,9 @@ void test_format_no_gps_altitude(void)
     lk8ex1_data_t data = {96000, 99999, -120, 180, 3700};
     char buffer[LK8EX1_MAX_SENTENCE_LEN];
     TEST_ASSERT_EQUAL(ESP_OK, format_into(&data, buffer));
+    TEST_ASSERT_NOT_NULL(strstr(buffer, ",96000,"));
     TEST_ASSERT_NOT_NULL(strstr(buffer, ",99999,"));
+    TEST_ASSERT_NOT_NULL(strstr(buffer, ",18.0,"));
     TEST_ASSERT_NOT_NULL(strstr(buffer, ",3700,*"));
     TEST_ASSERT_TRUE(lk8ex1_validate(buffer));
 }
@@ -212,12 +214,12 @@ void test_validate_null_input(void)
 
 void test_validate_missing_dollar(void)
 {
-    TEST_ASSERT_FALSE(lk8ex1_validate("LK8EX1,1013,1000,50,235,85,*00\r\n"));
+    TEST_ASSERT_FALSE(lk8ex1_validate("LK8EX1,101325,1000,50,23.5,85,*00\r\n"));
 }
 
 void test_validate_missing_star(void)
 {
-    TEST_ASSERT_FALSE(lk8ex1_validate("$LK8EX1,1013,1000,50,235,85,00\r\n"));
+    TEST_ASSERT_FALSE(lk8ex1_validate("$LK8EX1,101325,1000,50,23.5,85,00\r\n"));
 }
 
 void test_validate_too_short(void)

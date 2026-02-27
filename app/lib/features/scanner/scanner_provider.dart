@@ -65,11 +65,47 @@ class ScannerState {
   bool get isConnected => connectionStatus == BleConnectionStatus.connected;
 
   List<BleScanDevice> get visibleDevices {
-    if (deviceFilter == ScannerDeviceFilter.all) {
-      return devices;
+    final List<BleScanDevice> sourceDevices =
+        deviceFilter == ScannerDeviceFilter.all
+        ? devices
+        : devices.where((d) => d.isFlyInPeaceCompatible).toList();
+    return _deduplicateCompatibleDevices(sourceDevices);
+  }
+
+  List<BleScanDevice> _deduplicateCompatibleDevices(
+    List<BleScanDevice> source,
+  ) {
+    final Map<String, BleScanDevice> dedupedByKey = <String, BleScanDevice>{};
+    for (final BleScanDevice device in source) {
+      if (!device.isFlyInPeaceCompatible) {
+        dedupedByKey['raw:${device.remoteId}'] = device;
+        continue;
+      }
+
+      final String normalizedName = device.name.trim().toLowerCase();
+      final String mergeNameKey =
+          normalizedName.isEmpty || normalizedName == 'unknown'
+          ? device.remoteId
+          : normalizedName;
+      final String protocolKey =
+          '${device.compatibilityProfile.name}|nus:${device.hasNusService}|bluefly:${device.hasBlueFlyService}';
+      final String mergedKey = 'compat:$mergeNameKey:$protocolKey';
+      final BleScanDevice? existing = dedupedByKey[mergedKey];
+      if (existing == null || device.rssi > existing.rssi) {
+        dedupedByKey[mergedKey] = device;
+      }
     }
 
-    return devices.where((d) => d.isFlyInPeaceCompatible).toList();
+    final List<BleScanDevice> deduped = dedupedByKey.values.toList()
+      ..sort((a, b) => b.rssi.compareTo(a.rssi));
+    return deduped;
+  }
+
+  List<BleScanDevice> get compatibleDevices {
+    if (deviceFilter == ScannerDeviceFilter.all) {
+      return visibleDevices.where((d) => d.isFlyInPeaceCompatible).toList();
+    }
+    return visibleDevices;
   }
 
   ScannerState copyWith({

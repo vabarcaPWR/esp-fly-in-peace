@@ -121,7 +121,7 @@ class Lk8ex1Parser {
     final int? pressurePa = int.tryParse(parts[0]);
     final int? altitudeM = int.tryParse(parts[1]);
     final int? varioCms = int.tryParse(parts[2]);
-    final int? temperatureDc = int.tryParse(parts[3]);
+    final int? temperatureDc = _parseTemperatureDeci(parts[3]);
     final int? battery = int.tryParse(parts[4]);
 
     if (pressurePa == null ||
@@ -134,7 +134,7 @@ class Lk8ex1Parser {
         hasChecksum: true,
         checksumValid: true,
         data: null,
-        errorReason: 'One or more fields are not integers',
+        errorReason: 'One or more fields are not valid numbers',
       );
     }
 
@@ -162,5 +162,19 @@ class Lk8ex1Parser {
     }
 
     return checksum;
+  }
+
+  int? _parseTemperatureDeci(String value) {
+    final int? integerTemperature = int.tryParse(value);
+    if (integerTemperature != null) {
+      return integerTemperature;
+    }
+
+    final double? decimalTemperature = double.tryParse(value);
+    if (decimalTemperature == null) {
+      return null;
+    }
+
+    return (decimalTemperature * 10).round();
   }
 }

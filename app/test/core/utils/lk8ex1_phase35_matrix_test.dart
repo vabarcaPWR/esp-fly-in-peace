@@ -175,6 +175,27 @@ void main() {
         );
       }
     });
+
+    test('A8b bluefly service UUID maps to bluefly profile', () {
+      final BleCompatibilityProfile profile =
+          BleService.detectCompatibilityProfile(
+            'Unknown',
+            hasBlueFlyService: true,
+          );
+      expect(profile, BleCompatibilityProfile.blueFlyVario);
+    });
+
+    test('A8c commercial decimal temperature frame parses as valid', () {
+      const String frame = r'$LK8EX1,102108,99999,1,19.8,999,*36';
+      final Lk8ex1ParseResult parseResult = parser.parseLine(frame);
+      final Lk8ex1FrameVerdictResult verdict = verdictEngine.evaluate(
+        parseResult,
+      );
+
+      expect(parseResult.data, isNotNull);
+      expect(parseResult.data!.temperatureDc, 198);
+      expect(verdict.verdict, Lk8ex1FrameVerdict.warning);
+    });
   });
 }
 

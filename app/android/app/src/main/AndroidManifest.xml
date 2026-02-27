@@ -9,7 +9,7 @@
         android:required="true" />
 
     <application
-        android:label="fly_in_peace"
+        android:label="FLY IN PEACE"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
