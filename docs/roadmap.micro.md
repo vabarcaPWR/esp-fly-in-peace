@@ -37,6 +37,7 @@
   - [ ] Task 3.5.1: Define deterministic LK8EX1 simulated-frame profiles for app debugging
   - [ ] Task 3.5.2: Expose debug profile selection for integration tests (nominal/climb/sink/edge-cases)
   - [ ] Task 3.5.3: Validate end-to-end with app frame inspector and record evidence
+  - [ ] Task 3.5.4: Validate NUS TX stream through Linux app console mirror
 - [x] **Phase 4: LED Indicator**
   - [x] Task 4.1: WS2812 driver via RMT peripheral
   - [x] Task 4.2: LED state machine (patterns per `led_state_e`)
@@ -753,6 +754,22 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 - Compatibility rerun (same date): firmware rebuilt/flashed with `BLE_COMPAT_DEVICE_NAME="BlueFlyVario"`; host BLE scan evidence captured as `DC:DA:0C:81:52:26 BlueFlyVario`.
 - Validation commands executed: `./scripts/micro/build.sh`, `./scripts/micro/test.sh` (`27/27` PASS), `./scripts/micro/flash.sh --force-release-port`.
 - App roadmap sync (same date): Phase `3.6` BLE Session Recording implemented on app side with dual export (`.log` + `.csv`) and session metadata capture; no firmware code changes required.
+
+### Task 3.5.4: Validate NUS TX stream through Linux app console mirror
+
+**Description**: Close the TX observability loop using the app Linux console telemetry mirror to verify that ESP32-C3 notifications are received end-to-end in real time.
+
+**Acceptance Criteria**:
+- [ ] Firmware streams LK8EX1 frames and Linux app console prints them continuously while connected
+- [ ] Validation covers at least `nominal`, `climb`, and `sink` profiles
+- [ ] Captured evidence includes timestamped console lines and active firmware profile
+- [ ] Cross-roadmap verdict synchronized with app Task 1.5.6
+
+**Validation**:
+- Flash firmware and run monitor
+- Launch Linux app debug target and connect
+- Collect console log evidence for each required profile
+- Record PASS/FAIL in both roadmaps
 
 ### Shared Validation Matrix (micro ↔ app)
 

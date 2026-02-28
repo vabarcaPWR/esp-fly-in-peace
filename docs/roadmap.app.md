@@ -27,6 +27,8 @@
   - [x] Task 1.5.2: BLE device listing on Linux desktop app
   - [x] Task 1.5.3: Firmware-first validation loop (scan + identify FlyInPeace)
   - [x] Task 1.5.4: Debug evidence checklist for firmware bring-up
+  - [ ] Task 1.5.5: Linux console telemetry mirror (print received BLE lines)
+  - [ ] Task 1.5.6: Linux console validation run with ESP32-C3 stream
 - [x] **Phase 2: BLE Connection**
   - [x] Task 2.1: Connect to device
   - [x] Task 2.2: Connection state management
@@ -647,6 +649,43 @@ Required manifest permissions:
 - FlyInPeace detection snippet: btmon evidence with repeated `ADV_IND`/`SCAN_RSP` and complete name `FlyInPeace`
 - Quality gate: `flutter test` ✅, `flutter analyze` ✅
 - Verdict: **PASS** — Phase 1.5 is validated and closed.
+
+---
+
+### Task 1.5.5: Linux console telemetry mirror (print received BLE lines)
+
+**Description**: Add an app-side Linux-only debug output that prints each received line from the connected BLE device to console/stdout, without changing mobile runtime behavior.
+
+**Acceptance Criteria**:
+- [ ] Linux build prints every received BLE telemetry line to console while connected
+- [ ] Output includes timestamp and source device identifier
+- [ ] Android/Web behavior remains unchanged (no extra console spam outside Linux debug path)
+- [ ] Feature is reachable from current BLE debug flow
+
+**Validation**:
+- Run app on Linux (`./scripts/app/app_test_option.sh 1 linux`)
+- Connect to ESP32-C3
+- Verify console shows live incoming LK8EX1 lines continuously
+
+**Files to create/modify**:
+- `app/lib/core/ble/ble_service.dart` (or debug adapter layer)
+- `app/lib/features/dashboard/ble_debug_console_screen.dart` (if UI toggle is needed)
+
+---
+
+### Task 1.5.6: Linux console validation run with ESP32-C3 stream
+
+**Description**: Execute a focused Linux validation session using the console mirror to confirm real incoming telemetry from ESP32-C3 and capture evidence for firmware loop closure.
+
+**Acceptance Criteria**:
+- [ ] At least one continuous 60s capture from ESP32-C3 is visible in Linux app console
+- [ ] Evidence includes connection timestamp, device id/name, and sample LK8EX1 lines
+- [ ] Result is synchronized with micro roadmap validation status
+
+**Validation**:
+- Launch Linux app + connect ESP32-C3
+- Capture and attach console snippet
+- Record PASS/FAIL note in both app and micro roadmaps
 
 ---
 

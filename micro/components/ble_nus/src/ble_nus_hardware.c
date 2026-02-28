@@ -211,11 +211,14 @@ static int ble_nus_hardware_gap_event_cb(struct ble_gap_event *event, void *arg)
     }
 
     case BLE_GAP_EVENT_SUBSCRIBE: {
-        if (event->subscribe.attr_handle == ble_nus_model_get_tx_value_handle())
+        uint16_t tx_value_handle = ble_nus_model_get_tx_value_handle();
+        bool notify_enabled = event->subscribe.cur_notify != 0U;
+        if (event->subscribe.attr_handle == tx_value_handle || notify_enabled || event->subscribe.prev_notify != 0U)
         {
-            ble_nus_model_set_notify_enabled(event->subscribe.cur_notify);
-            ESP_LOGI(TAG, "BLE notify subscription: conn_handle=%u enabled=%u", event->subscribe.conn_handle,
-                     event->subscribe.cur_notify);
+            ble_nus_model_set_notify_enabled(notify_enabled);
+            ESP_LOGI(TAG, "BLE notify subscription: conn_handle=%u attr_handle=%u tx_handle=%u enabled=%u prev=%u",
+                     event->subscribe.conn_handle, event->subscribe.attr_handle, tx_value_handle,
+                     event->subscribe.cur_notify, event->subscribe.prev_notify);
         }
         return 0;
     }

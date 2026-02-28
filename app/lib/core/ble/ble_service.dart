@@ -454,7 +454,7 @@ class BleService {
     }
 
     await _txNotificationSubscription?.cancel();
-    _txNotificationSubscription = txCharacteristic.lastValueStream.listen(
+    _txNotificationSubscription = txCharacteristic.onValueReceived.listen(
       _handleTxNotificationValue,
       onError: (Object error, StackTrace stackTrace) {
         _receivedLinesController.addError(
