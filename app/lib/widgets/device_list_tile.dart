@@ -52,7 +52,7 @@ class DeviceListTile extends StatelessWidget {
           ],
         ),
         trailing: FilledButton(
-          onPressed: isCompatible ? onConnect : null,
+          onPressed: onConnect,
           child: const Text('Connect'),
         ),
       ),

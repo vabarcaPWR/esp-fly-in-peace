@@ -212,16 +212,6 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                       itemBuilder: (context, index) {
                         final device = visibleDevices[index];
 
-                        void handleIncompatibleTap() {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'This device is unsupported or non-profiled.',
-                              ),
-                            ),
-                          );
-                        }
-
                         Future<void> connectToDevice() async {
                           if (state.isConnecting) {
                             return;
@@ -235,19 +225,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                         return DeviceListTile(
                           device: device,
                           onTap: () async {
-                            if (!device.isFlyInPeaceCompatible) {
-                              handleIncompatibleTap();
-                              return;
-                            }
-
                             await connectToDevice();
                           },
                           onConnect: () async {
-                            if (!device.isFlyInPeaceCompatible) {
-                              handleIncompatibleTap();
-                              return;
-                            }
-
                             await connectToDevice();
                           },
                         );

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/ble/ble_providers.dart';
@@ -349,7 +350,7 @@ class ScannerController extends StateNotifier<ScannerState> {
   }
 
   void _maybeAutoConnectToFlyInPeace(List<BleScanDevice> devices) {
-    if (!state.isScanning || state.isConnecting || state.isConnected) {
+    if (state.isConnecting || state.isConnected) {
       return;
     }
 
@@ -369,6 +370,7 @@ class ScannerController extends StateNotifier<ScannerState> {
     if (candidateId == null) {
       return;
     }
+    debugPrint('BLE auto-connect candidate: $candidateId');
 
     BleScanDevice? selectedDevice;
     for (final BleScanDevice device in devices) {
@@ -382,6 +384,7 @@ class ScannerController extends StateNotifier<ScannerState> {
     }
 
     _autoConnectAttemptedDeviceIds.add(candidateId);
+    debugPrint('BLE auto-connect attempt: $candidateId');
     unawaited(connectToDevice(selectedDevice));
   }
 

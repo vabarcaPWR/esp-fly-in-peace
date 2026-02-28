@@ -161,16 +161,12 @@ class BleService {
     bool hasBlueFlyService = false,
   }) {
     final String normalizedName = name.toLowerCase();
-    final bool hasFlyInPeaceName =
-        normalizedName.contains('flyinpeace') ||
-        normalizedName.contains('fly in peace');
+    final bool hasFlyInPeaceName = _containsFlyInPeaceName(normalizedName);
     if (hasFlyInPeaceName) {
       return BleCompatibilityProfile.flyInPeace;
     }
 
-    final bool hasBlueFlyName =
-        normalizedName.contains('blueflyvario') ||
-        normalizedName.contains('bluefly');
+    final bool hasBlueFlyName = _containsBlueFlyName(normalizedName);
     if (hasBlueFlyName) {
       return BleCompatibilityProfile.blueFlyVario;
     }
@@ -186,11 +182,71 @@ class BleService {
     return BleCompatibilityProfile.unsupported;
   }
 
+  static BleCompatibilityProfile detectCompatibilityProfileFromScanNames({
+    required String platformName,
+    required String advertisementName,
+    bool hasNusService = false,
+    bool hasBlueFlyService = false,
+  }) {
+    final String mergedName = '$platformName $advertisementName'.trim();
+    return detectCompatibilityProfile(
+      mergedName,
+      hasNusService: hasNusService,
+      hasBlueFlyService: hasBlueFlyService,
+    );
+  }
+
+  static String resolveScanDisplayName({
+    required String platformName,
+    required String advertisementName,
+  }) {
+    final String trimmedPlatformName = platformName.trim();
+    final String trimmedAdvertisementName = advertisementName.trim();
+    if (trimmedAdvertisementName.isEmpty) {
+      return trimmedPlatformName.isEmpty ? 'Unknown' : trimmedPlatformName;
+    }
+    if (trimmedPlatformName.isEmpty) {
+      return trimmedAdvertisementName;
+    }
+
+    final BleCompatibilityProfile advertisementProfile =
+        detectCompatibilityProfile(trimmedAdvertisementName);
+    final BleCompatibilityProfile platformProfile = detectCompatibilityProfile(
+      trimmedPlatformName,
+    );
+    if (advertisementProfile != BleCompatibilityProfile.unsupported &&
+        platformProfile == BleCompatibilityProfile.unsupported) {
+      return trimmedAdvertisementName;
+    }
+
+    return trimmedPlatformName;
+  }
+
+  static bool _containsFlyInPeaceName(String normalizedName) {
+    final String compactName = normalizedName.replaceAll(
+      RegExp(r'[^a-z0-9]+'),
+      '',
+    );
+    return normalizedName.contains('flyinpeace') ||
+        normalizedName.contains('fly in peace') ||
+        normalizedName.contains('flyinpace') ||
+        normalizedName.contains('fly in pace') ||
+        normalizedName.contains('flyinp') ||
+        compactName.contains('flyinpeace') ||
+        compactName.contains('flyinpace') ||
+        compactName.contains('flyinp');
+  }
+
+  static bool _containsBlueFlyName(String normalizedName) {
+    return normalizedName.contains('blueflyvario') ||
+        normalizedName.contains('bluefly');
+  }
+
   static bool shouldMirrorTelemetryToLinuxConsole({
     required bool isWeb,
     required TargetPlatform targetPlatform,
   }) {
-    return !isWeb && targetPlatform == TargetPlatform.linux;
+    return !isWeb;
   }
 
   static String formatLinuxTelemetryMirrorLine({
@@ -205,6 +261,7 @@ class BleService {
   Future<void> connect(BluetoothDevice device) async {
     _manualDisconnectRequested = false;
     _reconnectTargetDevice = device;
+    debugPrint('BLE connect requested: ${device.remoteId.str}');
 
     if (_connectedDevice?.remoteId == device.remoteId &&
         _status == BleConnectionStatus.connected &&
@@ -243,9 +300,11 @@ class BleService {
       await _subscribeToTxNotifications(telemetryPipe.txCharacteristic);
       _setReconnectState(const BleReconnectState.idle());
       _setStatus(BleConnectionStatus.connected);
+      debugPrint('BLE connected: ${device.remoteId.str}');
     } catch (error) {
       await _resetConnectionState(device: device);
       _setStatus(BleConnectionStatus.disconnected);
+      debugPrint('BLE connect failed: ${device.remoteId.str} -> $error');
 
       if (error is BleServiceException) {
         rethrow;
@@ -301,10 +360,12 @@ class BleService {
     final bool isLinuxDesktop =
         !kIsWeb && defaultTargetPlatform == TargetPlatform.linux;
     if (isLinuxDesktop) {
+      debugPrint('BLE scan start (linux): timeout=${timeout.inSeconds}s');
       await FlutterBluePlus.startScan(timeout: timeout);
       return;
     }
 
+    debugPrint('BLE scan start: timeout=${timeout.inSeconds}s');
     await FlutterBluePlus.startScan(
       timeout: timeout,
       continuousUpdates: true,
@@ -354,14 +415,18 @@ class BleService {
   }
 
   void _handleScanResults(List<ScanResult> results) {
+    if (results.isNotEmpty) {
+      debugPrint('BLE scan batch: ${results.length} results');
+    }
     for (final ScanResult result in results) {
       final String remoteId = result.device.remoteId.str;
 
       final String platformName = result.device.platformName.trim();
       final String advertisementName = result.advertisementData.advName.trim();
-      final String chosenName = platformName.isNotEmpty
-          ? platformName
-          : (advertisementName.isNotEmpty ? advertisementName : 'Unknown');
+      final String chosenName = resolveScanDisplayName(
+        platformName: platformName,
+        advertisementName: advertisementName,
+      );
 
       final bool hasNusService = result.advertisementData.serviceUuids.any(
         (Guid guid) => guid.toString().toUpperCase() == NusProtocol.serviceUuid,
@@ -375,33 +440,37 @@ class BleService {
         );
       });
 
-      final String normalizedName = chosenName.toLowerCase();
-      final bool hasFlyInPeaceName =
-          normalizedName.contains('flyinpeace') ||
-          normalizedName.contains('fly in peace');
-      final bool hasBlueFlyName =
-          normalizedName.contains('blueflyvario') ||
-          normalizedName.contains('bluefly');
-      final BleCompatibilityProfile compatibilityProfile =
-          detectCompatibilityProfile(
-            chosenName,
-            hasNusService: hasNusService,
-            hasBlueFlyService: hasBlueFlyService,
-          );
-
+      final String mergedScanName = '$platformName $advertisementName'
+          .trim()
+          .toLowerCase();
+      final bool hasFlyInPeaceName = _containsFlyInPeaceName(mergedScanName);
+      final bool hasBlueFlyName = _containsBlueFlyName(mergedScanName);
       final BleScanDevice? existing = _scanDevicesById[remoteId];
+      final bool effectiveHasNusService =
+          existing?.hasNusService == true || hasNusService;
+      final bool effectiveHasBlueFlyService =
+          existing?.hasBlueFlyService == true || hasBlueFlyService;
+      final BleCompatibilityProfile compatibilityProfile =
+          detectCompatibilityProfileFromScanNames(
+            platformName: platformName,
+            advertisementName: advertisementName,
+            hasNusService: effectiveHasNusService,
+            hasBlueFlyService: effectiveHasBlueFlyService,
+          );
       _scanDevicesById[remoteId] = BleScanDevice(
         device: result.device,
         remoteId: remoteId,
         name: chosenName,
         rssi: result.rssi,
-        hasNusService: existing?.hasNusService == true || hasNusService,
+        hasNusService: effectiveHasNusService,
         hasFlyInPeaceName:
             existing?.hasFlyInPeaceName == true || hasFlyInPeaceName,
         hasBlueFlyName: existing?.hasBlueFlyName == true || hasBlueFlyName,
-        hasBlueFlyService:
-            existing?.hasBlueFlyService == true || hasBlueFlyService,
+        hasBlueFlyService: effectiveHasBlueFlyService,
         compatibilityProfile: compatibilityProfile,
+      );
+      debugPrint(
+        'BLE device seen: $remoteId name="$chosenName" nus=$effectiveHasNusService profile=${compatibilityProfile.name}',
       );
     }
 

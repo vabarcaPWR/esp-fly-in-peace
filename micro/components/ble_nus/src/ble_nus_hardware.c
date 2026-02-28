@@ -215,6 +215,13 @@ static int ble_nus_hardware_gap_event_cb(struct ble_gap_event *event, void *arg)
         bool notify_enabled = event->subscribe.cur_notify != 0U;
         if (event->subscribe.attr_handle == tx_value_handle || notify_enabled || event->subscribe.prev_notify != 0U)
         {
+            if (notify_enabled && !tx_value_handle && event->subscribe.attr_handle)
+            {
+                ble_nus_model_set_tx_value_handle(event->subscribe.attr_handle);
+                tx_value_handle = event->subscribe.attr_handle;
+                ESP_LOGI(TAG, "NUS TX value handle synchronized from subscribe event: handle=%u", tx_value_handle);
+            }
+
             ble_nus_model_set_notify_enabled(notify_enabled);
             ESP_LOGI(TAG, "BLE notify subscription: conn_handle=%u attr_handle=%u tx_handle=%u enabled=%u prev=%u",
                      event->subscribe.conn_handle, event->subscribe.attr_handle, tx_value_handle,

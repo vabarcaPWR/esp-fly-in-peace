@@ -5,7 +5,7 @@ import 'package:fly_in_peace/core/ble/ble_service.dart';
 
 void main() {
   group('BleService Linux telemetry mirror', () {
-    test('enables telemetry mirror only for linux desktop runtime', () {
+    test('enables telemetry mirror on all non-web runtimes', () {
       expect(
         BleService.shouldMirrorTelemetryToLinuxConsole(
           isWeb: false,
@@ -18,7 +18,7 @@ void main() {
           isWeb: false,
           targetPlatform: TargetPlatform.android,
         ),
-        isFalse,
+        isTrue,
       );
       expect(
         BleService.shouldMirrorTelemetryToLinuxConsole(
