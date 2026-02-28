@@ -1,5 +1,10 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
 
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'core/ble/ble_providers.dart';
+import 'core/ble/ble_service.dart';
 import 'features/config/config_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
 import 'features/scanner/scanner_screen.dart';
@@ -48,15 +53,33 @@ class FlyInPeaceApp extends StatelessWidget {
   }
 }
 
-class AppShell extends StatefulWidget {
+class AppLifecycleBlePolicy {
+  const AppLifecycleBlePolicy._();
+
+  static bool shouldDisconnectForState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.resumed:
+        return false;
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+        return true;
+    }
+  }
+}
+
+class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
 
   @override
-  State<AppShell> createState() => _AppShellState();
+  ConsumerState<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<AppShell> {
+class _AppShellState extends ConsumerState<AppShell>
+    with WidgetsBindingObserver {
   int _selectedIndex = 0;
+  late final BleService _bleService;
 
   static const List<Widget> _screens = <Widget>[
     ScannerScreen(),
@@ -75,6 +98,36 @@ class _AppShellState extends State<AppShell> {
         NavigationDestination(icon: Icon(Icons.tune), label: 'Config'),
         NavigationDestination(icon: Icon(Icons.settings), label: 'Settings'),
       ];
+
+  @override
+  void initState() {
+    super.initState();
+    _bleService = ref.read(bleServiceProvider);
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!AppLifecycleBlePolicy.shouldDisconnectForState(state)) {
+      return;
+    }
+    unawaited(_disconnectBleIfNeeded());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    unawaited(_disconnectBleIfNeeded());
+    super.dispose();
+  }
+
+  Future<void> _disconnectBleIfNeeded() async {
+    if (_bleService.status == BleConnectionStatus.disconnected ||
+        _bleService.status == BleConnectionStatus.disconnecting) {
+      return;
+    }
+    await _bleService.disconnect();
+  }
 
   @override
   Widget build(BuildContext context) {

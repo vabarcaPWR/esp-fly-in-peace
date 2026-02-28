@@ -27,8 +27,10 @@
   - [x] Task 1.5.2: BLE device listing on Linux desktop app
   - [x] Task 1.5.3: Firmware-first validation loop (scan + identify FlyInPeace)
   - [x] Task 1.5.4: Debug evidence checklist for firmware bring-up
-  - [ ] Task 1.5.5: Linux console telemetry mirror (print received BLE lines)
+  - [x] Task 1.5.5: Linux console telemetry mirror (print received BLE lines)
   - [ ] Task 1.5.6: Linux console validation run with ESP32-C3 stream
+  - [x] Task 1.5.7: Auto-connect when FlyInPeace device is discovered
+  - [x] Task 1.5.8: Auto-disconnect BLE on app shutdown (controlled/uncontrolled)
 - [x] **Phase 2: BLE Connection**
   - [x] Task 2.1: Connect to device
   - [x] Task 2.2: Connection state management
@@ -657,10 +659,10 @@ Required manifest permissions:
 **Description**: Add an app-side Linux-only debug output that prints each received line from the connected BLE device to console/stdout, without changing mobile runtime behavior.
 
 **Acceptance Criteria**:
-- [ ] Linux build prints every received BLE telemetry line to console while connected
-- [ ] Output includes timestamp and source device identifier
-- [ ] Android/Web behavior remains unchanged (no extra console spam outside Linux debug path)
-- [ ] Feature is reachable from current BLE debug flow
+- [x] Linux build prints every received BLE telemetry line to console while connected
+- [x] Output includes timestamp and source device identifier
+- [x] Android/Web behavior remains unchanged (no extra console spam outside Linux debug path)
+- [x] Feature is reachable from current BLE debug flow
 
 **Validation**:
 - Run app on Linux (`./scripts/app/app_test_option.sh 1 linux`)
@@ -670,6 +672,15 @@ Required manifest permissions:
 **Files to create/modify**:
 - `app/lib/core/ble/ble_service.dart` (or debug adapter layer)
 - `app/lib/features/dashboard/ble_debug_console_screen.dart` (if UI toggle is needed)
+
+**Status Note (2026-02-28 — implementation completed, validation prepared)**:
+- Implemented Linux-only BLE telemetry mirror in `BleService` with console line format:
+  - `[timestamp_utc_iso8601] BLE RX <device_id> (<device_name>) -> <raw_line>`
+- Added unit tests for Linux-only gating and output format:
+  - `app/test/core/ble/ble_service_linux_console_test.dart`
+- Quality gate:
+  - `./scripts/app/app_test_option.sh 3` ✅ (`flutter analyze` + `flutter test`)
+- Live ESP32-C3 console capture session remains tracked by **Task 1.5.6**.
 
 ---
 
@@ -686,6 +697,72 @@ Required manifest permissions:
 - Launch Linux app + connect ESP32-C3
 - Capture and attach console snippet
 - Record PASS/FAIL note in both app and micro roadmaps
+
+---
+
+### Task 1.5.7: Auto-connect when FlyInPeace device is discovered
+
+**Description**: Add an app-side behavior that automatically attempts BLE connection when scan results include a FlyInPeace-compatible device, while keeping manual connect flow available.
+
+**Acceptance Criteria**:
+- [x] While scanning, app identifies FlyInPeace-compatible devices and triggers a single auto-connect attempt
+- [x] Auto-connect is gated to avoid repeated connect loops for the same device during one scan session
+- [x] If auto-connect fails, app surfaces the error and keeps manual connect available
+- [x] Existing Android/Linux/Web scan list and manual connect behavior remain functional
+
+**Validation**:
+- Run scanner flow with a FlyInPeace device advertising
+- Verify app auto-initiates connection without manual tap
+- Verify no repeated reconnect loop is triggered from scan events alone
+- Run static checks and tests (`./scripts/app/app_test_option.sh 3`)
+
+**Files to create/modify**:
+- `app/lib/features/scanner/scanner_provider.dart`
+- `app/lib/features/scanner/conductor/scanner_conductor.dart`
+- `app/lib/core/ble/ble_service.dart` (if additional guard state is required)
+
+**Status Note (2026-02-28 — implementation + validation)**:
+- Implemented scanner-side auto-connect policy in `ScannerController`:
+  - Auto-selects first FlyInPeace candidate from scan stream.
+  - Uses per-scan attempted-device guard to prevent repeated auto-connect loops.
+  - Reuses existing `connectToDevice` path so connection errors surface through current dialog flow and manual connect remains available.
+- Added test coverage for candidate selection/gating:
+  - `app/test/features/scanner/scanner_auto_connect_test.dart`
+- Quality gate:
+  - `./scripts/app/app_test_option.sh 3` ✅ (`flutter analyze` + `flutter test`)
+
+---
+
+### Task 1.5.8: Auto-disconnect BLE on app shutdown (controlled/uncontrolled)
+
+**Description**: Ensure the app automatically disconnects from the currently connected BLE device when the app closes, both in controlled lifecycle exits and in unexpected termination scenarios (best-effort where OS limits apply).
+
+**Acceptance Criteria**:
+- [x] On controlled app close/lifecycle termination, app triggers BLE disconnect for active connection
+- [x] On lifecycle transitions (`inactive`/`paused`/`detached`), disconnect policy is applied consistently per platform behavior
+- [x] Unexpected termination path is handled with best-effort strategy and no stuck reconnect loop on next app start
+- [x] Manual disconnect/connect flows continue to work without regression
+
+**Validation**:
+- Connect to FlyInPeace device and close app normally; verify device is disconnected
+- Background/terminate app and confirm disconnect behavior on supported targets
+- Reopen app after forced termination and verify no stale connected state or reconnect loop
+- Run static checks and tests (`./scripts/app/app_test_option.sh 3`)
+
+**Files to create/modify**:
+- `app/lib/app.dart` (or root lifecycle observer)
+- `app/lib/core/ble/ble_service.dart`
+- `app/lib/core/ble/ble_providers.dart` (if lifecycle wiring requires provider changes)
+
+**Status Note (2026-02-28 — implementation + validation)**:
+- Added app-root lifecycle BLE policy in `app/lib/app.dart`:
+  - `AppLifecycleBlePolicy.shouldDisconnectForState(...)` disconnects on `inactive`, `hidden`, `paused`, and `detached`.
+  - `AppShell` now observes app lifecycle and triggers best-effort BLE disconnect when required.
+  - On widget disposal, app also triggers disconnect to cover controlled shutdown paths.
+- Added tests:
+  - `app/test/app_lifecycle_ble_policy_test.dart`
+- Quality gate:
+  - `./scripts/app/app_test_option.sh 3` ✅ (`flutter analyze` + `flutter test`)
 
 ---
 

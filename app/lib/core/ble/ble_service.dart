@@ -186,6 +186,22 @@ class BleService {
     return BleCompatibilityProfile.unsupported;
   }
 
+  static bool shouldMirrorTelemetryToLinuxConsole({
+    required bool isWeb,
+    required TargetPlatform targetPlatform,
+  }) {
+    return !isWeb && targetPlatform == TargetPlatform.linux;
+  }
+
+  static String formatLinuxTelemetryMirrorLine({
+    required DateTime timestamp,
+    required String sourceDeviceId,
+    required String sourceDeviceName,
+    required String line,
+  }) {
+    return '[${timestamp.toUtc().toIso8601String()}] BLE RX $sourceDeviceId ($sourceDeviceName) -> $line';
+  }
+
   Future<void> connect(BluetoothDevice device) async {
     _manualDisconnectRequested = false;
     _reconnectTargetDevice = device;
@@ -497,9 +513,36 @@ class BleService {
 
       final String line = utf8.decode(lineBytes, allowMalformed: true);
       if (line.isNotEmpty) {
+        _mirrorLinuxTelemetryLine(line);
         _receivedLinesController.add(line);
       }
     }
+  }
+
+  void _mirrorLinuxTelemetryLine(String line) {
+    if (!shouldMirrorTelemetryToLinuxConsole(
+      isWeb: kIsWeb,
+      targetPlatform: defaultTargetPlatform,
+    )) {
+      return;
+    }
+
+    final BluetoothDevice? sourceDevice = _connectedDevice;
+    final String sourceDeviceId =
+        sourceDevice?.remoteId.str ?? 'unknown-device';
+    final String sourceDeviceName =
+        sourceDevice?.platformName.trim().isNotEmpty == true
+        ? sourceDevice!.platformName.trim()
+        : 'Unknown';
+
+    debugPrint(
+      formatLinuxTelemetryMirrorLine(
+        timestamp: DateTime.now().toUtc(),
+        sourceDeviceId: sourceDeviceId,
+        sourceDeviceName: sourceDeviceName,
+        line: line,
+      ),
+    );
   }
 
   Future<void> _negotiateMtu(BluetoothDevice device) async {

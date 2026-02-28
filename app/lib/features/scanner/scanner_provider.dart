@@ -22,6 +22,18 @@ class ScannerDialogRequest {
   final ScannerDialogAction action;
 }
 
+class ScannerAutoConnectCandidate {
+  const ScannerAutoConnectCandidate({
+    required this.remoteId,
+    required this.hasFlyInPeaceName,
+    required this.profile,
+  });
+
+  final String remoteId;
+  final bool hasFlyInPeaceName;
+  final BleCompatibilityProfile profile;
+}
+
 class ScannerState {
   const ScannerState({
     required this.devices,
@@ -163,6 +175,7 @@ class ScannerController extends StateNotifier<ScannerState> {
        super(ScannerState.initial()) {
     _scanResultsSubscription = _bleService.scanResults.listen((devices) {
       state = state.copyWith(devices: devices);
+      _maybeAutoConnectToFlyInPeace(devices);
     });
     _isScanningSubscription = _bleService.isScanning.listen(_handleScanning);
     _connectionStatusSubscription = _bleService.statusStream.listen(
@@ -183,11 +196,13 @@ class ScannerController extends StateNotifier<ScannerState> {
   Timer? _progressTimer;
   DateTime? _scanStartedAt;
   Duration _activeScanTimeout = defaultScanTimeout;
+  final Set<String> _autoConnectAttemptedDeviceIds = <String>{};
 
   Future<void> startScan({Duration timeout = defaultScanTimeout}) async {
     _progressTimer?.cancel();
     _scanStartedAt = null;
     _activeScanTimeout = timeout;
+    _autoConnectAttemptedDeviceIds.clear();
 
     final BleReadiness readiness = await _blePermissions.ensureReadyForScan();
     if (!readiness.isReady) {
@@ -271,6 +286,28 @@ class ScannerController extends StateNotifier<ScannerState> {
     }
   }
 
+  static String? pickAutoConnectCandidateId({
+    required List<ScannerAutoConnectCandidate> candidates,
+    required Set<String> attemptedDeviceIds,
+  }) {
+    for (final ScannerAutoConnectCandidate candidate in candidates) {
+      final bool isFlyInPeaceCandidate =
+          candidate.hasFlyInPeaceName ||
+          candidate.profile == BleCompatibilityProfile.flyInPeace;
+      if (!isFlyInPeaceCandidate) {
+        continue;
+      }
+
+      if (attemptedDeviceIds.contains(candidate.remoteId)) {
+        continue;
+      }
+
+      return candidate.remoteId;
+    }
+
+    return null;
+  }
+
   void setDeviceFilter(ScannerDeviceFilter filter) {
     state = state.copyWith(deviceFilter: filter);
   }
@@ -309,6 +346,43 @@ class ScannerController extends StateNotifier<ScannerState> {
     }
 
     state = state.copyWith(isScanning: true, showScanAgain: false);
+  }
+
+  void _maybeAutoConnectToFlyInPeace(List<BleScanDevice> devices) {
+    if (!state.isScanning || state.isConnecting || state.isConnected) {
+      return;
+    }
+
+    final List<ScannerAutoConnectCandidate> candidates = devices
+        .map(
+          (BleScanDevice device) => ScannerAutoConnectCandidate(
+            remoteId: device.remoteId,
+            hasFlyInPeaceName: device.hasFlyInPeaceName,
+            profile: device.compatibilityProfile,
+          ),
+        )
+        .toList();
+    final String? candidateId = pickAutoConnectCandidateId(
+      candidates: candidates,
+      attemptedDeviceIds: _autoConnectAttemptedDeviceIds,
+    );
+    if (candidateId == null) {
+      return;
+    }
+
+    BleScanDevice? selectedDevice;
+    for (final BleScanDevice device in devices) {
+      if (device.remoteId == candidateId) {
+        selectedDevice = device;
+        break;
+      }
+    }
+    if (selectedDevice == null) {
+      return;
+    }
+
+    _autoConnectAttemptedDeviceIds.add(candidateId);
+    unawaited(connectToDevice(selectedDevice));
   }
 
   void _handleConnectionStatus(BleConnectionStatus connectionStatus) {
