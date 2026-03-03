@@ -27,6 +27,9 @@ Read `.github/PRE-PROMPT.md` for full project scope, constraints, and style guid
 - Ask clarifying questions when ambiguous — propose 1–2 concrete options with pros/cons.
 - Reflect on **embedded constraints** (RAM, power, real-time, single core) for firmware suggestions.
 - **"Boy Scout Rule"**: leave code a little better than you found it, without going out of scope.
+- When developing micro, use app terminal for feedback for feedback.
+- When developing app, use micro terminal output for feedback.
+- Modify only one project area at a time (micro, app, docs). Do not mix firmware and app changes in the same PR.
 
 ## Scripts Policy (Repository Root)
 
