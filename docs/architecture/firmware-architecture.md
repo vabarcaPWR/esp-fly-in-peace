@@ -26,7 +26,7 @@
 ## 1. High-Level Overview
 
 ```
-┌─────────────────────────┐        BLE NUS (LK8EX1 @ 4 Hz)        ┌──────────────┐
+┌─────────────────────────┐        BLE NUS (LK8EX1 @ 8 Hz)        ┌──────────────┐
 │    ESP32-C3 Device      │ ──────────────────────────────────────► │   XCTrack    │
 │                         │                                        │   (Android)  │
 │  ┌───────────────────┐  │        BLE Config Service (GATT)       └──────────────┘
@@ -42,7 +42,7 @@
 
 The firmware reads barometric pressure from an MS5611 sensor at 10 Hz, applies a 2-state
 Kalman filter to derive altitude and vertical speed (vario), formats the data as LK8EX1
-NMEA sentences, and transmits them at 4 Hz over BLE NUS notifications.
+NMEA sentences, and transmits them at 8 Hz over BLE NUS notifications.
 
 Three external actors interact with the device:
 - **XCTrack** — receives LK8EX1 via BLE NUS TX (notify). Read-only.
@@ -629,7 +629,7 @@ esp_err_t power_manager_get_battery_mv(uint16_t *battery_mv);
 | Task | Function | Priority | Stack (bytes) | Rate | Core | Description |
 |------|----------|----------|---------------|------|------|-------------|
 | `sensor_task` | `sensor_task_fn` | 5 (High) | 4096 | 10 Hz (100 ms) | 0 | Read MS5611, run Kalman update |
-| `ble_sender_task` | `ble_sender_task_fn` | 3 (Normal) | 4096 | 4 Hz (250 ms) | 0 | Format LK8EX1, send via BLE NUS TX |
+| `ble_sender_task` | `ble_sender_task_fn` | 3 (Normal) | 4096 | 8 Hz (125 ms) | 0 | Format LK8EX1, send via BLE NUS TX |
 | `led_task` | `led_task_fn` | 1 (Lowest) | 2048 | 10 Hz (100 ms) | 0 | Update WS2812 LED pattern |
 | `config_task` | `config_task_fn` | 2 (Low) | 2048 | Event-driven | 0 | Handle config read/write from BLE |
 | NimBLE host | (internal) | 4 | 4096 | Event-driven | 0 | NimBLE host processing |

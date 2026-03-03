@@ -68,7 +68,7 @@
   - [ ] Task 9.1: Shared flight data structure and mutex
   - [ ] Task 9.2: Calibration queue (sensor_task consumer)
   - [ ] Task 9.3: Sensor reader task (10 Hz)
-  - [ ] Task 9.4: BLE sender task (4 Hz)
+  - [ ] Task 9.4: BLE sender task (8 Hz)
   - [ ] Task 9.5: Replace simulated provider with real sensor data
   - [ ] Task 9.6: End-to-end data flow validation
 - [ ] **Phase 10: NVS Configuration**
@@ -583,16 +583,16 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 
 ### Task 3.6: BLE + LK8EX1 integration (send simulated frames)
 
-**Description**: Send simulated LK8EX1 frames over BLE at 4 Hz to validate the full BLE → NUS TX pipeline.
+**Description**: Send simulated LK8EX1 frames over BLE at 8 Hz to validate the full BLE → NUS TX pipeline.
 
 **Acceptance Criteria**:
-- [x] Temporary FreeRTOS task sends simulated `lk8ex1_data_t` every 250 ms
+- [x] Temporary FreeRTOS task sends simulated `lk8ex1_data_t` every 125 ms
 - [x] Data contains realistic values (pressure ~101325 Pa, vario 0, temp 230)
 - [x] Frames are valid LK8EX1 sentences with correct checksum
 - [ ] Frames received correctly in nRF Connect UART view
 
 **Validation**:
-- Receive LK8EX1 sentences in nRF Connect at ~4 Hz rate
+- Receive LK8EX1 sentences in nRF Connect at ~8 Hz rate
 
 **Files to modify**:
 - `micro/main/main.c` (temporary: simulated sender, replaced in Phase 9)
@@ -633,7 +633,7 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
   - Discover services and verify NUS UUID `6E400001-B5A3-F393-E0A9-E50E24DCCA9E`.
   - Verify RX char `6E400002-...` (Write) and TX char `6E400003-...` (Notify).
   - Enable notifications on TX characteristic.
-  - Confirm LK8EX1 frames arrive at ~4 Hz.
+  - Confirm LK8EX1 frames arrive at ~8 Hz.
 3. RX path test:
   - Write text payload from nRF Connect to RX characteristic.
   - Confirm firmware log prints RX length (from `ble_rx_log_callback`).
@@ -697,13 +697,13 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 - [x] Profile `climb`: positive vario trend with realistic pressure/altitude relation
 - [x] Profile `sink`: negative vario trend with realistic pressure/altitude relation
 - [x] Profile `edge`: includes placeholders (`99999`, `999`) and boundary numeric values
-- [x] Frame cadence fixed at debug target (default 4 Hz)
+- [x] Frame cadence fixed at debug target (default 8 Hz)
 
 **Validation**:
 - Capture at least 30 seconds per profile and verify deterministic field behavior between runs
 
 **Status Note (2026-02-25 — implementation + build validation)**:
-- Deterministic profile generator implemented in `micro/main/main.c` with fixed-sequence frames at `LK8EX1_TX_PERIOD_MS=250` (4 Hz).
+- Deterministic profile generator implemented in `micro/main/main.c` with fixed-sequence frames at `LK8EX1_TX_PERIOD_MS=125` (8 Hz).
 - Profiles implemented: `nominal`, `climb`, `sink`, `edge`.
 - Additional debug-only profiles implemented for validation matrix support: `malformed-checksum`, `malformed-shape`.
 
@@ -1469,7 +1469,7 @@ bluetoothctl --timeout 10 scan on || true
 
 ## Phase 9: Data Pipeline
 
-**Objective**: Wire up the FreeRTOS task model defined in the architecture: sensor_task reads the sensor at 10 Hz, runs the Kalman filter, and publishes to the shared flight data structure. ble_sender_task reads at 4 Hz, formats LK8EX1, and sends over BLE.  
+**Objective**: Wire up the FreeRTOS task model defined in the architecture: sensor_task reads the sensor at 10 Hz, runs the Kalman filter, and publishes to the shared flight data structure. ble_sender_task reads at 8 Hz, formats LK8EX1, and sends over BLE.  
 **Estimated Duration**: 3–4 days  
 **Dependencies**: Phases 3 (BLE), 6 or 7 (sensor), 8 (Kalman), 2 (LK8EX1)  
  
@@ -1558,23 +1558,23 @@ bluetoothctl --timeout 10 scan on || true
 
 ---
 
-### Task 9.4: BLE sender task (4 Hz)
+### Task 9.4: BLE sender task (8 Hz)
 
-**Description**: Implement `ble_sender_task_fn` per architecture §5.2, running at 4 Hz.
+**Description**: Implement `ble_sender_task_fn` per architecture §5.2, running at 8 Hz.
 
 **Acceptance Criteria**:
 - [ ] `ble_sender_task` created with Priority 3, stack 4096 bytes (per architecture §5.1)
-- [ ] Loop every 250 ms:
+- [ ] Loop every 125 ms:
   1. `xSemaphoreTake(mutex)` → copy `shared_flight_data` → `xSemaphoreGive(mutex)`
   2. Build `lk8ex1_data_t` from flight data (convert vario m/s → cm/s, temperature milli-°C → deci-°C)
   3. `lk8ex1_format(&data, buffer, sizeof(buffer))`
   4. `ble_nus_send((uint8_t *)buffer, strlen(buffer))`
-  5. `vTaskDelay(remaining time to hit 250 ms period)`
+  5. `vTaskDelay(remaining time to hit 125 ms period)`
 - [ ] Silently skips send if BLE not connected (`ble_nus_is_connected()` or `ESP_ERR_INVALID_STATE`)
 - [ ] Handles `sensor_valid == false`: sends LK8EX1 with `altitude=99999, vario=0`
 
 **Validation**:
-- Connect with nRF Connect, verify LK8EX1 sentences arriving at ~4 Hz with real sensor data
+- Connect with nRF Connect, verify LK8EX1 sentences arriving at ~8 Hz with real sensor data
 
 **Files to create/modify**:
 - `micro/main/ble_sender_task.c`
@@ -1613,7 +1613,7 @@ bluetoothctl --timeout 10 scan on || true
 
 **Acceptance Criteria**:
 - [ ] Sensor reads at 10 Hz (±5% jitter)
-- [ ] BLE sends at 4 Hz (±5% jitter)
+- [ ] BLE sends at 8 Hz (±5% jitter)
 - [ ] LK8EX1 sentences contain real pressure, altitude, vario, temperature
 - [ ] Total sensor cycle ≤ 20 ms (budget: 18.5 ms per architecture §7.3)
 - [ ] System runs stably for 30+ minutes without crashes, memory leaks, or watchdog resets
@@ -1808,7 +1808,7 @@ bluetoothctl --timeout 10 scan on || true
 - [ ] Slave latency: 0 (respond to every connection event)
 - [ ] Supervision timeout: 4000 ms
 - [ ] Connection parameter update request sent after connection established
-- [ ] Verify data still arrives at 4 Hz (BLE sender rate)
+- [ ] Verify data still arrives at 8 Hz (BLE sender rate)
 
 **Validation**:
 - `ble_gap_conn_params_update()` succeeds without errors

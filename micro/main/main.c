@@ -11,7 +11,7 @@
 #include "lk8ex1.h"
 #include <esp_log.h>
 
-#define LK8EX1_TX_PERIOD_MS 250U
+#define LK8EX1_TX_PERIOD_MS 125U
 #define LK8EX1_TX_TASK_STACK_SIZE 4096U
 #define LK8EX1_TX_TASK_PRIORITY 3U
 #define LK8EX1_PROFILE_COMMAND_MAX_LEN 64U

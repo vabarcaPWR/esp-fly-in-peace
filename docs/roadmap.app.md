@@ -1595,7 +1595,7 @@ bluetoothctl --timeout 10 scan on || true
 
 **Acceptance Criteria**:
 - [x] BLE TX stream → LK8EX1 parser → data provider → dashboard widgets
-- [x] Data updates at ~4 Hz (matching firmware send rate)
+- [x] Data updates at ~8 Hz (matching firmware send rate)
 - [x] Old data discarded if parsing bottleneck (always show latest)
 - [x] Handle stream errors (log and continue, don't crash)
 - [x] When disconnected, last known values shown with "stale" indicator
@@ -1757,7 +1757,7 @@ bluetoothctl --timeout 10 scan on || true
   - Shows loading indicator while waiting for BLE write ack
 - [ ] On success (BLE write ack received):
   - Show success snackbar: "Altitude calibrated to \<value\> m"
-  - Dashboard altitude widget updates within ~250 ms (next LK8EX1 frame)
+  - Dashboard altitude widget updates within ~125 ms (next LK8EX1 frame)
   - Config screen shows updated `reference_pressure_pa` (re-read via Config Read)
 - [ ] On error (BLE write fails, timeout, out of range):
   - Show error dialog with descriptive message

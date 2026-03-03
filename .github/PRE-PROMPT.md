@@ -42,7 +42,7 @@
 | **BLE stack** | NimBLE (smaller footprint than Bluedroid, better power efficiency) |
 | **BLE service** | Nordic UART Service (NUS) — `6E400001-B5A3-F393-E0A9-E50E24DCCA9E` — compatible with XCTrack |
 | **Sensor** | MS5611 barometric pressure sensor via I2C (scalable to BMP390 and others) |
-| **Data flow** | Sensor read @ 10 Hz → Kalman filter → LK8EX1 sentence broadcast @ 4 Hz over BLE NUS |
+| **Data flow** | Sensor read @ 10 Hz → Kalman filter → LK8EX1 sentence broadcast @ 8 Hz over BLE NUS |
 | **WiFi** | **Not in MVP**. Architecture must allow future WiFi integration, controllable via BLE |
 | **OTA** | **Not in MVP**. Architecture must allow future OTA updates |
 | **Mobile app** | Android only. Developer is a firmware expert, not a mobile dev expert |
@@ -63,7 +63,7 @@ The developer using this prompt is:
 | FR-01 | Read MS5611 pressure & temperature at 10 Hz via I2C | Must |
 | FR-02 | Apply Kalman filter to raw pressure → altitude & vario | Must |
 | FR-03 | Format LK8EX1 NMEA sentence from filtered data | Must |
-| FR-04 | Broadcast LK8EX1 via BLE NUS at 4 Hz | Must |
+| FR-04 | Broadcast LK8EX1 via BLE NUS at 8 Hz | Must |
 | FR-05 | RGB LED: red blink (100 ms on / 1900 ms off) = BLE disconnected | Must |
 | FR-06 | RGB LED: green blink (100 ms on / 4900 ms off) = BLE connected | Must |
 | FR-07 | RGB LED: blue = WiFi enabled (future, stub only in MVP) | Should |
@@ -855,7 +855,7 @@ For each task:
 | 3 | Kalman Filter | 2-state Kalman filter for altitude and vario, unit tests with synthetic data | 2–3 days |
 | 4 | LK8EX1 Protocol | Sentence formatter with checksum, unit tests | 1–2 days |
 | 5 | BLE NUS Service | NimBLE init, GAP advertising, NUS GATT service, TX notifications | 3–4 days |
-| 6 | Data Pipeline | FreeRTOS tasks: sensor→filter→format→BLE, queues, timing (10 Hz read, 4 Hz send) | 3–4 days |
+| 6 | Data Pipeline | FreeRTOS tasks: sensor→filter→format→BLE, queues, timing (10 Hz read, 8 Hz send) | 3–4 days |
 | 7 | LED Indicator | WS2812 driver via RMT, state-based blink patterns (red/green/blue) | 1–2 days |
 | 8 | NVS Configuration | Config schema, default values, read/write via NVS, BLE config service | 2–3 days |
 | 9 | Power Optimization | Light-sleep between reads, BLE connection interval tuning, tickless idle | 2–3 days |
@@ -973,7 +973,7 @@ $LK8EX1,101325,99999,50,235,999,*checksum\r\n
 
 ### Notes for Implementation
 
-- Send at 4 Hz (250 ms interval).
+- Send at 8 Hz (125 ms interval).
 - XCTrack reads from BLE NUS TX characteristic (notify).
 - Max sentence length: ~60 bytes — fits in single BLE NUS notification (default MTU 23, negotiate higher if possible).
 - If MTU allows (≥ 64), send full sentence in one notification. Otherwise, fragment and include `\r\n` terminator for reassembly.
@@ -998,7 +998,7 @@ $LK8EX1,101325,99999,50,235,999,*checksum\r\n
     │  ◄── BLE Connect ──────────────────── │
     │  ◄── Subscribe to NUS TX (notify) ──  │
     │                                       │
-    │  ── TX Notify: "$LK8EX1,..." ──────►  │  (4 Hz)
+    │  ── TX Notify: "$LK8EX1,..." ──────►  │  (8 Hz)
     │  ── TX Notify: "$LK8EX1,..." ──────►  │
     │                                       │
     │  ◄── [App] Read Config char ────────  │  (Config Service GATT)
@@ -1012,7 +1012,7 @@ $LK8EX1,101325,99999,50,235,999,*checksum\r\n
 - Device name: configurable via NVS (default: `"FlyInPeace"`)
 - Advertise NUS service UUID in advertisement data.
 - Advertising interval: 100–200 ms (when not connected), optimizable for power.
-- Connection interval: negotiate 15–30 ms for reliable 4 Hz data at low power.
+- Connection interval: negotiate 15–30 ms for reliable 8 Hz data at low power.
 
 ### Config Service (GATT — Hybrid Architecture)
 
