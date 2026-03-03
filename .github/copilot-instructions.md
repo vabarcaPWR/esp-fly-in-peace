@@ -30,11 +30,12 @@ Read `.github/PRE-PROMPT.md` for full project scope, constraints, and style guid
 - When developing micro, use app terminal for feedback for feedback.
 - When developing app, use micro terminal output for feedback.
 - Modify only one project area at a time (micro, app, docs). Do not mix firmware and app changes in the same PR.
+- Do not verify code if you are not able to run it or see its output. Ask for help if you need access to a terminal or device.
+- Use always the scripts in the scripts/ directory to run builds, tests, and other operations. Do not run commands directly from micro/ or app/ without a script unless strictly necessary for debugging.
 
 ## Scripts Policy (Repository Root)
 
 - All new scripts must be created only in `scripts/` at repository root.
-- Do not create scripts under `micro/scripts/`, `app/scripts/`, or any nested scripts directory.
 - Scripts must be executable from project root using `./scripts/micro/<name>.sh` or `./scripts/app/<name>.sh`.
 - Scripts that operate on firmware must internally target `micro/` as needed, but invocation must remain from `.`.
 

@@ -55,13 +55,13 @@
   - [x] Task 4.2: Checksum validation
   - [x] Task 4.3: Data model for parsed values
   - [x] Task 4.4: Unit tests for parser
-- [ ] **Phase 5: Real-Time Display**
-  - [ ] Task 5.1: Flight dashboard screen layout
-  - [ ] Task 5.2: Altitude display widget
-  - [ ] Task 5.3: Vario display widget (with trend indicator)
-  - [ ] Task 5.4: Pressure and temperature display
-  - [ ] Task 5.5: Connection status indicator
-  - [ ] Task 5.6: Data stream integration
+- [x] **Phase 5: Real-Time Display**
+  - [x] Task 5.1: Flight dashboard screen layout
+  - [x] Task 5.2: Altitude display widget
+  - [x] Task 5.3: Vario display widget (with trend indicator)
+  - [x] Task 5.4: Pressure and temperature display
+  - [x] Task 5.5: Connection status indicator
+  - [x] Task 5.6: Data stream integration
 - [ ] **Phase 6: Device Configuration**
   - [ ] Task 6.1: Config Service GATT client (read/write JSON)
   - [ ] Task 6.2: Config screen UI
@@ -113,6 +113,8 @@
 - [Phase 3.5 matrix validation completed](#status-note-phase35-matrix-validation)
 - [Phase 3.5 compatibility rerun execution](#status-note-phase35-compat-rerun)
 - [Phase 3.6 implementation + static validation](#status-note-phase36-implementation)
+- [Phase 5 implementation + validation](#status-note-phase5-implementation)
+- [Phase 8.4 dashboard widget tests](#status-note-phase84-dashboard-widget-tests)
 - [Phase 9.1 scripts/runtime doc update](#status-note-phase91-doc-update)
 
 ---
@@ -1508,11 +1510,11 @@ bluetoothctl --timeout 10 scan on || true
 **Description**: Design and implement the main dashboard layout that displays flight instruments.
 
 **Acceptance Criteria**:
-- [ ] Full-screen dashboard layout (minimal chrome, maximum data visibility)
-- [ ] Grid/card layout for data widgets: altitude, vario, pressure, temperature
-- [ ] Connection status bar at the top (device name + connected/disconnected)
-- [ ] Responsive: works on phones (portrait) and tablets
-- [ ] Dark background option for outdoor readability
+- [x] Full-screen dashboard layout (minimal chrome, maximum data visibility)
+- [x] Grid/card layout for data widgets: altitude, vario, pressure, temperature
+- [x] Connection status bar at the top (device name + connected/disconnected)
+- [x] Responsive: works on phones (portrait) and tablets
+- [x] Dark background option for outdoor readability
 
 **Validation**:
 - Dashboard renders correctly on phone and tablet form factors
@@ -1527,12 +1529,12 @@ bluetoothctl --timeout 10 scan on || true
 **Description**: Large, prominent altitude display with unit label.
 
 **Acceptance Criteria**:
-- [ ] Large numeric display (altitude in meters or feet)
-- [ ] Unit label ("m" or "ft")
-- [ ] Handles "no data" state (shows "---" or similar)
-- [ ] Shows "---" when uncalibrated (`altitude == 99999`); shows calibrated value otherwise
-- [ ] Updates in real-time as new data arrives
-- [ ] Font size appropriate for glancing at while flying
+- [x] Large numeric display (altitude in meters or feet)
+- [x] Unit label ("m" or "ft")
+- [x] Handles "no data" state (shows "---" or similar)
+- [x] Shows "---" when uncalibrated (`altitude == 99999`); shows calibrated value otherwise
+- [x] Updates in real-time as new data arrives
+- [x] Font size appropriate for glancing at while flying
 - [ ] Optional: "Calibrate" quick-action icon/button (opens calibration dialog from Task 6.6)
 
 **Validation**:
@@ -1545,11 +1547,11 @@ bluetoothctl --timeout 10 scan on || true
 **Description**: Vario (vertical speed) display with visual trend indicator.
 
 **Acceptance Criteria**:
-- [ ] Numeric vario display in m/s (or ft/min)
-- [ ] Color coding: green for climbing, red for sinking, gray for neutral
-- [ ] Optional: simple bar graph or arrow indicator showing trend
-- [ ] Neutral zone: ±0.1 m/s (configurable dead zone)
-- [ ] Updates in real-time
+- [x] Numeric vario display in m/s (or ft/min)
+- [x] Color coding: green for climbing, red for sinking, gray for neutral
+- [x] Optional: simple bar graph or arrow indicator showing trend
+- [x] Neutral zone: ±0.1 m/s (configurable dead zone)
+- [x] Updates in real-time
 
 **Validation**:
 - Widget shows positive (green) for climb, negative (red) for sink
@@ -1561,10 +1563,10 @@ bluetoothctl --timeout 10 scan on || true
 **Description**: Secondary data displays for barometric pressure and temperature.
 
 **Acceptance Criteria**:
-- [ ] Pressure display in hPa (converted from Pa)
-- [ ] Temperature display in °C (or °F)
-- [ ] Smaller than altitude/vario (secondary importance)
-- [ ] Updates in real-time
+- [x] Pressure display in hPa (converted from Pa)
+- [x] Temperature display in °C (or °F)
+- [x] Smaller than altitude/vario (secondary importance)
+- [x] Updates in real-time
 
 **Validation**:
 - Values display correctly and update with live data
@@ -1576,11 +1578,11 @@ bluetoothctl --timeout 10 scan on || true
 **Description**: Persistent visual indicator of BLE connection status on the dashboard.
 
 **Acceptance Criteria**:
-- [ ] Top bar shows: device name + connection state icon
-- [ ] Connected: green indicator + device name
-- [ ] Disconnected: red indicator + "Disconnected"
-- [ ] Reconnecting: yellow/orange indicator + "Reconnecting..."
-- [ ] Tap → navigate to scanner or show connection details
+- [x] Top bar shows: device name + connection state icon
+- [x] Connected: green indicator + device name
+- [x] Disconnected: red indicator + "Disconnected"
+- [x] Reconnecting: yellow/orange indicator + "Reconnecting..."
+- [x] Tap → navigate to scanner or show connection details
 
 **Validation**:
 - Status updates correctly during connect/disconnect cycles
@@ -1592,15 +1594,35 @@ bluetoothctl --timeout 10 scan on || true
 **Description**: Wire the BLE NUS data stream through the LK8EX1 parser to the dashboard widgets.
 
 **Acceptance Criteria**:
-- [ ] BLE TX stream → LK8EX1 parser → data provider → dashboard widgets
-- [ ] Data updates at ~4 Hz (matching firmware send rate)
-- [ ] Old data discarded if parsing bottleneck (always show latest)
-- [ ] Handle stream errors (log and continue, don't crash)
-- [ ] When disconnected, last known values shown with "stale" indicator
+- [x] BLE TX stream → LK8EX1 parser → data provider → dashboard widgets
+- [x] Data updates at ~4 Hz (matching firmware send rate)
+- [x] Old data discarded if parsing bottleneck (always show latest)
+- [x] Handle stream errors (log and continue, don't crash)
+- [x] When disconnected, last known values shown with "stale" indicator
 
 **Validation**:
 - Connect to device → dashboard shows live updating data
 - Disconnect → dashboard shows last values with stale indicator
+
+<a id="status-note-phase5-implementation"></a>
+**Status Note (2026-03-03 — implementation + validation)**:
+- Implemented full Phase 5 dashboard flow in `conductor-model-hardware` split:
+  - `app/lib/features/dashboard/hardware/dashboard_hardware.dart`
+  - `app/lib/features/dashboard/model/dashboard_model.dart`
+  - `app/lib/features/dashboard/conductor/dashboard_conductor.dart`
+  - `app/lib/features/dashboard/dashboard_provider.dart`
+- Replaced placeholder dashboard with responsive real-time layout:
+  - top connection status bar with connected/disconnected/reconnecting states
+  - large altitude and vario cards (with trend arrow and dead-zone behavior)
+  - secondary pressure (`hPa`) and temperature (`°C`) cards
+  - stale data banner and optional dark background toggle
+- Stream integration now parses LK8EX1 directly from BLE telemetry stream and keeps latest values while handling parse/stream errors without crashing.
+- Added dashboard tests:
+  - `app/test/features/dashboard/dashboard_conductor_test.dart`
+
+**Validation**:
+- `flutter analyze`
+- `flutter test`
 
 ---
 
@@ -1905,10 +1927,21 @@ bluetoothctl --timeout 10 scan on || true
 
 **Acceptance Criteria**:
 - [ ] Scanner screen: renders in scanning, results, empty, error states
-- [ ] Dashboard screen: renders with data, without data, disconnected state
+- [x] Dashboard screen: renders with data, without data, disconnected state
 - [ ] Config screen: renders with loaded config, calibration section visible
 - [ ] Calibration dialog: renders input, validates range, shows success/error
 - [ ] All widget tests pass with `flutter test`
+
+<a id="status-note-phase84-dashboard-widget-tests"></a>
+**Status Note (2026-03-03 — dashboard widget tests)**:
+- Added `app/test/features/dashboard/dashboard_screen_test.dart` with 3 widget tests:
+  - no-data/disconnected placeholder rendering
+  - connected live-data rendering
+  - stale/disconnected rendering (banner + overlay)
+- Validation executed:
+  - `flutter test app/test/features/dashboard/dashboard_screen_test.dart` ✅
+  - `flutter analyze` ✅
+- Task 8.4 remains in progress until scanner/config/calibration widget tests are added.
 
 ---
 
