@@ -42,10 +42,10 @@
   - [x] Task 4.1: WS2812 driver via RMT peripheral
   - [x] Task 4.2: LED state machine (patterns per `led_state_e`)
   - [x] Task 4.3: Integration with BLE connection state
-- [ ] **Phase 5: Sensor HAL (Compile-Time Abstraction)**
-  - [ ] Task 5.1: Kconfig sensor selection (`choice SENSOR_DRIVER`)
-  - [ ] Task 5.2: `sensor_hal` public API and compile-time dispatch
-  - [ ] Task 5.3: I2C bus initialization
+- [x] **Phase 5: Sensor HAL (Compile-Time Abstraction)**
+  - [x] Task 5.1: Kconfig sensor selection (`choice SENSOR_DRIVER`)
+  - [x] Task 5.2: `sensor_hal` public API and compile-time dispatch
+  - [x] Task 5.3: I2C bus initialization
 - [ ] **Phase 6: MS5611 Sensor Driver**
   - [ ] Task 6.1: MS5611 PROM calibration read
   - [ ] Task 6.2: MS5611 raw pressure & temperature read
@@ -997,11 +997,11 @@ bluetoothctl --timeout 10 scan on || true
 **Description**: Create the Kconfig menu for compile-time sensor driver selection.
 
 **Acceptance Criteria**:
-- [ ] Component `sensor_hal` created in `micro/components/sensor_hal/`
-- [ ] `sensor_hal/Kconfig` with `choice SENSOR_DRIVER` block per architecture §4.1
-- [ ] Options: `CONFIG_SENSOR_MS5611` (default), `CONFIG_SENSOR_BMP390`
-- [ ] Each option has help text with sensor specs (I2C address, resolution, accuracy)
-- [ ] Selection visible in `idf.py menuconfig` under "Component config → Sensor driver"
+- [x] Component `sensor_hal` created in `micro/components/sensor_hal/`
+- [x] `sensor_hal/Kconfig` with `choice SENSOR_DRIVER` block per architecture §4.1
+- [x] Options: `CONFIG_SENSOR_MS5611` (default), `CONFIG_SENSOR_BMP390`
+- [x] Each option has help text with sensor specs (I2C address, resolution, accuracy)
+- [x] Selection visible in `idf.py menuconfig` under "Component config → Sensor driver"
 
 **Validation**:
 - `idf.py menuconfig` shows the sensor selection menu
@@ -1018,16 +1018,16 @@ bluetoothctl --timeout 10 scan on || true
 **Description**: Implement the `sensor_hal` public API with `#if defined()` compile-time dispatch per architecture §4.1.
 
 **Acceptance Criteria**:
-- [ ] `sensor_data_t` struct per architecture: `pressure_pa` (int32), `temperature_mc` (int32), `timestamp_us` (int64)
-- [ ] Public API per architecture contract:
+- [x] `sensor_data_t` struct per architecture: `pressure_pa` (int32), `temperature_mc` (int32), `timestamp_us` (int64)
+- [x] Public API per architecture contract:
   - `esp_err_t sensor_hal_init(void)` — configures I2C, reads calibration
   - `esp_err_t sensor_hal_read(sensor_data_t *out)` — full read cycle (trigger → wait → read → compensate)
   - `esp_err_t sensor_hal_deinit(void)` — releases I2C, powers down
   - `const char *sensor_hal_get_name(void)` — returns `"MS5611"` or `"BMP390"`
-- [ ] `sensor_hal.c` uses `#if defined(CONFIG_SENSOR_MS5611)` / `#elif defined(CONFIG_SENSOR_BMP390)` dispatch
-- [ ] `#else #error` if no sensor selected
-- [ ] CMakeLists.txt conditionally adds `REQUIRES sensor_ms5611` or `sensor_bmp390` per architecture
-- [ ] **NO function pointers, NO `void *ctx`** — compile-time dispatch only
+- [x] `sensor_hal.c` uses `#if defined(CONFIG_SENSOR_MS5611)` / `#elif defined(CONFIG_SENSOR_BMP390)` dispatch
+- [x] `#else #error` if no sensor selected
+- [x] CMakeLists.txt conditionally adds `REQUIRES sensor_ms5611` or `sensor_bmp390` per architecture
+- [x] **NO function pointers, NO `void *ctx`** — compile-time dispatch only
 
 **Validation**:
 - Build succeeds with `CONFIG_SENSOR_MS5611=y`
@@ -1045,11 +1045,11 @@ bluetoothctl --timeout 10 scan on || true
 **Description**: Initialize the I2C master bus in `sensor_hal_init()` using ESP-IDF's I2C driver directly (no wrapper component). Per architecture, sensor drivers use ESP-IDF I2C directly.
 
 **Acceptance Criteria**:
-- [ ] I2C master bus configured in `sensor_hal_init()` before calling driver init
-- [ ] I2C port: `I2C_NUM_0`, SDA: GPIO 6, SCL: GPIO 7, Clock: 400 kHz (per architecture §11.2)
-- [ ] Pull-ups: configured via GPIO config (external 4.7 kΩ recommended)
-- [ ] I2C bus released in `sensor_hal_deinit()`
-- [ ] Uses ESP-IDF v5.x `i2c_master.h` API
+- [x] I2C master bus configured in `sensor_hal_init()` before calling driver init
+- [x] I2C port: `I2C_NUM_0`, SDA: GPIO 6, SCL: GPIO 7, Clock: 400 kHz (per architecture §11.2)
+- [x] Pull-ups: configured via GPIO config (external 4.7 kΩ recommended)
+- [x] I2C bus released in `sensor_hal_deinit()`
+- [x] Uses ESP-IDF v5.x `i2c_master.h` API
 
 **Validation**:
 - Build succeeds
@@ -1061,6 +1061,14 @@ bluetoothctl --timeout 10 scan on || true
 **Notes**:
 - **No `i2c_bus` wrapper component**: per architecture decision, sensor drivers use ESP-IDF I2C directly to minimize abstraction layers.
 - I2C initialization happens once in `sensor_hal_init()`, then the driver handle is passed to the selected sensor driver.
+
+**Status Note (2026-03-03 — Phase 5 complete)**:
+- Component `sensor_hal` created with Kconfig (`choice SENSOR_DRIVER`), public API header, and compile-time dispatch implementation.
+- Kconfig exposes sensor selection plus I2C pin/frequency/address configuration under "Component config → Sensor driver".
+- `sdkconfig` confirms `CONFIG_SENSOR_MS5611=y` default, I2C on GPIO 6/7 at 400 kHz, address 0x77.
+- `sensor_hal.c` uses ESP-IDF v5.x `i2c_master.h` API (`i2c_new_master_bus`/`i2c_del_master_bus`), internal pull-ups enabled.
+- Driver init/read/deinit stubs return `ESP_ERR_NOT_SUPPORTED` for `sensor_hal_read()` — will be wired to real driver in Phase 6/7.
+- Build succeeds with zero warnings. `.clang-format` applied.
 
 ---
 

@@ -1,0 +1,51 @@
+menu "Sensor driver"
+
+    choice SENSOR_DRIVER
+        prompt "Pressure sensor driver"
+        default SENSOR_MS5611
+        help
+            Select the barometric pressure sensor connected to the I2C bus.
+            Only one sensor driver is compiled into the binary.
+
+        config SENSOR_MS5611
+            bool "MS5611"
+            help
+                TE Connectivity MS5611 barometric pressure sensor.
+                I2C address: 0x77 (CSB low) or 0x76 (CSB high).
+                Resolution: 24-bit, accuracy ±1.5 mbar.
+
+        config SENSOR_BMP390
+            bool "BMP390"
+            help
+                Bosch BMP390 barometric pressure sensor.
+                I2C address: 0x77 (SDO low) or 0x76 (SDO high).
+                Resolution: 24-bit, accuracy ±0.5 hPa. Lower noise than MS5611.
+    endchoice
+
+    config SENSOR_I2C_SDA_GPIO
+        int "I2C SDA GPIO number"
+        default 6
+        help
+            GPIO number for I2C SDA line connected to the pressure sensor.
+
+    config SENSOR_I2C_SCL_GPIO
+        int "I2C SCL GPIO number"
+        default 7
+        help
+            GPIO number for I2C SCL line connected to the pressure sensor.
+
+    config SENSOR_I2C_FREQ_HZ
+        int "I2C clock frequency (Hz)"
+        default 400000
+        help
+            I2C master clock frequency in Hz. 400000 = Fast Mode.
+
+    config SENSOR_I2C_ADDR
+        hex "Sensor I2C address"
+        default 0x77
+        help
+            I2C address of the pressure sensor.
+            MS5611: 0x77 (CSB=GND) or 0x76 (CSB=VCC).
+            BMP390: 0x77 (SDO=GND) or 0x76 (SDO=VCC).
+
+endmenu
