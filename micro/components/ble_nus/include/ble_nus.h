@@ -30,9 +30,6 @@ extern "C"
     /** Initialize NimBLE, register NUS service, and start advertising. */
     esp_err_t ble_nus_init(const ble_nus_cfg_t *cfg);
 
-    /** Stop BLE operations and release NUS resources. */
-    esp_err_t ble_nus_deinit(void);
-
     /** Send payload over NUS TX notifications. */
     esp_err_t ble_nus_send(const uint8_t *data, uint16_t len);
 

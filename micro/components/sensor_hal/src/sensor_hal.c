@@ -43,16 +43,6 @@ static esp_err_t init_i2c_bus(void)
     return ret;
 }
 
-static esp_err_t deinit_i2c_bus(void)
-{
-    esp_err_t ret = i2c_del_master_bus(s_bus_handle);
-    if (ESP_OK != ret)
-        ESP_LOGE(TAG, "I2C bus deinit failed: %s", esp_err_to_name(ret));
-
-    s_bus_handle = NULL;
-    return ret;
-}
-
 esp_err_t sensor_hal_init(void)
 {
     if (s_initialized)
@@ -84,20 +74,6 @@ esp_err_t sensor_hal_read(sensor_data_t *out)
     out->timestamp_us = esp_timer_get_time();
 
     return ESP_ERR_NOT_SUPPORTED;
-}
-
-esp_err_t sensor_hal_deinit(void)
-{
-    if (!s_initialized)
-        return ESP_ERR_INVALID_STATE;
-
-    // TODO(Phase 6/7): call sensor_ms5611_deinit() or sensor_bmp390_deinit() here
-
-    esp_err_t ret = deinit_i2c_bus();
-    s_initialized = false;
-
-    ESP_LOGI(TAG, "Sensor HAL deinitialized");
-    return ret;
 }
 
 i2c_master_bus_handle_t sensor_hal_get_i2c_bus_handle(void)

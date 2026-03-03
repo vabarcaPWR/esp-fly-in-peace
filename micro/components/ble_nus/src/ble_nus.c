@@ -7,11 +7,6 @@ esp_err_t ble_nus_init(const ble_nus_cfg_t *cfg)
     return ble_nus_conductor_init(cfg);
 }
 
-esp_err_t ble_nus_deinit(void)
-{
-    return ble_nus_conductor_deinit();
-}
-
 esp_err_t ble_nus_send(const uint8_t *data, uint16_t len)
 {
     return ble_nus_conductor_send(data, len);

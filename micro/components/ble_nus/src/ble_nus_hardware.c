@@ -356,39 +356,6 @@ esp_err_t ble_nus_hardware_start(void)
     return ESP_OK;
 }
 
-esp_err_t ble_nus_hardware_stop(void)
-{
-    ble_nus_model_snapshot_t snapshot;
-    if (!ble_nus_model_get_snapshot(&snapshot))
-        return ESP_FAIL;
-
-    int adv_stop_result = ble_gap_adv_stop();
-    if (adv_stop_result && BLE_HS_EALREADY != adv_stop_result)
-    {
-        ESP_LOGW(TAG, "ble_gap_adv_stop returned rc=%d", adv_stop_result);
-    }
-
-    if (BLE_NUS_DEFAULT_CONN_HANDLE != snapshot.conn_handle)
-    {
-        int terminate_result = ble_gap_terminate(snapshot.conn_handle, BLE_ERR_REM_USER_CONN_TERM);
-        if (terminate_result)
-        {
-            ESP_LOGW(TAG, "ble_gap_terminate returned rc=%d", terminate_result);
-        }
-    }
-
-    int stop_result = nimble_port_stop();
-    if (stop_result)
-    {
-        ESP_LOGW(TAG, "nimble_port_stop returned rc=%d", stop_result);
-    }
-
-    nimble_port_deinit();
-
-    s_tx_value_handle = 0U;
-    return ESP_OK;
-}
-
 esp_err_t ble_nus_hardware_send(const uint8_t *data, uint16_t len, uint16_t att_overhead)
 {
     if (!data || !len)

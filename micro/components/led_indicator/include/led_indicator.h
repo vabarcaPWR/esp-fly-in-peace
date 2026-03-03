@@ -18,7 +18,6 @@ extern "C"
     } led_state_e;
 
     esp_err_t led_indicator_init(void);
-    esp_err_t led_indicator_deinit(void);
     esp_err_t led_indicator_set_state(led_state_e state);
     led_state_e led_indicator_get_state(void);
 

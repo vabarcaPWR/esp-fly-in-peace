@@ -36,12 +36,6 @@ extern "C"
     esp_err_t sensor_hal_read(sensor_data_t *out);
 
     /**
-     * @brief Deinitialize the sensor and release the I2C bus.
-     * @return ESP_OK on success, or an error code.
-     */
-    esp_err_t sensor_hal_deinit(void);
-
-    /**
      * @brief Return a human-readable name of the active sensor driver.
      * @return Pointer to a static string, e.g. "MS5611" or "BMP390".
      */

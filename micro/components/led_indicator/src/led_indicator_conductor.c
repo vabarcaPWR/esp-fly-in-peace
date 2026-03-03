@@ -131,34 +131,6 @@ esp_err_t led_indicator_conductor_init(void)
     return ESP_OK;
 }
 
-esp_err_t led_indicator_conductor_deinit(void)
-{
-    if (!led_indicator_model_is_initialized())
-        return ESP_ERR_INVALID_STATE;
-
-    if (s_led_task)
-    {
-        vTaskDelete(s_led_task);
-        s_led_task = NULL;
-    }
-
-    if (s_state_queue)
-    {
-        vQueueDelete(s_state_queue);
-        s_state_queue = NULL;
-    }
-
-    esp_err_t hardware_result = led_indicator_hardware_deinit();
-
-    led_indicator_model_reset();
-
-    if (ESP_OK != hardware_result)
-        return hardware_result;
-
-    ESP_LOGI(TAG, "LED indicator deinitialized");
-    return ESP_OK;
-}
-
 esp_err_t led_indicator_conductor_set_state(led_state_e state)
 {
     if (!led_indicator_model_is_initialized())

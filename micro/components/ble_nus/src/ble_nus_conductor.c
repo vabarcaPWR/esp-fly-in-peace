@@ -44,20 +44,6 @@ esp_err_t ble_nus_conductor_init(const ble_nus_cfg_t *cfg)
     return ESP_OK;
 }
 
-esp_err_t ble_nus_conductor_deinit(void)
-{
-    if (!ble_nus_model_is_initialized())
-        return ESP_ERR_INVALID_STATE;
-
-    esp_err_t stop_result = ble_nus_hardware_stop();
-    ble_nus_model_reset(BLE_NUS_DEFAULT_ADV_INTERVAL_MS, BLE_ATT_MTU_DFLT);
-    if (ESP_OK != stop_result)
-        return stop_result;
-
-    ESP_LOGI(TAG, "BLE NUS deinitialized");
-    return ESP_OK;
-}
-
 esp_err_t ble_nus_conductor_send(const uint8_t *data, uint16_t len)
 {
     if (!data || !len)
