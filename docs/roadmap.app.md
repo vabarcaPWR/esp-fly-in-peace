@@ -28,7 +28,7 @@
   - [x] Task 1.5.3: Firmware-first validation loop (scan + identify FlyInPeace)
   - [x] Task 1.5.4: Debug evidence checklist for firmware bring-up
   - [x] Task 1.5.5: Linux console telemetry mirror (print received BLE lines)
-  - [ ] Task 1.5.6: Linux console validation run with ESP32-C3 stream
+  - [x] Task 1.5.6: Linux console validation run with ESP32-C3 stream
   - [x] Task 1.5.7: Auto-connect when FlyInPeace device is discovered
   - [x] Task 1.5.8: Auto-disconnect BLE on app shutdown (controlled/uncontrolled)
 - [x] **Phase 2: BLE Connection**
@@ -50,11 +50,11 @@
   - [x] Task 3.6.1: File logging service for received BLE stream
   - [x] Task 3.6.2: Recorder controls in app (start/stop/save path)
   - [x] Task 3.6.3: Session metadata + export validation
-- [ ] **Phase 4: LK8EX1 Parser**
-  - [ ] Task 4.1: LK8EX1 sentence parser
-  - [ ] Task 4.2: Checksum validation
-  - [ ] Task 4.3: Data model for parsed values
-  - [ ] Task 4.4: Unit tests for parser
+- [x] **Phase 4: LK8EX1 Parser**
+  - [x] Task 4.1: LK8EX1 sentence parser
+  - [x] Task 4.2: Checksum validation
+  - [x] Task 4.3: Data model for parsed values
+  - [x] Task 4.4: Unit tests for parser
 - [ ] **Phase 5: Real-Time Display**
   - [ ] Task 5.1: Flight dashboard screen layout
   - [ ] Task 5.2: Altitude display widget
@@ -689,14 +689,24 @@ Required manifest permissions:
 **Description**: Execute a focused Linux validation session using the console mirror to confirm real incoming telemetry from ESP32-C3 and capture evidence for firmware loop closure.
 
 **Acceptance Criteria**:
-- [ ] At least one continuous 60s capture from ESP32-C3 is visible in Linux app console
-- [ ] Evidence includes connection timestamp, device id/name, and sample LK8EX1 lines
-- [ ] Result is synchronized with micro roadmap validation status
+- [x] At least one continuous 60s capture from ESP32-C3 is visible in Linux app console
+- [x] Evidence includes connection timestamp, device id/name, and sample LK8EX1 lines
+- [x] Result is synchronized with micro roadmap validation status
 
 **Validation**:
 - Launch Linux app + connect ESP32-C3
 - Capture and attach console snippet
 - Record PASS/FAIL note in both app and micro roadmaps
+
+**Status Note (2026-02-28 — validation completed)**:
+- Runtime command executed: `./scripts/app/app_test_option.sh 1 linux`
+- Auto-connect evidence:
+  - `BLE auto-connect attempt: DC:DA:0C:81:52:26`
+  - `BLE connected: DC:DA:0C:81:52:26`
+- Continuous console mirror evidence captured for >60s (UTC excerpt):
+  - `[2026-02-28T20:22:38.990146Z] BLE RX DC:DA:0C:81:52:26 (FlyInPeace) -> $LK8EX1,100897,1036,8,23.6,94,*3C`
+  - `[2026-02-28T20:23:43.747311Z] BLE RX DC:DA:0C:81:52:26 (FlyInPeace) -> $LK8EX1,100900,1035,-2,23.5,93,*13`
+- Verdict: **PASS**
 
 ---
 
@@ -1384,11 +1394,11 @@ bluetoothctl --timeout 10 scan on || true
 **Description**: Parse an LK8EX1 sentence string into a structured Dart data model.
 
 **Acceptance Criteria**:
-- [ ] Function: `Lk8ex1Data? parseLk8ex1(String sentence)` → parsed data or null
-- [ ] Parses all fields: pressure (Pa), altitude (m), vario (cm/s), temperature (°C×10), battery
-- [ ] Handles missing fields (value not present or placeholder value 99999/999)
-- [ ] Returns null for invalid/unparseable sentences
-- [ ] Pure function, no side effects
+- [x] Function: `Lk8ex1Data? parseLk8ex1(String sentence)` → parsed data or null
+- [x] Parses all fields: pressure (Pa), altitude (m), vario (cm/s), temperature (°C×10), battery
+- [x] Handles missing fields (value not present or placeholder value 99999/999)
+- [x] Returns null for invalid/unparseable sentences
+- [x] Pure function, no side effects
 
 **Validation**:
 - Unit tests with known sentences
@@ -1403,10 +1413,10 @@ bluetoothctl --timeout 10 scan on || true
 **Description**: Validate the NMEA checksum before parsing the sentence.
 
 **Acceptance Criteria**:
-- [ ] Function: `bool validateChecksum(String sentence)` — verifies XOR checksum
-- [ ] Reject sentences with invalid checksum (don't parse)
-- [ ] Handle sentences without checksum (configurable: accept or reject)
-- [ ] Log corrupted sentences at warning level
+- [x] Function: `bool validateChecksum(String sentence)` — verifies XOR checksum
+- [x] Reject sentences with invalid checksum (don't parse)
+- [x] Handle sentences without checksum (configurable: accept or reject)
+- [x] Log corrupted sentences at warning level
 
 **Validation**:
 - Valid sentence → checksum passes
@@ -1419,16 +1429,16 @@ bluetoothctl --timeout 10 scan on || true
 **Description**: Define the `Lk8ex1Data` model class.
 
 **Acceptance Criteria**:
-- [ ] Immutable data class with:
+- [x] Immutable data class with:
   - `int pressurePa` — pressure in Pascals
   - `double altitudeM` — altitude in meters (NaN if not available)
   - `double varioMs` — vertical speed in m/s (converted from cm/s)
   - `double temperatureC` — temperature in °C (converted from °C×10)
   - `int? batteryMv` — battery voltage (null if not available)
   - `DateTime timestamp` — when the data was received
-- [ ] `toString()` for debugging
-- [ ] `copyWith()` for immutable updates
-- [ ] Equality comparison (`==` and `hashCode`)
+- [x] `toString()` for debugging
+- [x] `copyWith()` for immutable updates
+- [x] Equality comparison (`==` and `hashCode`)
 
 **Validation**:
 - Model correctly stores and exposes all fields
@@ -1443,20 +1453,39 @@ bluetoothctl --timeout 10 scan on || true
 **Description**: Comprehensive unit tests for the LK8EX1 parser.
 
 **Acceptance Criteria**:
-- [ ] Test: parse valid sentence with all fields
-- [ ] Test: parse sentence with altitude=99999 (no GPS)
-- [ ] Test: parse sentence with battery=999 (no battery)
-- [ ] Test: checksum validation passes for valid sentence
-- [ ] Test: checksum validation fails for corrupted sentence
-- [ ] Test: parser returns null for empty string
-- [ ] Test: parser returns null for non-LK8EX1 sentence
-- [ ] All tests pass with `flutter test`
+- [x] Test: parse valid sentence with all fields
+- [x] Test: parse sentence with altitude=99999 (no GPS)
+- [x] Test: parse sentence with battery=999 (no battery)
+- [x] Test: checksum validation passes for valid sentence
+- [x] Test: checksum validation fails for corrupted sentence
+- [x] Test: parser returns null for empty string
+- [x] Test: parser returns null for non-LK8EX1 sentence
+- [x] All tests pass with `flutter test`
 
 **Validation**:
 - Run `flutter test` — all tests green
 
 **Files to create**:
 - `app/test/core/utils/lk8ex1_parser_test.dart`
+
+**Status Note (2026-02-28 — implementation + validation)**:
+- Implemented top-level parsing API and checksum API in `app/lib/core/utils/lk8ex1_parser.dart`:
+  - `parseLk8ex1(String sentence, {bool allowSentencesWithoutChecksum = false})`
+  - `validateChecksum(String sentence)`
+- Parser behavior:
+  - Rejects invalid checksums.
+  - Supports configurable acceptance for checksum-less frames.
+  - Normalizes placeholders (`altitude=99999` → `double.nan`, `battery=999` → `null`).
+  - Keeps compatibility with existing `parseLine(...)` flow used by Phase 3.5 inspector/verdict engine.
+- Data model upgraded in `app/lib/core/models/lk8ex1_data.dart`:
+  - Immutable + `copyWith`, `toString`, `==`, `hashCode`.
+  - Canonical fields: `pressurePa`, `altitudeM`, `varioMs`, `temperatureC`, `batteryMv`, `timestamp`.
+  - Compatibility getters preserved for existing consumers (`varioCms`, `temperatureDc`, `battery`).
+- Tests added:
+  - `app/test/core/utils/lk8ex1_parser_test.dart`
+  - `app/test/core/models/lk8ex1_data_test.dart`
+- Validation command:
+  - `flutter test test/core/utils/lk8ex1_parser_test.dart test/core/models/lk8ex1_data_test.dart test/core/utils/lk8ex1_phase35_matrix_test.dart` ✅
 
 ---
 

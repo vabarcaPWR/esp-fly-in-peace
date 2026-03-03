@@ -63,7 +63,7 @@ class Lk8ex1FrameVerdictEngine {
       return 'Impossible pressure value';
     }
 
-    if (data.altitudeM != 99999 &&
+    if (!data.hasPlaceholderAltitude &&
         (data.altitudeM < -1000 || data.altitudeM > 15000)) {
       return 'Impossible altitude value';
     }

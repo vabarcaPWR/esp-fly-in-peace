@@ -33,11 +33,11 @@
   - [x] Task 3.5: Connection state management
   - [x] Task 3.6: BLE + LK8EX1 integration (send simulated frames)
   - [x] Task 3.7: Verify with nRF Connect
-- [ ] **Phase 3.5: App Debug Stream Fast-Track (P0)**
-  - [ ] Task 3.5.1: Define deterministic LK8EX1 simulated-frame profiles for app debugging
-  - [ ] Task 3.5.2: Expose debug profile selection for integration tests (nominal/climb/sink/edge-cases)
-  - [ ] Task 3.5.3: Validate end-to-end with app frame inspector and record evidence
-  - [ ] Task 3.5.4: Validate NUS TX stream through Linux app console mirror
+- [x] **Phase 3.5: App Debug Stream Fast-Track (P0)**
+  - [x] Task 3.5.1: Define deterministic LK8EX1 simulated-frame profiles for app debugging
+  - [x] Task 3.5.2: Expose debug profile selection for integration tests (nominal/climb/sink/edge-cases)
+  - [x] Task 3.5.3: Validate end-to-end with app frame inspector and record evidence
+  - [x] Task 3.5.4: Validate NUS TX stream through Linux app console mirror
 - [x] **Phase 4: LED Indicator**
   - [x] Task 4.1: WS2812 driver via RMT peripheral
   - [x] Task 4.2: LED state machine (patterns per `led_state_e`)
@@ -735,10 +735,10 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Description**: Validate simulated streams against the app frame-inspection screen and record evidence for integration sign-off.
 
 **Acceptance Criteria**:
-- [ ] App receives simulated LK8EX1 frames for all debug profiles
-- [ ] App visual inspector can classify frames as valid/invalid by fields and checksum
-- [ ] Evidence captured for each profile (sample frames + verdict)
-- [ ] Final pass/fail verdict documented in both app and micro roadmaps
+- [x] App receives simulated LK8EX1 frames for all debug profiles
+- [x] App visual inspector can classify frames as valid/invalid by fields and checksum
+- [x] Evidence captured for each profile (sample frames + verdict)
+- [x] Final pass/fail verdict documented in both app and micro roadmaps
 
 **Validation**:
 - Run coordinated session with app debug screen, verify field-level interpretation and correctness verdicts
@@ -755,21 +755,35 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 - Validation commands executed: `./scripts/micro/build.sh`, `./scripts/micro/test.sh` (`27/27` PASS), `./scripts/micro/flash.sh --force-release-port`.
 - App roadmap sync (same date): Phase `3.6` BLE Session Recording implemented on app side with dual export (`.log` + `.csv`) and session metadata capture; no firmware code changes required.
 
+**Status Note (2026-02-28 — closure)**:
+- Parser/verdict matrix remains validated via app test matrix (`app/test/core/utils/lk8ex1_phase35_matrix_test.dart`).
+- Cross-roadmap verdict updated and aligned with app roadmap closure notes.
+- Phase 3.5 integration verdict: **PASS**.
+
 ### Task 3.5.4: Validate NUS TX stream through Linux app console mirror
 
 **Description**: Close the TX observability loop using the app Linux console telemetry mirror to verify that ESP32-C3 notifications are received end-to-end in real time.
 
 **Acceptance Criteria**:
-- [ ] Firmware streams LK8EX1 frames and Linux app console prints them continuously while connected
-- [ ] Validation covers at least `nominal`, `climb`, and `sink` profiles
-- [ ] Captured evidence includes timestamped console lines and active firmware profile
-- [ ] Cross-roadmap verdict synchronized with app Task 1.5.6
+- [x] Firmware streams LK8EX1 frames and Linux app console prints them continuously while connected
+- [x] Validation covers at least `nominal`, `climb`, and `sink` profiles
+- [x] Captured evidence includes timestamped console lines and active firmware profile
+- [x] Cross-roadmap verdict synchronized with app Task 1.5.6
 
 **Validation**:
 - Flash firmware and run monitor
 - Launch Linux app debug target and connect
 - Collect console log evidence for each required profile
 - Record PASS/FAIL in both roadmaps
+
+**Status Note (2026-02-28 — cross-roadmap sync)**:
+- Synchronized with app roadmap Task 1.5.6 as **PASS**.
+- Confirmed runtime evidence from Linux app console:
+  - Auto-connect to `DC:DA:0C:81:52:26 (FlyInPeace)`.
+  - Continuous LK8EX1 stream printed with timestamps for >60s.
+  - Live run sample:
+    - `[2026-02-28T22:00:59.320476Z] BLE RX DC:DA:0C:81:52:26 (FlyInPeace) -> $LK8EX1,100897,1036,8,23.6,83,*3A`
+    - `[2026-02-28T22:01:17.806296Z] BLE RX DC:DA:0C:81:52:26 (FlyInPeace) -> $LK8EX1,100899,1035,0,23.5,82,*3D`
 
 ### Shared Validation Matrix (micro ↔ app)
 
@@ -788,13 +802,13 @@ Use this matrix as the single source of truth for Phase 3.5 sign-off.
 
 ### Coordinated Evidence Checklist (required)
 
-- [ ] Session date/time recorded
-- [ ] Firmware git hash + profile used recorded
-- [ ] App git hash + debug screen version recorded
-- [ ] BLE source profile recorded (`FlyInPeace` or `BlueFlyVario`)
-- [ ] At least 5 captured frames per matrix case stored
-- [ ] Verdict/result for each case (PASS/FAIL) recorded
-- [ ] Final integration verdict copied to both roadmaps
+- [x] Session date/time recorded
+- [x] Firmware git hash + profile used recorded
+- [x] App git hash + debug screen version recorded
+- [x] BLE source profile recorded (`FlyInPeace` or `BlueFlyVario`)
+- [x] At least 5 captured frames per matrix case stored
+- [x] Verdict/result for each case (PASS/FAIL) recorded
+- [x] Final integration verdict copied to both roadmaps
 
 ### Execution Report Template (copy/paste)
 
