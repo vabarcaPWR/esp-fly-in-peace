@@ -58,19 +58,28 @@
   - [ ] Task 7.3: BMP390 compensation math
   - [ ] Task 7.4: Ceedling unit tests for compensation
   - [ ] Task 7.5: Integration test on hardware
-- [ ] **Phase 8: Kalman Filter**
-  - [ ] Task 8.1: 2-state Kalman filter implementation
-  - [ ] Task 8.2: Altitude calculation from pressure
-  - [ ] Task 8.3: Altitude calibration (inverse barometric formula)
-  - [ ] Task 8.4: Vario (vertical speed) derivation
-  - [ ] Task 8.5: Ceedling unit tests with synthetic data
+- [ ] **Phase 7.5: IMU HAL (MPU6050)**
+  - [ ] Task 7.5.1: Kconfig IMU selection and I2C configuration
+  - [ ] Task 7.5.2: imu_hal public API and compile-time dispatch
+  - [ ] Task 7.5.3: MPU6050 I2C driver (init, accel+gyro read, self-test)
+  - [ ] Task 7.5.4: Ceedling unit tests for MPU6050
+  - [ ] Task 7.5.5: Integration test on hardware
+- [ ] **Phase 8: Sensor Fusion (AHRS + EKF)**
+  - [ ] Task 8.1: AHRS — Madgwick quaternion filter
+  - [ ] Task 8.2: Body-to-NED rotation and vertical acceleration extraction
+  - [ ] Task 8.3: 3-state EKF implementation (altitude, vario, accel_bias)
+  - [ ] Task 8.4: Barometric altitude calculation
+  - [ ] Task 8.5: Altitude calibration (inverse barometric formula)
+  - [ ] Task 8.6: Ceedling unit tests for AHRS
+  - [ ] Task 8.7: Ceedling unit tests for EKF with synthetic data
 - [ ] **Phase 9: Data Pipeline**
   - [ ] Task 9.1: Shared flight data structure and mutex
-  - [ ] Task 9.2: Calibration queue (sensor_task consumer)
-  - [ ] Task 9.3: Sensor reader task (10 Hz)
-  - [ ] Task 9.4: BLE sender task (8 Hz)
-  - [ ] Task 9.5: Replace simulated provider with real sensor data
-  - [ ] Task 9.6: End-to-end data flow validation
+  - [ ] Task 9.2: Calibration queue (fusion_task consumer)
+  - [ ] Task 9.3: Barometer reader task (10 Hz)
+  - [ ] Task 9.4: Sensor fusion task (100 Hz — AHRS + EKF)
+  - [ ] Task 9.5: BLE sender task (8 Hz)
+  - [ ] Task 9.6: Replace simulated provider with real sensor data
+  - [ ] Task 9.7: End-to-end data flow validation
 - [ ] **Phase 10: NVS Configuration**
   - [ ] Task 10.1: Config schema definition and defaults
   - [ ] Task 10.2: NVS read/write with validation
@@ -1343,12 +1352,18 @@ bluetoothctl --timeout 10 scan on || true
 
 ---
 
-## Phase 8: Kalman Filter
+## Phase 7.5: IMU HAL (MPU6050)
 
-**Objective**: Implement a 2-state Kalman filter (altitude + vario) to smooth pressure readings and derive altitude and vertical speed.  
-**Estimated Duration**: 2–3 days  
-**Dependencies**: Phase 6 or Phase 7 (compensated pressure data for validation)  
- 
+**Objective**: Create an IMU hardware abstraction layer with compile-time driver selection (same pattern as `sensor_hal`) and implement the MPU6050 driver for 3-axis accelerometer + 3-axis gyroscope. The MPU6050 shares the I2C bus with the barometric sensor (I2C_NUM_0, address 0x68).  
+**Estimated Duration**: 3–4 days  
+**Dependencies**: Phase 5 (sensor_hal + I2C bus initialization)  
+
+**Design Rationale**:
+The MPU6050 provides high-rate (100 Hz) accelerometer and gyroscope data for:
+1. **Earlier vario response**: Detects vertical acceleration ~200 ms before the barometer registers a pressure change (thermal entry/exit).
+2. **Tilt compensation**: When the wing is banked in a turn, the accelerometer Z-axis no longer points vertical. The gyroscope enables orientation tracking (AHRS) to extract the true vertical component.
+3. **Total Energy compensation** (future): Distinguishes real atmospheric lift/sink from kinetic↔potential energy trades during speed changes.
+
 **Refactorización (obligatoria)**:
 - Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
 - Reducir duplicación y complejidad accidental sin cambiar comportamiento funcional.
@@ -1356,50 +1371,305 @@ bluetoothctl --timeout 10 scan on || true
 - Convención de nombres por rol obligatoria: `*_conductor.c`, `*_model.c`, `*_hardware.c` (si aplica al módulo).
 - Repetir la validación de la fase después de cada refactorización.
 
-**Architecture Reference**: `firmware-architecture.md` §4.4 `kalman_filter`
+---
+
+### Task 7.5.1: Kconfig IMU selection and I2C configuration
+
+**Description**: Create the Kconfig menu for compile-time IMU driver selection, following the same pattern as `sensor_hal`.
+
+**Acceptance Criteria**:
+- [ ] Component `imu_hal` created in `micro/components/imu_hal/`
+- [ ] `imu_hal/Kconfig` with `choice IMU_DRIVER` block
+- [ ] Options: `CONFIG_IMU_MPU6050` (default), `CONFIG_IMU_NONE` (no IMU — baro-only fallback)
+- [ ] I2C address configurable via Kconfig (default: `0x68` — AD0 low on MPU6050)
+- [ ] Sample rate configurable (default: 100 Hz)
+- [ ] Accel full-scale range configurable (default: ±4g)
+- [ ] Gyro full-scale range configurable (default: ±500 °/s)
+- [ ] Selection visible in `idf.py menuconfig` under "Component config → IMU driver"
+
+**Validation**:
+- `idf.py menuconfig` shows the IMU selection menu
+- `sdkconfig` contains `CONFIG_IMU_MPU6050=y` by default
+
+**Files to create**:
+- `micro/components/imu_hal/Kconfig`
+- `micro/components/imu_hal/CMakeLists.txt`
+
+**Notes**:
+- MPU6050 I2C address: `0x68` (AD0=GND) or `0x69` (AD0=VCC). Default: `0x68`.
+- The IMU shares I2C_NUM_0 with the barometric sensor. The bus is already initialized in `sensor_hal_init()` — the IMU driver uses `sensor_hal_get_i2c_bus_handle()` to add its device handle.
 
 ---
 
-### Task 8.1: 2-state Kalman filter implementation
+### Task 7.5.2: imu_hal public API and compile-time dispatch
 
-**Description**: Implement the 2-state Kalman filter per architecture contract §4.4.
+**Description**: Implement the `imu_hal` public API with compile-time dispatch, following the same pattern as `sensor_hal`.
 
 **Acceptance Criteria**:
-- [ ] Component `kalman_filter` created in `micro/components/kalman_filter/`
-- [ ] `kalman_cfg_t` struct: `q_altitude` (default 0.01), `q_vario` (default 0.01), `r_measurement` (default 0.5), `reference_pressure_pa` (default 101325.0)
-- [ ] `kalman_state_t` struct: `altitude_m`, `vario_ms`, `p[2][2]` covariance, `last_timestamp_us`, `initialized` flag
-- [ ] `kalman_filter_init(state, cfg)` — sets initial state, covariance = identity
-- [ ] `kalman_filter_update(state, cfg, pressure_pa, timestamp_us)` — predict + correct step, uses `cfg->reference_pressure_pa` as P0
-- [ ] First call sets altitude from pressure, marks `initialized = true` (no predict step)
-- [ ] `kalman_filter_reset(state)` — clears state
-- [ ] `kalman_filter_calibrate(cfg, state, known_altitude_m, current_pressure_pa)` — computes new P0 via inverse barometric formula, stores in `cfg->reference_pressure_pa`, resets filter state
-- [ ] `calibrate()` validates: altitude ∈ [-500, 10000] m, pressure ∈ [20000, 120000] Pa
+- [ ] `imu_data_t` struct: `accel_x`, `accel_y`, `accel_z` (float, m/s²), `gyro_x`, `gyro_y`, `gyro_z` (float, rad/s), `timestamp_us` (int64)
+- [ ] Public API:
+  - `esp_err_t imu_hal_init(void)` — configures IMU, reads WHO_AM_I
+  - `esp_err_t imu_hal_read(imu_data_t *out)` — reads accel + gyro (non-blocking, ~0.6 ms at 400 kHz I2C)
+  - `esp_err_t imu_hal_deinit(void)` — releases I2C device, puts sensor in sleep
+  - `const char *imu_hal_get_name(void)` — returns `"MPU6050"` or `"NONE"`
+- [ ] `imu_hal.c` uses `#if defined(CONFIG_IMU_MPU6050)` dispatch
+- [ ] `CONFIG_IMU_NONE` compiles stub that returns `ESP_ERR_NOT_SUPPORTED` — allows baro-only operation without code changes
+- [ ] Uses `sensor_hal_get_i2c_bus_handle()` to share the I2C bus with the barometric sensor
+- [ ] **NO function pointers** — compile-time dispatch only
+
+**Validation**:
+- Build succeeds with `CONFIG_IMU_MPU6050=y`
+- Build succeeds with `CONFIG_IMU_NONE=y` (baro-only fallback)
+
+**Files to create**:
+- `micro/components/imu_hal/include/imu_hal.h`
+- `micro/components/imu_hal/src/imu_hal.c`
+
+---
+
+### Task 7.5.3: MPU6050 I2C driver (init, accel+gyro read, self-test)
+
+**Description**: Implement the MPU6050 I2C driver: initialization, accelerometer + gyroscope read, and basic self-test.
+
+**Acceptance Criteria**:
+- [ ] Component `imu_mpu6050` created in `micro/components/imu_mpu6050/`
+- [ ] `imu_mpu6050_cfg_t` struct: `i2c_addr`, `accel_fs` (full-scale), `gyro_fs`, `sample_rate_hz`, `dlpf_cfg` (digital low-pass filter)
+- [ ] `imu_mpu6050_t` struct: `cfg`, `accel_scale`, `gyro_scale`, I2C device handle
+- [ ] `esp_err_t imu_mpu6050_init(imu_mpu6050_t *self, const imu_mpu6050_cfg_t *cfg, i2c_master_bus_handle_t bus)`:
+  - Validates WHO_AM_I register (expected: `0x68` for MPU6050, `0x71` for MPU6500)
+  - Wakes sensor (PWR_MGMT_1: disable sleep, select PLL clock source)
+  - Configures sample rate divider, DLPF, accel/gyro full-scale ranges
+  - Computes scaling factors: accel (LSB → m/s²), gyro (LSB → rad/s)
+- [ ] `esp_err_t imu_mpu6050_read(imu_mpu6050_t *self, imu_data_t *out)`:
+  - Burst read of 14 bytes (accel XYZ + temp + gyro XYZ) starting at register `0x3B`
+  - Converts raw 16-bit values to physical units using scaling factors
+  - Populates `out->timestamp_us` with `esp_timer_get_time()`
+- [ ] `esp_err_t imu_mpu6050_deinit(imu_mpu6050_t *self)` — puts sensor in sleep mode, releases I2C device
+- [ ] Handles I2C errors (retry once, then return error)
+- [ ] Uses ESP-IDF I2C driver directly via bus handle from `sensor_hal_get_i2c_bus_handle()`
+
+**Validation**:
+- Flash to hardware with MPU6050 connected, verify WHO_AM_I and accel/gyro readings in log output
+
+**Files to create**:
+- `micro/components/imu_mpu6050/CMakeLists.txt`
+- `micro/components/imu_mpu6050/include/imu_mpu6050.h`
+- `micro/components/imu_mpu6050/src/imu_mpu6050.c`
+
+**Notes**:
+- MPU6050 registers: WHO_AM_I (`0x75`), PWR_MGMT_1 (`0x6B`), SMPLRT_DIV (`0x19`), CONFIG (`0x1A`), GYRO_CONFIG (`0x1B`), ACCEL_CONFIG (`0x1C`), ACCEL_XOUT_H (`0x3B`).
+- Burst read of 14 bytes starting at `0x3B`: accel (6) + temp (2) + gyro (6).
+- Full-scale ranges: accel ±2g/±4g/±8g/±16g, gyro ±250/±500/±1000/±2000 °/s.
+- Default DLPF: bandwidth 42 Hz (CONFIG register = 3, suitable for 100 Hz sample rate).
+- Wiring: same I2C bus as barometer. MPU6050 VCC=3.3V, GND, SDA=GPIO6, SCL=GPIO7, AD0=GND (addr 0x68).
+
+---
+
+### Task 7.5.4: Ceedling unit tests for MPU6050
+
+**Description**: Write unit tests for the MPU6050 scaling and data conversion logic.
+
+**Acceptance Criteria**:
+- [ ] Test file `micro/test/test_imu_mpu6050.c` exists
+- [ ] Test: accel raw `[0, 0, -8192]` at ±4g → `[0, 0, -9.81]` m/s² (gravity)
+- [ ] Test: gyro raw conversion at ±500 °/s → correct rad/s values
+- [ ] Test: init with NULL parameters returns `ESP_ERR_INVALID_ARG`
+- [ ] Test: scaling factors correct for all full-scale ranges (±2g, ±4g, ±8g, ±16g)
+- [ ] All tests pass in `ceedling test:all`
+
+**Validation**:
+- Run `./scripts/micro/test.sh` — all tests green
+
+**Files to create**:
+- `micro/test/test_imu_mpu6050.c`
+
+**Notes**: Mock I2C layer with CMock. The scaling math should be testable by providing known raw values.
+
+---
+
+### Task 7.5.5: Integration test on hardware
+
+**Description**: Run the MPU6050 driver on actual hardware through `imu_hal` and verify readings.
+
+**Acceptance Criteria**:
+- [ ] WHO_AM_I register returns expected value (`0x68` for MPU6050)
+- [ ] Accel readings at rest: ~`[0, 0, -9.81]` m/s² (±0.5 m/s² tolerance for MPU6050)
+- [ ] Gyro readings at rest: ~`[0, 0, 0]` rad/s (±0.05 rad/s tolerance)
+- [ ] 100 Hz read rate achieved without I2C errors or bus conflicts with barometric sensor
+- [ ] `imu_hal_get_name()` returns `"MPU6050"`
+- [ ] I2C bus shared successfully with barometric sensor (both sensors readable in same loop)
+
+**Validation**:
+- Flash firmware, observe IMU readings via `imu_hal_read()` in serial monitor
+- Simultaneously read barometric sensor to confirm no I2C bus conflicts
+- Tilt the board: accel X/Y change, verify readings are coherent
+
+**Files to modify**:
+- `micro/main/main.c` (temporary test loop: init both `sensor_hal` + `imu_hal`, read both)
+
+---
+
+## Phase 8: Sensor Fusion (AHRS + EKF)
+
+**Objective**: Implement a two-stage sensor fusion pipeline inspired by ArduPilot's vertical navigation architecture. Stage 1: an AHRS (Attitude and Heading Reference System) based on Madgwick's quaternion filter fuses MPU6050 accelerometer and gyroscope data to estimate orientation. Stage 2: a 3-state Extended Kalman Filter (EKF) fuses AHRS-corrected vertical acceleration with barometric altitude to predict altitude and vertical speed (vario) with faster response and tilt compensation.  
+**Estimated Duration**: 5–7 days  
+**Dependencies**: Phase 6 or 7 (barometric pressure data), Phase 7.5 (IMU HAL)  
+
+**Design Rationale (ArduPilot reference)**:
+ArduPilot's `NavEKF3` uses a 24-state EKF for full 3D navigation. For a variometer, we extract the vertical-only subset:
+- **Prediction** (at IMU rate, 100 Hz): uses vertical acceleration from the AHRS-corrected IMU body→NED rotation. This enables the vario to respond to thermals ~200 ms before the barometer detects the pressure change.
+- **Measurement update** (at baro rate, 10 Hz): corrects drift using barometric altitude. Scalar sequential fusion (ArduPilot `FuseVelPosNED` pattern with `obsIndex=5`).
+- **Accel bias estimation** (as EKF state): critical for MEMS IMUs like MPU6050. The Z-axis accelerometer bias is observable from barometric altitude measurements (ArduPilot `correctDeltaVelocity` pattern).
+- **Tilt correction**: the AHRS quaternion provides the rotation matrix to extract only the true vertical component of acceleration, canceling the effect of banking in turns. Without this, a banked turn would produce a false sink indication.
+
+Reference: *Widnall & Sinha, "Optimizing the Gains of the Baro-Inertial Vertical Channel", AIAA J. Guidance & Control, 78-1307R.*
+
+**Architecture**:
+- Component `ahrs`: pure math, no ESP-IDF dependencies, fully host-testable via Ceedling.
+- Component `ekf`: pure math, no ESP-IDF dependencies, fully host-testable via Ceedling.
+- Both compatible with any barometric sensor (MS5611, BMP390) via `sensor_hal` abstraction and any IMU via `imu_hal` abstraction.
+
+**State model**:
+
+$$\mathbf{x} = \begin{bmatrix} h \\ \dot{h} \\ b_a \end{bmatrix}, \quad
+\mathbf{F} = \begin{bmatrix} 1 & dt & -\tfrac{1}{2}dt^2 \\ 0 & 1 & -dt \\ 0 & 0 & 1 \end{bmatrix}, \quad
+\mathbf{H} = \begin{bmatrix} 1 & 0 & 0 \end{bmatrix}$$
+
+Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis accelerometer bias.
+
+**Refactorización (obligatoria)**:
+- Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
+- Reducir duplicación y complejidad accidental sin cambiar comportamiento funcional.
+- Mantener nombres y límites de módulo claros para código autoexplicativo.
+- Convención de nombres por rol obligatoria: `*_conductor.c`, `*_model.c`, `*_hardware.c` (si aplica al módulo).
+- Repetir la validación de la fase después de cada refactorización.
+
+---
+
+### Task 8.1: AHRS — Madgwick quaternion filter
+
+**Description**: Implement a Madgwick AHRS filter to estimate orientation (quaternion) from MPU6050 accelerometer and gyroscope data. This provides the body-to-NED rotation matrix needed for tilt-compensated vertical acceleration.
+
+**Acceptance Criteria**:
+- [ ] Component `ahrs` created in `micro/components/ahrs/`
+- [ ] `ahrs_cfg_t` struct: `beta` (default 0.1 — filter gain, trades convergence speed vs noise), `sample_rate_hz` (default 100)
+- [ ] `ahrs_state_t` struct: quaternion `q[4]` (w, x, y, z), rotation matrix `r[3][3]` (body→NED), `initialized` flag
+- [ ] `esp_err_t ahrs_init(ahrs_state_t *state, const ahrs_cfg_t *cfg)` — initializes quaternion to identity `[1,0,0,0]`
+- [ ] `esp_err_t ahrs_update(ahrs_state_t *state, const ahrs_cfg_t *cfg, const imu_data_t *imu)` — one Madgwick filter iteration using accel + gyro
+- [ ] `esp_err_t ahrs_reset(ahrs_state_t *state)` — resets quaternion to identity
+- [ ] Quaternion is normalized after each update to prevent drift
+- [ ] Rotation matrix `r[3][3]` updated from quaternion after each iteration
+- [ ] Pure C, no ESP-IDF dependencies (fully host-testable)
+- [ ] All math uses `float` (not `double`)
+
+**Validation**:
+- Unit tests show convergence to correct orientation with synthetic gyro + accel data
+
+**Files to create**:
+- `micro/components/ahrs/CMakeLists.txt`
+- `micro/components/ahrs/include/ahrs.h`
+- `micro/components/ahrs/src/ahrs.c`
+
+**Notes**:
+- Madgwick filter selected over Mahony for better accuracy with low-cost MEMS sensors.
+- Reference: S. Madgwick, "An efficient orientation filter for inertial and inertial/magnetic sensor arrays", 2010.
+- Beta parameter: lower β = smoother/slower convergence, higher β = noisier/faster convergence. Default 0.1 is a good starting point for MPU6050.
+- No magnetometer fusion (IMU-only 6DOF) — heading is not needed for vertical navigation.
+
+---
+
+### Task 8.2: Body-to-NED rotation and vertical acceleration extraction
+
+**Description**: Implement the function that rotates body-frame accelerometer readings to NED (North-East-Down) frame using the AHRS quaternion, then extracts the vertical (Down) component with gravity removed.
+
+**Acceptance Criteria**:
+- [ ] `esp_err_t ahrs_get_vertical_accel(const ahrs_state_t *state, const imu_data_t *imu, float *vertical_accel_ms2)` implemented
+- [ ] Uses rotation matrix row 3 (Down axis) to project body-frame accel to vertical: $a_z^{NED} = R_{20} \cdot a_x + R_{21} \cdot a_y + R_{22} \cdot a_z$
+- [ ] Gravity compensation: $a_{vertical} = a_z^{NED} + g$ (NED convention: Down is positive, gravity adds +9.81 to cancel the accelerometer's -9.81 reading at rest)
+- [ ] Sign convention: positive = upward acceleration (climbing), negative = downward (sinking)
+- [ ] Output is in m/s² with gravity removed — at rest, output ≈ 0 m/s²
+- [ ] Handles edge case: AHRS not initialized → returns `ESP_ERR_INVALID_STATE`
+- [ ] Pure C, no ESP-IDF dependencies
+
+**Validation**:
+- At rest (accel = `[0, 0, -9.81]` body, no rotation): output ≈ 0 m/s²
+- At rest with 30° roll: body accel has XZ components, but output still ≈ 0 m/s² (tilt compensation works)
+- Upward acceleration (e.g., thermal entry): output > 0 m/s²
+
+**Files to modify**:
+- `micro/components/ahrs/include/ahrs.h`
+- `micro/components/ahrs/src/ahrs.c`
+
+**Notes**:
+- ArduPilot applies the rotation as `prevTnb.mul_transpose(delVelCorrected)` in `UpdateStrapdownEquationsNED()`, then adds `GRAVITY_MSS * dt` to the Down component.
+- For a variometer, the sign convention matters critically: positive vario = ascending = upward acceleration.
+
+---
+
+### Task 8.3: 3-state EKF implementation (altitude, vario, accel_bias)
+
+**Description**: Implement a 3-state Extended Kalman Filter for vertical navigation per ArduPilot's vertical channel approach. The EKF uses AHRS-corrected vertical acceleration for prediction and barometric altitude for measurement updates.
+
+**Acceptance Criteria**:
+- [ ] Component `ekf` created in `micro/components/ekf/`
+- [ ] `ekf_cfg_t` struct:
+  - `q_altitude` (process noise for altitude, default: 0.1)
+  - `q_vario` (process noise for vario, default: 0.5)
+  - `q_accel_bias` (process noise for accel bias, default: 0.001)
+  - `r_altitude` (baro measurement noise, default: 0.5 m²)
+  - `reference_pressure_pa` (QNH reference, default: 101325.0)
+- [ ] `ekf_state_t` struct:
+  - `altitude_m` (estimated altitude in meters)
+  - `vario_ms` (estimated vertical speed in m/s)
+  - `accel_bias_ms2` (estimated Z-axis accelerometer bias in m/s²)
+  - `p[3][3]` (error covariance matrix, 3×3)
+  - `last_predict_us` (timestamp of last prediction)
+  - `last_baro_us` (timestamp of last barometric update)
+  - `initialized` (first sample flag)
+- [ ] `esp_err_t ekf_init(ekf_state_t *state, const ekf_cfg_t *cfg)` — initializes state, covariance = scaled identity
+- [ ] `esp_err_t ekf_predict(ekf_state_t *state, const ekf_cfg_t *cfg, float vertical_accel_ms2, int64_t timestamp_us)` — prediction step using AHRS-corrected vertical acceleration (called at 100 Hz):
+  - Removes estimated bias: `a_corrected = vertical_accel - accel_bias`
+  - State prediction: `altitude += vario * dt + 0.5 * a_corrected * dt²`, `vario += a_corrected * dt`, `bias unchanged`
+  - Covariance prediction: `P = F * P * F' + Q`
+- [ ] `esp_err_t ekf_update_baro(ekf_state_t *state, const ekf_cfg_t *cfg, float pressure_pa, int64_t timestamp_us)` — barometric measurement update (called at 10 Hz):
+  - Converts pressure to altitude using barometric formula with `reference_pressure_pa`
+  - Innovation: `y = baro_altitude - predicted_altitude`
+  - Innovation gating: reject update if innovation exceeds 5σ (ArduPilot `HGT_I_GATE` pattern)
+  - Scalar Kalman gain: `K = P * H' / (H * P * H' + R)` with `H = [1, 0, 0]`
+  - State correction: `x += K * y`
+  - Covariance correction: `P = (I - K * H) * P`
+- [ ] `esp_err_t ekf_reset(ekf_state_t *state)` — clears state
+- [ ] `esp_err_t ekf_calibrate(ekf_cfg_t *cfg, ekf_state_t *state, float known_altitude_m, float current_pressure_pa)` — computes new P0 via inverse barometric formula, resets filter
+  - Validates: altitude ∈ [-500, 10000] m, pressure ∈ [20000, 120000] Pa
+- [ ] First baro update initializes altitude from pressure, marks `initialized = true`
 - [ ] Pure C, no ESP-IDF dependencies (fully host-testable)
 - [ ] All math uses `float` (not `double`)
 
 **Validation**:
 - Unit tests show convergence and correct vario derivation
+- EKF predict at 100 Hz + baro update at 10 Hz → smooth altitude estimation
 
 **Files to create**:
-- `micro/components/kalman_filter/CMakeLists.txt`
-- `micro/components/kalman_filter/include/kalman_filter.h`
-- `micro/components/kalman_filter/src/kalman_filter.c`
+- `micro/components/ekf/CMakeLists.txt`
+- `micro/components/ekf/include/ekf.h`
+- `micro/components/ekf/src/ekf.c`
 
 **Notes**:
-- State vector: `x = [altitude, vario]`. Prediction uses constant-velocity model.
-- Measurement: altitude derived from pressure. Vario is estimated by the filter.
-- Constant-velocity model: altitude_predicted = altitude + vario × dt
+- The 3×3 state system avoids general matrix inversion: the baro measurement update uses scalar innovation (`H = [1, 0, 0]`), so the Kalman gain reduces to the first column of P divided by `(P[0][0] + R)`.
+- ArduPilot reference: `FuseVelPosNED()` with `obsIndex=5` (height), scalar sequential fusion.
+- Accel bias state enables the filter to track MPU6050 bias drift (~±80 mg typical).
+- Innovation gating prevents bad baro readings from corrupting the state.
 
 ---
 
-### Task 8.2: Altitude calculation from pressure
+### Task 8.4: Barometric altitude calculation
 
-**Description**: Implement the barometric formula for converting pressure to altitude.
+**Description**: Implement the barometric formula for converting pressure to altitude (shared utility used by the EKF).
 
 **Acceptance Criteria**:
 - [ ] Internal function converts `pressure_pa` to altitude in meters
 - [ ] Uses ISA barometric formula: $h = 44330 \times (1 - (P/P_0)^{0.1903})$
-- [ ] Reference pressure $P_0$ taken from `kalman_cfg_t.reference_pressure_pa` (default: 101325 Pa)
+- [ ] Reference pressure $P_0$ taken from `ekf_cfg_t.reference_pressure_pa` (default: 101325 Pa)
 - [ ] Input: `float pressure_pa`, output: `float altitude_m`
 - [ ] Pure function, no side effects
 
@@ -1408,15 +1678,15 @@ bluetoothctl --timeout 10 scan on || true
 
 ---
 
-### Task 8.3: Altitude calibration (inverse barometric formula)
+### Task 8.5: Altitude calibration (inverse barometric formula)
 
-**Description**: Implement `kalman_filter_calibrate()` to derive a new reference pressure (QNH) from a known altitude and current pressure, enabling barometric altimeter calibration.
+**Description**: Implement `ekf_calibrate()` to derive a new reference pressure (QNH) from a known altitude and current pressure, enabling barometric altimeter calibration.
 
 **Acceptance Criteria**:
-- [ ] `esp_err_t kalman_filter_calibrate(kalman_cfg_t *cfg, kalman_state_t *state, float known_altitude_m, float current_pressure_pa)` implemented
+- [ ] `esp_err_t ekf_calibrate(ekf_cfg_t *cfg, ekf_state_t *state, float known_altitude_m, float current_pressure_pa)` implemented
 - [ ] Computes P0 using inverse barometric formula: $P_0 = P / (1 - h/44330)^{5.255}$
 - [ ] Stores result in `cfg->reference_pressure_pa`
-- [ ] Resets filter state (`kalman_filter_reset`) so next update uses new P0 immediately
+- [ ] Resets filter state (`ekf_reset`) so next update uses new P0 immediately
 - [ ] Validates inputs: `known_altitude_m` ∈ [-500, 10000], `current_pressure_pa` ∈ [20000, 120000]
 - [ ] Returns `ESP_ERR_INVALID_ARG` for out-of-range values; P0 unchanged on error
 - [ ] Pure function, no ESP-IDF dependencies
@@ -1424,46 +1694,53 @@ bluetoothctl --timeout 10 scan on || true
 **Validation**:
 - Calibrate at sea level (0 m, 101325 Pa) → P0 = 101325
 - Calibrate at 500 m with 95461 Pa → P0 ≈ 101325
-- Calibrate at 1000 m with 89876 Pa → P0 ≈ 101325
-- After calibration, `kalman_filter_update()` produces altitude matching known value
+- After calibration, `ekf_update_baro()` produces altitude matching known value
 
 **Files to modify**:
-- `micro/components/kalman_filter/include/kalman_filter.h`
-- `micro/components/kalman_filter/src/kalman_filter.c`
+- `micro/components/ekf/include/ekf.h`
+- `micro/components/ekf/src/ekf.c`
 
 ---
 
-### Task 8.4: Vario (vertical speed) derivation
+### Task 8.6: Ceedling unit tests for AHRS
 
-**Description**: The Kalman filter directly estimates vario as its second state variable. Verify it produces correct vertical speed values.
+**Description**: Write comprehensive unit tests for the Madgwick AHRS filter.
 
 **Acceptance Criteria**:
-- [ ] Vario output in m/s (`float`) from `kalman_state_t.vario_ms`
-- [ ] Constant pressure input → vario converges to 0 m/s
-- [ ] Linearly decreasing pressure → positive vario (ascending)
-- [ ] Linearly increasing pressure → negative vario (descending)
-- [ ] Vario converted to cm/s (`int32_t`) when passed to `lk8ex1_data_t.vario_cms`
+- [ ] Test file `micro/test/test_ahrs.c` exists
+- [ ] Test: init sets quaternion to identity `[1, 0, 0, 0]`
+- [ ] Test: stationary IMU (accel = `[0, 0, -9.81]`, gyro = `[0, 0, 0]`) → quaternion stays near identity
+- [ ] Test: vertical acceleration extraction at rest → ≈ 0 m/s²
+- [ ] Test: vertical acceleration extraction with 30° roll → still ≈ 0 m/s² (tilt compensation works)
+- [ ] Test: known rotation sequence converges to expected orientation
+- [ ] Test: init with NULL state returns `ESP_ERR_INVALID_ARG`
+- [ ] Test: reset clears state properly
+- [ ] All tests pass in `ceedling test:all`
 
 **Validation**:
-- Synthetic test data with known altitude trajectories
+- Run `./scripts/micro/test.sh` — all tests green
+
+**Files to create**:
+- `micro/test/test_ahrs.c`
 
 ---
 
-### Task 8.5: Ceedling unit tests with synthetic data
+### Task 8.7: Ceedling unit tests for EKF with synthetic data
 
-**Description**: Write comprehensive unit tests for the Kalman filter.
+**Description**: Write comprehensive unit tests for the 3-state EKF.
 
 **Acceptance Criteria**:
-- [ ] Test file `micro/test/test_kalman_filter.c` exists
-- [ ] Test: filter converges to true value with noisy sinusoidal input
-- [ ] Test: constant input → altitude stable, vario ≈ 0
+- [ ] Test file `micro/test/test_ekf.c` exists
+- [ ] Test: constant pressure + zero vertical accel → altitude stable, vario ≈ 0
 - [ ] Test: altitude formula produces correct results for known pressures
-- [ ] Test: ascending pressure sequence → positive vario
-- [ ] Test: descending pressure sequence → negative vario
-- [ ] Test: `kalman_filter_reset()` clears state properly
-- [ ] Test: `kalman_filter_calibrate()` with known altitude derives correct P0
-- [ ] Test: `kalman_filter_calibrate()` rejects out-of-range altitude/pressure
-- [ ] Test: after calibration, `update()` produces altitude matching known value
+- [ ] Test: upward acceleration → positive vario, altitude increases
+- [ ] Test: downward acceleration → negative vario, altitude decreases
+- [ ] Test: EKF predict at 100 Hz + baro update at 10 Hz → converges to correct altitude
+- [ ] Test: accel bias estimation converges with constant bias injected
+- [ ] Test: innovation gating rejects spurious baro reading (5σ gate)
+- [ ] Test: `ekf_calibrate()` with known altitude derives correct P0
+- [ ] Test: `ekf_calibrate()` rejects out-of-range altitude/pressure
+- [ ] Test: `ekf_reset()` clears state properly
 - [ ] Test: init with NULL state returns `ESP_ERR_INVALID_ARG`
 - [ ] All tests pass in `ceedling test:all`
 
@@ -1471,15 +1748,15 @@ bluetoothctl --timeout 10 scan on || true
 - Run `./scripts/micro/test.sh` — all tests green
 
 **Files to create**:
-- `micro/test/test_kalman_filter.c`
+- `micro/test/test_ekf.c`
 
 ---
 
 ## Phase 9: Data Pipeline
 
-**Objective**: Wire up the FreeRTOS task model defined in the architecture: sensor_task reads the sensor at 10 Hz, runs the Kalman filter, and publishes to the shared flight data structure. ble_sender_task reads at 8 Hz, formats LK8EX1, and sends over BLE.  
-**Estimated Duration**: 3–4 days  
-**Dependencies**: Phases 3 (BLE), 6 or 7 (sensor), 8 (Kalman), 2 (LK8EX1)  
+**Objective**: Wire up the FreeRTOS task model for dual-rate sensor fusion: `baro_task` reads the barometric sensor at 10 Hz, `fusion_task` reads the IMU at 100 Hz, runs the AHRS and EKF, and publishes to the shared flight data structure. `ble_sender_task` reads at 8 Hz, formats LK8EX1, and sends over BLE. When `CONFIG_IMU_NONE=y`, `fusion_task` degrades gracefully to a baro-only EKF (no AHRS, 10 Hz predict+update combined).  
+**Estimated Duration**: 4–5 days  
+**Dependencies**: Phases 3 (BLE), 6 or 7 (baro sensor), 7.5 (IMU HAL), 8 (AHRS + EKF), 2 (LK8EX1)  
  
 **Refactorización (obligatoria)**:
 - Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
@@ -1494,15 +1771,15 @@ bluetoothctl --timeout 10 scan on || true
 
 ### Task 9.1: Shared flight data structure and mutex
 
-**Description**: Implement the `shared_flight_data_t` struct and access primitives per architecture §6.1.
+**Description**: Implement the `shared_flight_data_t` struct and access primitives.
 
 **Acceptance Criteria**:
-- [ ] `shared_flight_data_t` struct per architecture §6.1: `altitude_m`, `vario_ms`, `pressure_pa`, `temperature_mc`, `reference_pressure_pa`, `timestamp_us`, `sensor_valid`
+- [ ] `shared_flight_data_t` struct: `altitude_m`, `vario_ms`, `pressure_pa`, `temperature_mc`, `reference_pressure_pa`, `vertical_accel_ms2`, `timestamp_us`, `sensor_valid`, `imu_valid`
 - [ ] Mutex created with `xSemaphoreCreateMutex()`
-- [ ] Writer API (sensor_task): `xSemaphoreTake` → write all fields → `xSemaphoreGive`
+- [ ] Writer API (fusion_task): `xSemaphoreTake` → write all fields → `xSemaphoreGive`
 - [ ] Reader API (ble_sender): `xSemaphoreTake` → copy struct → `xSemaphoreGive`
 - [ ] Mutex timeout: `pdMS_TO_TICKS(10)` to avoid deadlocks
-- [ ] Defined in a shared header accessible to both tasks
+- [ ] Defined in a shared header accessible to all pipeline tasks
 
 **Validation**:
 - Build succeeds, mutex created in `app_main()`
@@ -1513,65 +1790,102 @@ bluetoothctl --timeout 10 scan on || true
 
 ---
 
-### Task 9.2: Calibration queue (sensor_task consumer)
+### Task 9.2: Calibration queue (fusion_task consumer)
 
-**Description**: Implement the `calibration_queue` per architecture §6.3 — a depth-1 queue that routes altitude calibration requests from `config_task` to `sensor_task`.
+**Description**: Implement the `calibration_queue` — a depth-1 queue that routes altitude calibration requests from `config_task` to `fusion_task`.
 
 **Acceptance Criteria**:
 - [ ] `calibration_request_t` struct: `known_altitude_m` (`float`)
 - [ ] Queue: `xQueueCreate(1, sizeof(calibration_request_t))` — depth 1, overwrite mode
 - [ ] Producer: `config_task` (on `CONFIG_REQUEST_CALIBRATE`)
-- [ ] Consumer: `sensor_task` (non-blocking poll with `xQueueReceive(..., 0)` at start of each cycle)
-- [ ] On receive: `sensor_task` calls `kalman_filter_calibrate()` with known altitude + last pressure reading
+- [ ] Consumer: `fusion_task` (non-blocking poll with `xQueueReceive(..., 0)` at start of each cycle)
+- [ ] On receive: `fusion_task` calls `ekf_calibrate()` with known altitude + last pressure reading
 - [ ] After calibration: `config_manager_save()` persists new `reference_pressure_pa`
 - [ ] Queue created in `app_main()` alongside other queues
 
 **Validation**:
-- Send calibration request via BLE → sensor_task processes → altitude now matches known value
+- Send calibration request via BLE → fusion_task processes → altitude now matches known value
 - New P0 persists across reboot
 
 **Files to create/modify**:
 - `micro/main/flight_data.h` (add `calibration_request_t` and queue extern)
-- `micro/main/sensor_task.c` (non-blocking poll at start of loop)
+- `micro/main/fusion_task.c` (non-blocking poll at start of loop)
 - `micro/main/config_task.c` (post to calibration_queue)
 - `micro/main/main.c` (queue creation)
 
 ---
 
-### Task 9.3: Sensor reader task (10 Hz)
+### Task 9.3: Barometer reader task (10 Hz)
 
-**Description**: Implement `sensor_task_fn` per architecture §5.2, running at 10 Hz.
+**Description**: Implement `baro_task_fn` running at 10 Hz, dedicated to barometric sensor reads. The baro read blocks ~18 ms (MS5611 at OSR 4096), so it runs in its own task to avoid blocking the fusion task's 100 Hz loop.
 
 **Acceptance Criteria**:
-- [ ] `sensor_task` created with Priority 5, stack 4096 bytes (per architecture §5.1)
+- [ ] `baro_task` created with Priority 5, stack 4096 bytes
 - [ ] Loop every 100 ms:
-  1. Check `calibration_queue` for pending calibration (non-blocking poll)
-     → If received: `kalman_filter_calibrate()` + `config_manager_save()` to persist new P0
-  2. `sensor_hal_read(&sensor_data)` — blocks ~18 ms for sensor conversion
-  3. `kalman_filter_update(&state, &cfg, sensor_data.pressure_pa, sensor_data.timestamp_us)`
-  4. `xSemaphoreTake(mutex)` → copy Kalman state + sensor data to `shared_flight_data` → `xSemaphoreGive(mutex)`
-  5. `vTaskDelay(remaining time to hit 100 ms period)`
-- [ ] Handles sensor read errors: skip Kalman update, set `sensor_valid = false` after 3 consecutive failures
+  1. `sensor_hal_read(&sensor_data)` — blocks ~18 ms for sensor conversion
+  2. Write result to a shared `baro_latest_t` struct (atomic flag + data)
+  3. Set `baro_new_data_available` flag (read by `fusion_task`)
+  4. `vTaskDelay(remaining time to hit 100 ms period)`
+- [ ] Handles sensor read errors: set `sensor_valid = false` after 3 consecutive failures
 - [ ] Registered with Task Watchdog Timer (TWDT), fed at end of each cycle
-- [ ] TWDT timeout: 5 seconds (per architecture §10.3)
+- [ ] TWDT timeout: 5 seconds
 
 **Validation**:
-- Log output shows sensor reads at 10 Hz
-- Kalman altitude/vario values update continuously
+- Log output shows baro reads at 10 Hz without I2C bus conflicts
+- `baro_new_data_available` flag toggles at 10 Hz
 
 **Files to create/modify**:
-- `micro/main/sensor_task.c`
-- `micro/main/sensor_task.h`
+- `micro/main/baro_task.c`
+- `micro/main/baro_task.h`
 - `micro/main/main.c` (task creation)
 
 ---
 
-### Task 9.4: BLE sender task (8 Hz)
+### Task 9.4: Sensor fusion task (100 Hz — AHRS + EKF)
 
-**Description**: Implement `ble_sender_task_fn` per architecture §5.2, running at 8 Hz.
+**Description**: Implement `fusion_task_fn` running at 100 Hz. Reads IMU, updates AHRS, runs EKF predict at every iteration. Checks for new baro data and runs EKF measurement update when available (~every 10th iteration).
 
 **Acceptance Criteria**:
-- [ ] `ble_sender_task` created with Priority 3, stack 4096 bytes (per architecture §5.1)
+- [ ] `fusion_task` created with Priority 6 (highest application task), stack 4096 bytes
+- [ ] Loop every 10 ms:
+  1. Check `calibration_queue` for pending calibration (non-blocking poll)
+     → If received: `ekf_calibrate()` + `config_manager_save()` to persist new P0
+  2. `imu_hal_read(&imu_data)` — ~0.6 ms at 400 kHz I2C
+  3. `ahrs_update(&ahrs_state, &ahrs_cfg, &imu_data)` — ~0.05 ms
+  4. `ahrs_get_vertical_accel(&ahrs_state, &imu_data, &vert_accel)` — ~0.01 ms
+  5. `ekf_predict(&ekf_state, &ekf_cfg, vert_accel, imu_data.timestamp_us)` — ~0.02 ms
+  6. If `baro_new_data_available`:
+     - Clear flag, copy baro data
+     - `ekf_update_baro(&ekf_state, &ekf_cfg, baro_data.pressure_pa, baro_data.timestamp_us)` — ~0.05 ms
+  7. `xSemaphoreTake(mutex)` → copy EKF state + sensor data to `shared_flight_data` → `xSemaphoreGive(mutex)`
+  8. `vTaskDelay(remaining time to hit 10 ms period)`
+- [ ] Total cycle: ~0.7 ms (7% CPU at 100 Hz) — leaves ~9.3 ms for other tasks and light-sleep
+- [ ] When `CONFIG_IMU_NONE=y`: `fusion_task` runs at 10 Hz, reads baro directly, runs EKF predict+update combined (degrades to baro-only mode)
+- [ ] Handles IMU read errors: skip AHRS/EKF predict, set `imu_valid = false` after 3 consecutive failures
+- [ ] Registered with TWDT, fed at end of each cycle
+
+**Validation**:
+- Log output shows fusion running at 100 Hz, baro updates arriving at ~10 Hz
+- EKF altitude + vario values update continuously with smooth prediction between baro corrections
+
+**Files to create/modify**:
+- `micro/main/fusion_task.c`
+- `micro/main/fusion_task.h`
+- `micro/main/main.c` (task creation)
+
+**Notes**:
+- The fusion task is the highest-priority application task because IMU timing jitter directly affects AHRS accuracy.
+- ArduPilot uses the same pattern: EKF prediction at IMU rate (~83-400 Hz), baro fusion at baro rate (~14 Hz).
+- Task priority order: 6=fusion, 5=baro, 4=NimBLE, 3=ble_sender, 2=config, 1=led, 0=idle.
+
+---
+
+### Task 9.5: BLE sender task (8 Hz)
+
+**Description**: Implement `ble_sender_task_fn` running at 8 Hz.
+
+**Acceptance Criteria**:
+- [ ] `ble_sender_task` created with Priority 3, stack 4096 bytes
 - [ ] Loop every 125 ms:
   1. `xSemaphoreTake(mutex)` → copy `shared_flight_data` → `xSemaphoreGive(mutex)`
   2. Build `lk8ex1_data_t` from flight data (convert vario m/s → cm/s, temperature milli-°C → deci-°C)
@@ -1591,7 +1905,7 @@ bluetoothctl --timeout 10 scan on || true
 
 ---
 
-### Task 9.5: Replace simulated provider with real sensor data
+### Task 9.6: Replace simulated provider with real sensor data
 
 **Description**: Remove the temporary simulated LK8EX1 sender from Phase 3 and use the real pipeline.
 
@@ -1600,11 +1914,12 @@ bluetoothctl --timeout 10 scan on || true
 - [ ] `app_main()` orchestrates initialization in correct order:
   1. `led_indicator_init()` → `LED_STATE_BOOT`
   2. `sensor_hal_init()`
-  3. `kalman_filter_init()`
-  4. `ble_nus_init()`
-  5. Register BLE state callback → LED
-  6. Create `sensor_task`, `ble_sender_task`
-  7. `led_indicator_set_state(LED_STATE_BLE_DISCONNECTED)`
+  3. `imu_hal_init()` (when `CONFIG_IMU_MPU6050=y`)
+  4. `ahrs_init()` + `ekf_init()`
+  5. `ble_nus_init()`
+  6. Register BLE state callback → LED
+  7. Create `baro_task`, `fusion_task`, `ble_sender_task`
+  8. `led_indicator_set_state(LED_STATE_BLE_DISCONNECTED)`
 - [ ] All tasks running with correct priorities
 
 **Validation**:
@@ -1615,18 +1930,23 @@ bluetoothctl --timeout 10 scan on || true
 
 ---
 
-### Task 9.6: End-to-end data flow validation
+### Task 9.7: End-to-end data flow validation
 
-**Description**: Validate the complete pipeline from sensor to BLE, matching the timing budget in architecture §7.3.
+**Description**: Validate the complete dual-rate fusion pipeline from sensors to BLE.
 
 **Acceptance Criteria**:
-- [ ] Sensor reads at 10 Hz (±5% jitter)
+- [ ] IMU reads at 100 Hz (±5% jitter)
+- [ ] Baro reads at 10 Hz (±5% jitter)
 - [ ] BLE sends at 8 Hz (±5% jitter)
 - [ ] LK8EX1 sentences contain real pressure, altitude, vario, temperature
-- [ ] Total sensor cycle ≤ 20 ms (budget: 18.5 ms per architecture §7.3)
+- [ ] EKF altitude updates at 100 Hz (smooth), corrected by baro at 10 Hz
+- [ ] Vario responds to acceleration within ~100 ms (before baro detects pressure change)
+- [ ] Tilt the device: vario remains stable (tilt compensation verified)
+- [ ] Total fusion cycle ≤ 2 ms (budget: 0.7 ms per iteration + margin)
 - [ ] System runs stably for 30+ minutes without crashes, memory leaks, or watchdog resets
 - [ ] Stack high-water marks checked for all tasks (should be >25% remaining)
 - [ ] Free heap monitored (should not decrease over time)
+- [ ] Baro-only fallback (`CONFIG_IMU_NONE=y`) still works correctly
 
 **Validation**:
 - Monitor serial output for 30 minutes
@@ -1728,9 +2048,9 @@ bluetoothctl --timeout 10 scan on || true
 - [ ] `config_task` created with Priority 2, stack 2048 bytes
 - [ ] Blocks on `xQueueReceive(config_queue, &request, portMAX_DELAY)`
 - [ ] Handles request types per architecture §6.2: `CONFIG_REQUEST_READ`, `CONFIG_REQUEST_WRITE`, `CONFIG_REQUEST_RESET`, `CONFIG_REQUEST_CALIBRATE`
-- [ ] On `CONFIG_REQUEST_WRITE`: validate → save → apply changes to running system (e.g., update Kalman Q/R, BLE device name)
+- [ ] On `CONFIG_REQUEST_WRITE`: validate → save → apply changes to running system (e.g., update EKF Q/R, AHRS beta, BLE device name)
 - [ ] On `CONFIG_REQUEST_RESET`: reset defaults → restart system
-- [ ] On `CONFIG_REQUEST_CALIBRATE`: extract known altitude from payload → post to `calibration_queue` (consumed by `sensor_task`) → send ack
+- [ ] On `CONFIG_REQUEST_CALIBRATE`: extract known altitude from payload → post to `calibration_queue` (consumed by `fusion_task`) → send ack
 - [ ] Queue: `xQueueCreate(4, sizeof(config_request_t))`
 
 **Validation**:

@@ -1,7 +1,7 @@
 # Firmware Architecture — ESP Fly-in-Peace
 
-> Last updated: 2026-02-17  
-> Phase 1 — Software Architecture Design
+> Last updated: 2025-07-15  
+> Phase 1 — Software Architecture Design (updated for Phase 7.5/8 — IMU + AHRS + EKF)
 
 ---
 
@@ -30,19 +30,24 @@
 │    ESP32-C3 Device      │ ──────────────────────────────────────► │   XCTrack    │
 │                         │                                        │   (Android)  │
 │  ┌───────────────────┐  │        BLE Config Service (GATT)       └──────────────┘
-│  │  MS5611 (I2C)     │  │ ◄────────────────────────────────────► ┌──────────────┐
-│  │  Kalman Filter    │  │                                        │  Mobile App  │
-│  │  NimBLE Stack     │  │                                        │  (Flutter)   │
-│  │  FreeRTOS (4 tasks│) │                                        └──────────────┘
+│  │  MS5611/BMP390    │  │ ◄────────────────────────────────────► ┌──────────────┐
+│  │  MPU6050 (IMU)    │  │                                        │  Mobile App  │
+│  │  AHRS + EKF       │  │                                        │  (Flutter)   │
+│  │  NimBLE Stack     │  │                                        └──────────────┘
+│  │  FreeRTOS (6 tasks│) │
 │  │  NVS Config       │  │
 │  │  WS2812 RGB LED   │  │
 │  └───────────────────┘  │
 └─────────────────────────┘
 ```
 
-The firmware reads barometric pressure from an MS5611 sensor at 10 Hz, applies a 2-state
-Kalman filter to derive altitude and vertical speed (vario), formats the data as LK8EX1
-NMEA sentences, and transmits them at 8 Hz over BLE NUS notifications.
+The firmware reads barometric pressure from an MS5611 or BMP390 sensor at 10 Hz and inertial
+data from an MPU6050 IMU at 100 Hz. An AHRS (Madgwick quaternion filter) estimates
+orientation for tilt compensation. A 3-state Extended Kalman Filter (EKF) fuses
+AHRS-corrected vertical acceleration with barometric altitude to derive altitude and
+vertical speed (vario) with sub-100 ms response. The data is formatted as LK8EX1 NMEA
+sentences and transmitted at 8 Hz over BLE NUS notifications. When no IMU is present
+(`CONFIG_IMU_NONE`), the system degrades to baro-only EKF operation.
 
 Three external actors interact with the device:
 - **XCTrack** — receives LK8EX1 via BLE NUS TX (notify). Read-only.
@@ -70,18 +75,18 @@ Dependencies point strictly **downward**. No layer may reference a layer above i
 │       │               │                                          │
 ├───────┼───────────────┼──────────────────────────────────────────┤
 │       │          Processing Layer                                │
-│       │          ┌────┴──────┐                                   │
-│       │          │  kalman   │                                   │
-│       │          │  _filter  │                                   │
-│       │          └────┬──────┘                                   │
-│       │               │                                          │
-├───────┼───────────────┼──────────────────────────────────────────┤
-│       │           HAL Layer                                      │
-│       │          ┌────┴──────┐                                   │
-│       │          │ sensor_hal│                                   │
-│       │          │ sensor_   │                                   │
-│       │          │ ms5611    │                                   │
-│       │          └────┬──────┘                                   │
+│       │    ┌─────┴─────┐  ┌──────┐                               │
+│       │    │    ahrs    │  │ ekf  │                               │
+│       │    │ (Madgwick) │  │(3-st)│                               │
+│       │    └─────┬─────┘  └──┬───┘                               │
+│       │          │           │                                    │
+├───────┼──────────┼───────────┼────────────────────────────────────┤
+│       │          │     HAL Layer                                  │
+│       │    ┌─────┴─────┐  ┌──┴───────┐                           │
+│       │    │ sensor_hal │  │ imu_hal  │                           │
+│       │    │ sensor_    │  │ imu_     │                           │
+│       │    │ ms5611/390 │  │ mpu6050  │                           │
+│       │    └─────┬─────┘  └──┬───────┘                           │
 │       │               │                                          │
 ├───────┼───────────────┼──────────────────────────────────────────┤
 │   ESP-IDF Platform    │                                          │
@@ -93,7 +98,7 @@ Dependencies point strictly **downward**. No layer may reference a layer above i
 |-------|---------------|-------------|
 | **Application** | System startup, task orchestration, config management | Integration tests on target |
 | **Service** | BLE communication, protocol formatting, LED patterns | Partial (lk8ex1 host-testable) |
-| **Processing** | Kalman filter math | Fully host-testable (Ceedling) |
+| **Processing** | AHRS orientation estimation, EKF vertical navigation | Fully host-testable (Ceedling) |
 | **HAL** | Sensor abstraction, I2C communication | Mockable interface for host tests |
 | **ESP-IDF Platform** | Hardware drivers, RTOS kernel | Not tested directly |
 
@@ -138,7 +143,10 @@ micro/components/
 ├── sensor_hal/            # Sensor abstraction layer (compile-time dispatch via Kconfig)
 ├── sensor_ms5611/         # MS5611 I2C driver (selected via CONFIG_SENSOR_MS5611)
 ├── sensor_bmp390/         # BMP390 I2C driver (selected via CONFIG_SENSOR_BMP390)
-├── kalman_filter/         # 2-state Kalman filter (altitude + vario)
+├── imu_hal/               # IMU abstraction layer (compile-time dispatch via Kconfig)
+├── imu_mpu6050/           # MPU6050 I2C driver (selected via CONFIG_IMU_MPU6050)
+├── ahrs/                  # Madgwick quaternion AHRS (orientation estimation)
+├── ekf/                   # 3-state EKF (altitude, vario, accel_bias)
 ├── lk8ex1/                # LK8EX1 NMEA sentence formatter + checksum
 ├── ble_nus/               # NimBLE BLE stack: NUS + Config GATT services
 ├── led_indicator/         # WS2812 RGB LED state machine via RMT
@@ -151,7 +159,10 @@ micro/components/
 | `sensor_hal` | HAL | Selected driver (`sensor_ms5611` or `sensor_bmp390`) | — |
 | `sensor_ms5611` | HAL | `sensor_hal`, ESP-IDF I2C driver | — |
 | `sensor_bmp390` | HAL | `sensor_hal`, ESP-IDF I2C driver | — |
-| `kalman_filter` | Processing | (none — pure math) | — |
+| `imu_hal` | HAL | Selected driver (`imu_mpu6050`) or stub (`CONFIG_IMU_NONE`) | — |
+| `imu_mpu6050` | HAL | `imu_hal`, `sensor_hal` (shared I2C bus), ESP-IDF I2C driver | — |
+| `ahrs` | Processing | (none — pure math) | — |
+| `ekf` | Processing | (none — pure math) | — |
 | `lk8ex1` | Service | (none — pure formatting) | — |
 | `ble_nus` | Service | ESP-IDF NimBLE | Task (NimBLE host), queue |
 | `led_indicator` | Service | ESP-IDF RMT driver | Task, timer |
@@ -166,6 +177,10 @@ micro/components/
 | `sensor_hal` | Driver selection and read orchestration | Sensor-independent read contract | I2C bus lifecycle + selected driver binding |
 | `sensor_ms5611` | Read sequence orchestration and retries | Compensation math + calibration state | MS5611 register access via I2C |
 | `sensor_bmp390` | Read/config sequencing and retries | Compensation/filter state | BMP390 register access via I2C |
+| `imu_hal` | Driver selection and read orchestration | Sensor-independent read contract | I2C device lifecycle + selected driver binding |
+| `imu_mpu6050` | Read sequence orchestration and retries | Scaling/conversion state | MPU6050 register access via I2C |
+| `ahrs` | API guards and state lifecycle | Madgwick quaternion filter math | Not applicable |
+| `ekf` | API guards and state lifecycle | Predict/correct/calibration math | Not applicable |
 | `kalman_filter` | API guards and state lifecycle | Predict/correct/calibration math | Not applicable |
 | `lk8ex1` | Formatting/validation entry points | Sentence/checksum logic | Not applicable |
 | `led_indicator` | Pattern scheduler and state transitions | Pattern timing model | RMT/WS2812 output |
@@ -413,61 +428,156 @@ esp_err_t sensor_bmp390_deinit(sensor_bmp390_t *self);
 
 ---
 
-### 4.4 kalman_filter — 2-State Kalman Filter
+### 4.4 imu_hal — IMU Abstraction (Compile-Time Selection)
 
-Pure math component. No ESP-IDF dependencies. Fully host-testable.
+Defines a hardware-independent API for inertial measurement units (accelerometer + gyroscope).
+The active IMU driver (MPU6050) is selected **at compile time** via Kconfig. When `CONFIG_IMU_NONE` is selected, a stub is compiled that returns `ESP_ERR_NOT_SUPPORTED`, enabling baro-only operation.
 
 ```c
-// kalman_filter.h
+// imu_hal.h
 
-typedef struct kalman_cfg_s
+#include <esp_err.h>
+#include <stdint.h>
+
+/// IMU output data (common to all drivers)
+typedef struct imu_data_s
 {
-    float q_altitude;          // Process noise for altitude (default: 0.01)
-    float q_vario;             // Process noise for vario (default: 0.01)
-    float r_measurement;       // Measurement noise (default: 0.5)
-    float reference_pressure_pa; // QNH reference pressure (default: 101325.0)
-} kalman_cfg_t;
+    float   accel_x;           // X-axis acceleration in m/s²
+    float   accel_y;           // Y-axis acceleration in m/s²
+    float   accel_z;           // Z-axis acceleration in m/s²
+    float   gyro_x;            // X-axis angular rate in rad/s
+    float   gyro_y;            // Y-axis angular rate in rad/s
+    float   gyro_z;            // Z-axis angular rate in rad/s
+    int64_t timestamp_us;      // Microsecond timestamp (esp_timer_get_time)
+} imu_data_t;
 
-typedef struct kalman_state_s
-{
-    float altitude_m;          // Estimated altitude in meters
-    float vario_ms;            // Estimated vertical speed in m/s
-    float p[2][2];             // Error covariance matrix (2x2)
-    int64_t last_timestamp_us; // Last update timestamp
-    bool initialized;          // First sample flag
-} kalman_state_t;
-
-esp_err_t kalman_filter_init(kalman_state_t *state, const kalman_cfg_t *cfg);
-esp_err_t kalman_filter_update(kalman_state_t *state, const kalman_cfg_t *cfg,
-                               float pressure_pa, int64_t timestamp_us);
-esp_err_t kalman_filter_reset(kalman_state_t *state);
-
-/// Calibrate the reference pressure (QNH) so that the barometric altitude
-/// matches a known altitude. Computes P0 from the current pressure reading
-/// and the user-supplied altitude using the inverse barometric formula.
-esp_err_t kalman_filter_calibrate(kalman_cfg_t *cfg, kalman_state_t *state,
-                                  float known_altitude_m, float current_pressure_pa);
+esp_err_t   imu_hal_init(void);
+esp_err_t   imu_hal_read(imu_data_t *out);
+esp_err_t   imu_hal_deinit(void);
+const char *imu_hal_get_name(void);
 ```
 
 **Contract**:
-- `init()` sets initial state: altitude = 0, vario = 0, covariance = identity.
-- `update()` performs predict + correct step. Converts pressure to altitude internally using the barometric formula with `cfg->reference_pressure_pa` as $P_0$. Computes dt from timestamps.
-- If `!initialized`, first call sets altitude from pressure and marks initialized (no predict step).
-- `reset()` clears state (e.g., after sensor error or config change).
-- `calibrate()` computes a new $P_0$ from a known altitude and current pressure using the inverse barometric formula, stores it in `cfg->reference_pressure_pa`, and resets the filter state so the next update adopts the corrected baseline immediately. Returns `ESP_ERR_INVALID_ARG` if `known_altitude_m` is outside [-500, 10000] m or `current_pressure_pa` is outside [20000, 120000] Pa.
-- All math uses `float` (ESP32-C3 has no FPU; `float` is faster than `double` in software).
-
-**Barometric formula** (ISA standard atmosphere):
-$$h = 44330 \times \left(1 - \left(\frac{P}{P_0}\right)^{0.1903}\right)$$
-Where $P_0$ = `reference_pressure_pa` (default: 101325 Pa, sea level standard pressure).
-
-**Inverse barometric formula** (used by `calibrate()`):
-$$P_0 = \frac{P}{\left(1 - \frac{h}{44330}\right)^{5.255}}$$
-Given a known altitude $h$ and current pressure $P$, this derives the reference pressure $P_0$ (QNH) that makes the barometric formula output match $h$.
+- `imu_hal_init()` — configures IMU via shared I2C bus (`sensor_hal_get_i2c_bus_handle()`). Validates WHO_AM_I.
+- `imu_hal_read()` — burst-reads accel + gyro (14 bytes, ~0.6 ms at 400 kHz). Non-blocking.
+- `imu_hal_deinit()` — puts IMU in sleep mode, releases I2C device.
+- I2C address: 0x68 (AD0=GND), shares I2C_NUM_0 bus with barometric sensor at 0x77.
+- When `CONFIG_IMU_NONE=y`, all functions return `ESP_ERR_NOT_SUPPORTED`.
 
 ---
 
-### 4.5 lk8ex1 — LK8EX1 NMEA Formatter
+### 4.5 ahrs — Madgwick Quaternion AHRS
+
+Pure math component. No ESP-IDF dependencies. Fully host-testable.
+Estimates sensor orientation (quaternion) from accelerometer + gyroscope data using the Madgwick filter algorithm. Provides body-to-NED rotation for tilt-compensated vertical acceleration.
+
+```c
+// ahrs.h
+
+typedef struct ahrs_cfg_s
+{
+    float beta;                // Filter gain (default: 0.1). Lower = smoother, higher = faster convergence
+    float sample_rate_hz;      // Expected sample rate (default: 100.0)
+} ahrs_cfg_t;
+
+typedef struct ahrs_state_s
+{
+    float q[4];                // Quaternion (w, x, y, z), initialized to [1,0,0,0]
+    float r[3][3];             // Rotation matrix body→NED (computed from quaternion)
+    bool  initialized;         // True after first successful update
+} ahrs_state_t;
+
+esp_err_t ahrs_init(ahrs_state_t *state, const ahrs_cfg_t *cfg);
+esp_err_t ahrs_update(ahrs_state_t *state, const ahrs_cfg_t *cfg, const imu_data_t *imu);
+esp_err_t ahrs_get_vertical_accel(const ahrs_state_t *state, const imu_data_t *imu,
+                                   float *vertical_accel_ms2);
+esp_err_t ahrs_reset(ahrs_state_t *state);
+```
+
+**Contract**:
+- `init()` sets quaternion to identity [1,0,0,0]. Rotation matrix to identity.
+- `update()` performs one Madgwick filter iteration: integrates gyroscope, corrects with accelerometer gradient descent.
+  Quaternion is normalized after each iteration. Rotation matrix updated from quaternion.
+- `get_vertical_accel()` extracts the true vertical acceleration component after tilt compensation:
+  $a_{vert} = R_{20} \cdot a_x + R_{21} \cdot a_y + R_{22} \cdot a_z + g$
+  Output: positive = upward, at rest ≈ 0 m/s².
+- No magnetometer fusion (IMU-only 6DOF) — heading is not needed for vertical navigation.
+- Reference: *S. Madgwick, "An efficient orientation filter for inertial and inertial/magnetic sensor arrays", 2010.*
+
+---
+
+### 4.6 ekf — 3-State Extended Kalman Filter
+
+Pure math component. No ESP-IDF dependencies. Fully host-testable.
+Fuses AHRS-corrected vertical acceleration (100 Hz predict) with barometric altitude (10 Hz measurement update)
+to estimate altitude, vertical speed (vario), and accelerometer Z-axis bias.
+
+```c
+// ekf.h
+
+typedef struct ekf_cfg_s
+{
+    float q_altitude;          // Process noise for altitude (default: 0.1)
+    float q_vario;             // Process noise for vario (default: 0.5)
+    float q_accel_bias;        // Process noise for accel bias (default: 0.001)
+    float r_altitude;          // Baro measurement noise (default: 0.5 m²)
+    float reference_pressure_pa; // QNH reference pressure (default: 101325.0)
+} ekf_cfg_t;
+
+typedef struct ekf_state_s
+{
+    float   altitude_m;        // Estimated altitude in meters
+    float   vario_ms;          // Estimated vertical speed in m/s
+    float   accel_bias_ms2;    // Estimated Z-axis accel bias in m/s²
+    float   p[3][3];           // Error covariance matrix (3×3)
+    int64_t last_predict_us;   // Timestamp of last prediction
+    int64_t last_baro_us;      // Timestamp of last baro update
+    bool    initialized;       // First sample flag
+} ekf_state_t;
+
+esp_err_t ekf_init(ekf_state_t *state, const ekf_cfg_t *cfg);
+esp_err_t ekf_predict(ekf_state_t *state, const ekf_cfg_t *cfg,
+                      float vertical_accel_ms2, int64_t timestamp_us);
+esp_err_t ekf_update_baro(ekf_state_t *state, const ekf_cfg_t *cfg,
+                          float pressure_pa, int64_t timestamp_us);
+esp_err_t ekf_reset(ekf_state_t *state);
+esp_err_t ekf_calibrate(ekf_cfg_t *cfg, ekf_state_t *state,
+                        float known_altitude_m, float current_pressure_pa);
+```
+
+**Contract**:
+- `init()` sets state to zero, covariance to scaled identity.
+- `predict()` runs at IMU rate (100 Hz). Removes estimated bias, updates state:
+  - $a_{corr} = a_{vert} - b_a$
+  - $h \mathrel{+}= v \cdot dt + \frac{1}{2} a_{corr} \cdot dt^2$
+  - $v \mathrel{+}= a_{corr} \cdot dt$
+  - $b_a$ unchanged (random walk)
+  - $P = F P F^T + Q$
+- `update_baro()` runs at baro rate (10 Hz). Converts pressure to altitude, applies scalar Kalman update:
+  - Innovation: $y = h_{baro} - h_{predicted}$
+  - Innovation gating: reject if $|y| > 5 \sqrt{P_{00} + R}$ (ArduPilot `HGT_I_GATE` pattern)
+  - H = [1, 0, 0] → scalar sequential fusion (ArduPilot `FuseVelPosNED` pattern)
+  - First baro update initializes altitude, marks `initialized = true`.
+- `calibrate()` derives new $P_0$ from known altitude + current pressure (inverse barometric formula).
+  Validates inputs, resets filter. Returns `ESP_ERR_INVALID_ARG` for out-of-range values.
+- All math uses `float` (ESP32-C3 has no FPU; `float` is faster than `double`).
+
+**State model** (ArduPilot vertical channel subset):
+$$\mathbf{x} = \begin{bmatrix} h \\ \dot{h} \\ b_a \end{bmatrix}, \quad
+\mathbf{F} = \begin{bmatrix} 1 & dt & -\frac{1}{2}dt^2 \\ 0 & 1 & -dt \\ 0 & 0 & 1 \end{bmatrix}, \quad
+\mathbf{H} = \begin{bmatrix} 1 & 0 & 0 \end{bmatrix}$$
+
+**Barometric formula** (ISA standard atmosphere):
+$$h = 44330 \times \left(1 - \left(\frac{P}{P_0}\right)^{0.1903}\right)$$
+
+**Inverse barometric formula** (used by `calibrate()`):
+$$P_0 = \frac{P}{\left(1 - \frac{h}{44330}\right)^{5.255}}$$
+
+Reference: *Widnall & Sinha, "Optimizing the Gains of the Baro-Inertial Vertical Channel", AIAA 78-1307R.*
+
+---
+
+### 4.7 lk8ex1 — LK8EX1 NMEA Formatter
 
 Pure C formatting. No ESP-IDF dependencies. Fully host-testable.
 
@@ -498,11 +608,11 @@ bool      lk8ex1_validate(const char *sentence);
 **Example output** (uncalibrated): `$LK8EX1,101325,99999,50,235,999*18\r\n`  
 **Example output** (calibrated, altitude = 452 m): `$LK8EX1,101325,452,50,235,999*XX\r\n`
 
-> When altitude calibration is active (`reference_pressure_pa ≠ 101325`), the `altitude_m` field contains the Kalman-filtered calibrated altitude instead of `99999`.
+> When altitude calibration is active (`reference_pressure_pa ≠ 101325`), the `altitude_m` field contains the EKF-estimated calibrated altitude instead of `99999`.
 
 ---
 
-### 4.6 ble_nus — BLE Nordic UART Service
+### 4.8 ble_nus — BLE Nordic UART Service
 
 Manages the NimBLE stack, GAP advertising, NUS GATT service, and Config GATT service.
 
@@ -538,7 +648,7 @@ void      ble_nus_register_state_callback(ble_nus_state_cb_t callback);
 
 ---
 
-### 4.7 led_indicator — RGB LED State Machine
+### 4.9 led_indicator — RGB LED State Machine
 
 Drives the onboard WS2812 RGB LED via the RMT peripheral to indicate system state.
 
@@ -568,7 +678,7 @@ esp_err_t led_indicator_deinit(void);
 
 ---
 
-### 4.8 config_manager — NVS Configuration
+### 4.10 config_manager — NVS Configuration
 
 Manages persistent device configuration in NVS with type-safe access and defaults.
 
@@ -579,8 +689,11 @@ typedef struct device_config_s
 {
     uint8_t  sensor_rate_hz;       // Sensor read rate (default: 10)
     uint8_t  ble_tx_rate_hz;       // BLE send rate (default: 4)
-    float    kalman_q;             // Kalman process noise (default: 0.01)
-    float    kalman_r;             // Kalman measurement noise (default: 0.5)
+    float    ekf_q_alt;             // EKF altitude process noise (default: 0.1)
+    float    ekf_q_vario;            // EKF vario process noise (default: 0.5)
+    float    ekf_q_bias;             // EKF accel bias process noise (default: 0.001)
+    float    ekf_r_alt;              // EKF baro measurement noise (default: 0.5)
+    float    ahrs_beta;              // AHRS Madgwick beta (default: 0.1)
     float    reference_pressure_pa; // QNH reference pressure (default: 101325.0)
     char     device_name[21];      // BLE device name (default: "FlyInPeace")
     bool     wifi_enabled;         // WiFi enable flag (default: false)
@@ -598,11 +711,11 @@ const device_config_t *config_manager_get_defaults(void);
 - `load()` reads all config fields from NVS. On any read error, uses default value for that field.
 - `save()` validates all fields before writing. Returns `ESP_ERR_INVALID_ARG` if validation fails.
 - Thread-safe: internal mutex protects NVS access.
-- Validation rules: `sensor_rate_hz` ∈ [1, 100], `ble_tx_rate_hz` ∈ [1, 50], `kalman_q` ∈ [0.001, 10.0], `kalman_r` ∈ [0.01, 100.0], `reference_pressure_pa` ∈ [80000.0, 120000.0], `device_name` length ∈ [1, 20].
+- Validation rules: `sensor_rate_hz` ∈ [1, 100], `ble_tx_rate_hz` ∈ [1, 50], `ekf_q_alt` ∈ [0.001, 10.0], `ekf_r_alt` ∈ [0.01, 100.0], `reference_pressure_pa` ∈ [80000.0, 120000.0], `device_name` length ∈ [1, 20].
 
 ---
 
-### 4.9 power_manager — Power Management
+### 4.11 power_manager — Power Management
 
 Controls light-sleep and peripheral power gating for battery optimization.
 
@@ -628,7 +741,8 @@ esp_err_t power_manager_get_battery_mv(uint16_t *battery_mv);
 
 | Task | Function | Priority | Stack (bytes) | Rate | Core | Description |
 |------|----------|----------|---------------|------|------|-------------|
-| `sensor_task` | `sensor_task_fn` | 5 (High) | 4096 | 10 Hz (100 ms) | 0 | Read MS5611, run Kalman update |
+| `fusion_task` | `fusion_task_fn` | 6 (Highest) | 4096 | 100 Hz (10 ms) | 0 | Read IMU, run AHRS + EKF predict; poll baro for EKF update |
+| `baro_task` | `baro_task_fn` | 5 (High) | 4096 | 10 Hz (100 ms) | 0 | Read barometric sensor, post data for fusion |
 | `ble_sender_task` | `ble_sender_task_fn` | 3 (Normal) | 4096 | 8 Hz (125 ms) | 0 | Format LK8EX1, send via BLE NUS TX |
 | `led_task` | `led_task_fn` | 1 (Lowest) | 2048 | 10 Hz (100 ms) | 0 | Update WS2812 LED pattern |
 | `config_task` | `config_task_fn` | 2 (Low) | 2048 | Event-driven | 0 | Handle config read/write from BLE |
@@ -640,32 +754,51 @@ esp_err_t power_manager_get_battery_mv(uint16_t *battery_mv);
 
 ### 5.2 Task Responsibility Detail
 
-#### sensor_task (Priority 5 — Highest application task)
+#### fusion_task (Priority 6 — Highest application task)
 
 ```
-loop (every 100 ms):
+loop (every 10 ms — 100 Hz):
     1. Check calibration_queue for pending calibration request (non-blocking)
-       → If received: kalman_filter_calibrate(&cfg, &state, known_alt, last_pressure)
+       → If received: ekf_calibrate(&cfg, &state, known_alt, last_pressure)
                        config_manager_save() (persist new reference_pressure_pa)
-    2. sensor_hal_read(&sensor_data)
-    3. kalman_filter_update(&state, &cfg, sensor_data.pressure_pa, sensor_data.timestamp_us)
-    4. Copy kalman_state to shared_flight_data (protected by mutex)
+    2. imu_hal_read(&imu_data)                               // ~0.6 ms
+    3. ahrs_update(&ahrs_state, &ahrs_cfg, &imu_data)        // ~0.05 ms
+    4. ahrs_get_vertical_accel(&ahrs_state, &imu_data, &va)  // ~0.01 ms
+    5. ekf_predict(&ekf_state, &ekf_cfg, va, timestamp)      // ~0.02 ms
+    6. If baro_new_data_available:
+       → ekf_update_baro(&ekf_state, &ekf_cfg, pressure, ts) // ~0.05 ms
+    7. Copy ekf_state + sensor data to shared_flight_data (mutex)
+    8. vTaskDelay(remaining time to hit 10 ms period)
+```
+
+Total cycle: ~0.7 ms (7% CPU at 100 Hz). This is the highest-priority application task because IMU timing jitter directly affects AHRS orientation accuracy.
+
+> **Baro-only fallback**: When `CONFIG_IMU_NONE=y`, `fusion_task` runs at 10 Hz, reads baro directly (no separate `baro_task`), and runs EKF predict+update combined (no AHRS).
+
+> **Altitude calibration flow**: The calibration request arrives via BLE → `config_task` → `calibration_queue` → `fusion_task`. The `fusion_task` executes the calibration in its own context because it owns the `ekf_cfg_t` and `ekf_state_t` — no mutex contention on the filter state.
+
+#### baro_task (Priority 5)
+
+```
+loop (every 100 ms — 10 Hz):
+    1. sensor_hal_read(&sensor_data)           // blocks ~18 ms (MS5611 OSR 4096)
+    2. Write to shared baro_latest struct
+    3. Set baro_new_data_available flag
+    4. Feed TWDT
     5. vTaskDelay(remaining time to hit 100 ms period)
 ```
 
-This is the highest-priority application task because sensor timing accuracy directly affects Kalman filter quality.
-
-> **Altitude calibration flow**: The calibration request arrives via BLE → `config_task` → `calibration_queue` → `sensor_task`. The `sensor_task` executes the calibration in its own context because it owns the `kalman_cfg_t` and `kalman_state_t` — no mutex contention on the filter state.
+Runs in its own task because the baro read blocks ~18 ms, which would disrupt the fusion_task's 10 ms period.
 
 #### ble_sender_task (Priority 3)
 
 ```
-loop (every 250 ms):
+loop (every 125 ms — 8 Hz):
     1. Read shared_flight_data (mutex)
     2. Build lk8ex1_data from flight data + battery + temperature
     3. lk8ex1_format(&data, buffer, sizeof(buffer))
     4. ble_nus_send(buffer, strlen(buffer))
-    5. vTaskDelay(remaining time to hit 250 ms period)
+    5. vTaskDelay(remaining time to hit 125 ms period)
 ```
 
 #### led_task (Priority 1 — Lowest)
@@ -688,7 +821,7 @@ loop:
        - CONFIG_WRITE:     validate → config_manager_save() → apply → send ack
        - CONFIG_RESET:     config_manager_reset_defaults() → restart
        - CONFIG_CALIBRATE: extract known_altitude_m from data
-                           → post to calibration_queue (consumed by sensor_task)
+                           → post to calibration_queue (consumed by fusion_task)
                            → send ack via BLE Config char
 ```
 
@@ -697,11 +830,14 @@ loop:
 ```
 Time (ms)   0   100  200  300  400  500  600  700  800  900  1000
             │    │    │    │    │    │    │    │    │    │    │
-sensor      ██   ██   ██   ██   ██   ██   ██   ██   ██   ██   ██
-(10 Hz)     ~10ms each read+filter cycle
+fusion      ████████████████████████████████████████████████████████████████████████████████████████████████████
+(100 Hz)    ~0.7ms per cycle (IMU read + AHRS + EKF predict)
 
-ble_sender  ██        ██        ██        ██
-(4 Hz)      ~2ms each format+send
+baro        ██   ██   ██   ██   ██   ██   ██   ██   ██   ██   ██
+(10 Hz)     ~18ms each sensor read cycle
+
+ble_sender  ██  ██  ██  ██  ██  ██  ██  ██
+(8 Hz)      ~1ms each format+send
 
 led         █    █    █    █    █    █    █    █    █    █    █
 (10 Hz)     ~0.5ms pattern eval + RMT write
@@ -718,7 +854,8 @@ Legend: `█` = running, `·` = sleeping/waiting, gaps = idle (light-sleep eligi
 ### 5.4 Priority Rationale
 
 ```
-5: sensor_task      — Timing-critical. Jitter in sensor reads degrades Kalman accuracy.
+6: fusion_task      — Timing-critical. IMU jitter degrades AHRS accuracy.
+5: baro_task        — Baro read blocks ~18 ms, must not delay fusion. Feeds data to fusion_task.
 4: NimBLE host      — Must process BLE events promptly for connection stability.
 3: ble_sender_task  — Important for data delivery but can tolerate 1-2 ms jitter.
 2: config_task      — Infrequent, non-real-time. Can wait for higher-priority tasks.
@@ -732,23 +869,25 @@ Legend: `█` = running, `·` = sleeping/waiting, gaps = idle (light-sleep eligi
 
 ### 6.1 Shared Flight Data (Mutex-protected)
 
-The primary data exchange between `sensor_task` and `ble_sender_task` uses a mutex-protected shared structure, not a queue. Rationale: the BLE sender always wants the **latest** data, not queued historical samples.
+The primary data exchange between `fusion_task` and `ble_sender_task` uses a mutex-protected shared structure, not a queue. Rationale: the BLE sender always wants the **latest** data, not queued historical samples.
 
 ```c
 typedef struct shared_flight_data_s
 {
-    float    altitude_m;       // From Kalman filter (calibrated if P0 adjusted)
-    float    vario_ms;         // From Kalman filter (m/s)
+    float    altitude_m;       // From EKF (calibrated if P0 adjusted)
+    float    vario_ms;         // From EKF (m/s)
+    float    vertical_accel_ms2; // AHRS-corrected vertical accel (m/s²)
     int32_t  pressure_pa;      // Last raw pressure
     int32_t  temperature_mc;   // Last raw temperature (milli-Celsius)
     float    reference_pressure_pa; // Current QNH (101325.0 if uncalibrated)
-    int64_t  timestamp_us;     // Timestamp of last sensor read
-    bool     sensor_valid;     // false if last read failed
+    int64_t  timestamp_us;     // Timestamp of last fusion update
+    bool     sensor_valid;     // false if baro read failed
+    bool     imu_valid;        // false if IMU read failed (or CONFIG_IMU_NONE)
 } shared_flight_data_t;
 
 // Access pattern:
-// Writer (sensor_task):   xSemaphoreTake(mutex) → write → xSemaphoreGive(mutex)
-// Reader (ble_sender):    xSemaphoreTake(mutex) → copy → xSemaphoreGive(mutex)
+// Writer (fusion_task): xSemaphoreTake(mutex) → write → xSemaphoreGive(mutex)
+// Reader (ble_sender):  xSemaphoreTake(mutex) → copy → xSemaphoreGive(mutex)
 ```
 
 ### 6.2 Config Queue (Event-driven)
@@ -774,7 +913,7 @@ typedef struct config_request_s
 // Consumer: config_task
 ```
 
-### 6.3 Calibration Queue (sensor_task consumer)
+### 6.3 Calibration Queue (fusion_task consumer)
 
 ```c
 typedef struct calibration_request_s
@@ -784,12 +923,12 @@ typedef struct calibration_request_s
 
 // Queue: xQueueCreate(1, sizeof(calibration_request_t))  — depth 1, overwrite
 // Producer: config_task (on CONFIG_REQUEST_CALIBRATE)
-// Consumer: sensor_task (non-blocking poll at start of each cycle)
+// Consumer: fusion_task (non-blocking poll at start of each cycle)
 ```
 
 Why a separate queue instead of acting directly in `config_task`? The calibration calls
-`kalman_filter_calibrate()` which modifies `kalman_cfg_t` and `kalman_state_t`. These are
-owned exclusively by `sensor_task` — routing the request through a queue avoids shared
+`ekf_calibrate()` which modifies `ekf_cfg_t` and `ekf_state_t`. These are
+owned exclusively by `fusion_task` — routing the request through a queue avoids shared
 mutable state and eliminates the need for a second mutex.
 
 ### 6.4 LED State (Atomic / Direct Call)
@@ -800,13 +939,19 @@ LED state is set via `led_indicator_set_state()` which internally posts to a sma
 
 ```mermaid
 graph TB
-    subgraph "sensor_task (10 Hz)"
-        S0[check calibration_queue]
-        S1[sensor_hal_read]
-        S2[kalman_filter_update]
+    subgraph "fusion_task (100 Hz)"
+        F0[check calibration_queue]
+        F1[imu_hal_read]
+        F2[ahrs_update]
+        F3[ekf_predict]
+        F4[ekf_update_baro if new data]
     end
 
-    subgraph "ble_sender_task (4 Hz)"
+    subgraph "baro_task (10 Hz)"
+        S1[sensor_hal_read]
+    end
+
+    subgraph "ble_sender_task (8 Hz)"
         B1[lk8ex1_format]
         B2[ble_nus_send]
     end
@@ -820,13 +965,16 @@ graph TB
         L1[led pattern update]
     end
 
-    S0 --> S1
-    S1 --> S2
-    S2 -->|mutex: shared_flight_data| B1
+    S1 -->|baro_latest + flag| F4
+    F0 --> F1
+    F1 --> F2
+    F2 --> F3
+    F3 --> F4
+    F4 -->|mutex: shared_flight_data| B1
     B1 --> B2
 
     BLE_RX[BLE Config Write CB] -->|queue: config_request| C1
-    C2 -->|queue: calibration_request| S0
+    C2 -->|queue: calibration_request| F0
     BLE_STATE[BLE State CB] -->|set_state| L1
 ```
 
@@ -837,41 +985,51 @@ graph TB
 ### 7.1 End-to-End Data Path
 
 ```
-  Sensor (MS5611       sensor_task              ble_sender_task           BLE Radio
-   or BMP390)    ┌─────────────────────┐    ┌───────────────────────┐    ┌─────────┐
-  ┌──────────┐   │                     │    │                       │    │         │
-  │          │   │ 1. sensor_hal_read()│    │ 4. Read shared state  │    │ NUS TX  │
-  │ I2C bus  ├──►│    (driver selected │    │ 5. Build lk8ex1_data  │    │ notify  │
-  │ (0x77)   │   │     at compile time)│    │ 6. lk8ex1_format()    ├───►│ to      │
-  └──────────┘   │ 2. Kalman update    │    │ 7. ble_nus_send()     │    │ client  │
-                 │    → altitude, vario│    │                       │    │         │
-                 └────────┬────────────┘    └───────┬───────────────┘    └─────────┘
-                           │                         │
-                           │   shared_flight_data    │
-                           │  ┌────────────────────┐ │
-                           └─►│ altitude_m         ├─┘
-                              │ vario_ms           │
-                              │ pressure_pa        │
-                              │ temperature_mc     │
-                              │ reference_pressure │
-                              │ timestamp_us       │
-                              └────────────────────┘
-                                  (mutex-protected)
+  Barometer      baro_task         fusion_task          ble_sender_task        BLE Radio
+  (MS5611/       (10 Hz)           (100 Hz)             (8 Hz)                 ┌─────────┐
+   BMP390)   ┌──────────────┐  ┌──────────────────┐  ┌──────────────────┐     │         │
+  ┌────────┐ │              │  │                  │  │                  │     │ NUS TX  │
+  │ I2C    │ │ sensor_hal   │  │ 3. imu_hal_read  │  │ 7. Read shared   │     │ notify  │
+  │ (0x77) ├►│ _read()      ├─►│ 4. ahrs_update   │  │ 8. lk8ex1_format ├────►│ to      │
+  └────────┘ │ ~18ms block  │  │ 5. ekf_predict   │  │ 9. ble_nus_send  │     │ client  │
+             └──────────────┘  │ 6. ekf_update    │  │                  │     │         │
+  IMU                          │    _baro (if new) │  └───────┬──────────┘     └─────────┘
+  (MPU6050)     ┌──────────┐   └────────┬─────────┘          │
+  ┌────────┐    │baro_latest│           │                     │
+  │ I2C    ├───►│  +flag    ├──►(poll)  │  shared_flight_data │
+  │ (0x68) │    └──────────┘           │  ┌────────────────┐ │
+  └────────┘                            └─►│ altitude_m     ├─┘
+                                           │ vario_ms       │
+                                           │ vertical_accel │
+                                           │ pressure_pa    │
+                                           │ temperature_mc │
+                                           │ imu_valid      │
+                                           │ sensor_valid   │
+                                           └────────────────┘
+                                             (mutex-protected)
 ```
 
 ### 7.2 Data types at each stage
 
 | Stage | Data Type | Sample Values |
 |-------|-----------|---------------|
-| I2C raw ADC | `uint32_t` (24-bit) | MS5611: D1=6465444, D2=8077636; BMP390: similar range |
+| Baro I2C raw ADC | `uint32_t` (24-bit) | MS5611: D1=6465444, D2=8077636 |
 | Compensated pressure | `int32_t` (Pa) | 101325 |
 | Compensated temperature | `int32_t` (milli-°C) | 23500 (= 23.5°C) |
-| Kalman altitude | `float` (m) | 452.3 (calibrated) or relative to P0 |
-| Kalman vario | `float` (m/s) | 0.50 |
+| IMU raw | `int16_t` (16-bit) | accel: ±8192 (at ±4g), gyro: ±16384 (at ±500°/s) |
+| IMU scaled accel | `float` (m/s²) | [0.0, 0.0, -9.81] at rest |
+| IMU scaled gyro | `float` (rad/s) | [0.0, 0.0, 0.0] at rest |
+| AHRS quaternion | `float[4]` | [1.0, 0.0, 0.0, 0.0] = level |
+| Vertical acceleration | `float` (m/s²) | 0.0 at rest, >0 climbing |
+| EKF altitude | `float` (m) | 452.3 (calibrated) |
+| EKF vario | `float` (m/s) | 0.50 |
+| EKF accel bias | `float` (m/s²) | ~0.02 (MPU6050 typical) |
 | LK8EX1 sentence | `char[64]` | `$LK8EX1,101325,452,50,235,999*XX\r\n` |
 | BLE NUS TX | `uint8_t[]` | UTF-8 bytes of sentence |
 
 ### 7.3 Timing Budget per Cycle
+
+**Baro task (10 Hz, period = 100 ms):**
 
 | Operation | Duration | Frequency |
 |-----------|----------|-----------|
@@ -879,13 +1037,29 @@ graph TB
 | MS5611 D2 conversion (OSR 4096) | 9.04 ms | 10 Hz |
 | I2C read (3 bytes × 2) | ~0.3 ms | 10 Hz |
 | MS5611 compensation math | ~0.05 ms | 10 Hz |
-| Kalman predict + correct | ~0.02 ms | 10 Hz |
-| **Total sensor cycle** | **~18.5 ms** | **10 Hz** |
-| LK8EX1 format | ~0.01 ms | 4 Hz |
-| BLE NUS send (queue + notify) | ~1 ms | 4 Hz |
-| **Total BLE cycle** | **~1 ms** | **4 Hz** |
+| **Total baro cycle** | **~18.5 ms** | **10 Hz** |
 
-> The sensor cycle takes ~18.5 ms out of a 100 ms period, leaving **~81.5 ms** for light-sleep per cycle.
+**Fusion task (100 Hz, period = 10 ms):**
+
+| Operation | Duration | Frequency |
+|-----------|----------|-----------|
+| IMU I2C burst read (14 bytes) | ~0.6 ms | 100 Hz |
+| AHRS Madgwick update | ~0.05 ms | 100 Hz |
+| Vertical accel extraction | ~0.01 ms | 100 Hz |
+| EKF predict step | ~0.02 ms | 100 Hz |
+| EKF baro measurement update | ~0.05 ms | 10 Hz (every 10th cycle) |
+| Mutex write | ~0.01 ms | 100 Hz |
+| **Total fusion cycle** | **~0.7 ms** | **100 Hz** |
+
+**BLE sender task (8 Hz, period = 125 ms):**
+
+| Operation | Duration | Frequency |
+|-----------|----------|-----------|
+| LK8EX1 format | ~0.01 ms | 8 Hz |
+| BLE NUS send (queue + notify) | ~1 ms | 8 Hz |
+| **Total BLE cycle** | **~1 ms** | **8 Hz** |
+
+> The fusion cycle takes ~0.7 ms out of a 10 ms period, leaving **~9.3 ms** for other tasks and light-sleep.
 
 ---
 
@@ -951,19 +1125,23 @@ stateDiagram-v2
 
 | Consumer | Estimated (bytes) | Notes |
 |----------|--------------------|-------|
-| FreeRTOS heap (default) | ~32,000 | Task stacks, queues, mutexes |
-| sensor_task stack | 4,096 | I2C buffers, compensation math |
+| FreeRTOS heap (default) | ~36,000 | Task stacks, queues, mutexes |
+| fusion_task stack | 4,096 | IMU read, AHRS, EKF math |
+| baro_task stack | 4,096 | I2C buffers, compensation math |
 | ble_sender_task stack | 4,096 | LK8EX1 buffer, BLE API calls |
 | led_task stack | 2,048 | RMT buffer, state machine |
 | config_task stack | 2,048 | NVS reads, JSON buffer |
 | NimBLE host task stack | 4,096 | BLE stack processing |
 | NimBLE memory pool | ~16,000 | Connection, advertising, GATT |
-| shared_flight_data | 32 | Struct + mutex |
+| shared_flight_data | 48 | Struct + mutex (added imu fields) |
+| baro_latest | 16 | Baro data + flag (inter-task) |
+| AHRS state | ~96 | Quaternion + rotation matrix |
+| EKF state | ~72 | 3-state + 3×3 covariance |
 | config_queue | ~1,064 | 4 × 264 bytes |
 | RMT LED buffer | ~1,000 | WS2812 encoding (24 bits × 4 bytes) |
 | Static buffers | ~512 | LK8EX1 format buffer, misc |
-| **Total estimated** | **~67,000** | ~21% of usable RAM |
-| **Available for ESP-IDF/NVS** | **~253,000** | WiFi stack (future) needs ~90 KB |
+| **Total estimated** | **~75,000** | ~23% of usable RAM |
+| **Available for ESP-IDF/NVS** | **~245,000** | WiFi stack (future) needs ~90 KB |
 
 ### 9.2 Flash Budget (4 MB flash, custom partition table)
 
@@ -996,8 +1174,12 @@ stateDiagram-v2
 | `sensor_ms5611` | I2C NACK/timeout | Retry once. On second failure, return error. After 3 consecutive failures, set `sensor_valid = false` in shared data. |
 | `sensor_bmp390` | I2C NACK/timeout | Same strategy as MS5611: retry once, then error. 3 consecutive failures → `sensor_valid = false`. |
 | `sensor_bmp390` | Chip ID mismatch | Return `ESP_ERR_NOT_FOUND` on init. Log error with expected vs actual chip ID. |
-| `kalman_filter` | Invalid input (NaN, extreme values) | Skip update, keep previous state. Log warning. |
-| `kalman_filter` | Calibrate with out-of-range altitude/pressure | Return `ESP_ERR_INVALID_ARG`. Keep current P0. Log warning. |
+| `imu_mpu6050` | I2C NACK/timeout | Retry once. On second failure, return error. 3 consecutive failures → `imu_valid = false`. |
+| `imu_mpu6050` | WHO_AM_I mismatch | Return `ESP_ERR_NOT_FOUND` on init. Log error with expected vs actual ID. |
+| `ahrs` | Not initialized | `get_vertical_accel()` returns `ESP_ERR_INVALID_STATE`. |
+| `ekf` | Invalid input (NaN, extreme values) | Skip predict, keep previous state. Log warning. |
+| `ekf` | Innovation gate rejection | Skip baro update, keep predicted state. Log at debug level. |
+| `ekf` | Calibrate with out-of-range altitude/pressure | Return `ESP_ERR_INVALID_ARG`. Keep current P0. Log warning. |
 | `lk8ex1` | Buffer too small | Return `ESP_ERR_INVALID_SIZE`. Never write past buffer. |
 | `ble_nus` | Send while not connected | Return `ESP_ERR_INVALID_STATE`. Caller skips silently. |
 | `ble_nus` | Send while CCCD not subscribed | Return `ESP_ERR_INVALID_STATE`. |
@@ -1007,9 +1189,10 @@ stateDiagram-v2
 
 ### 10.3 Watchdog
 
-- FreeRTOS Task Watchdog Timer (TWDT) enabled for `sensor_task` (critical path).
-- Timeout: 5 seconds (5× the 1-second budget for 10 Hz reads).
-- Feed watchdog at the end of each sensor read cycle.
+- FreeRTOS Task Watchdog Timer (TWDT) enabled for `fusion_task` and `baro_task` (critical paths).
+- Timeout: 5 seconds.
+- `baro_task`: feed TWDT at the end of each sensor read cycle.
+- `fusion_task`: feed TWDT at the end of each fusion cycle.
 - Other tasks are not registered with TWDT (non-critical).
 
 ---
@@ -1020,8 +1203,8 @@ stateDiagram-v2
 
 | GPIO | Function | Peripheral | Notes |
 |------|----------|-----------|-------|
-| GPIO 6 | I2C SDA | I2C_NUM_0 | Sensor data line (4.7 kΩ pull-up) |
-| GPIO 7 | I2C SCL | I2C_NUM_0 | Sensor clock line (4.7 kΩ pull-up) |
+| GPIO 6 | I2C SDA | I2C_NUM_0 | Sensor + IMU data line (4.7 kΩ pull-up) |
+| GPIO 7 | I2C SCL | I2C_NUM_0 | Sensor + IMU clock line (4.7 kΩ pull-up) |
 | GPIO 8 | WS2812 data | RMT CH0 | Onboard RGB LED |
 | GPIO 18 | USB D- | USB-CDC | Serial monitor / flash |
 | GPIO 19 | USB D+ | USB-CDC | Serial monitor / flash |
@@ -1034,52 +1217,59 @@ stateDiagram-v2
 | SDA | GPIO 6 |
 | SCL | GPIO 7 |
 | Clock speed | 400 kHz (Fast Mode) |
-| Sensor address | 0x77 (MS5611: CSB=GND; BMP390: SDO=GND) |
+| Barometer address | 0x77 (MS5611: CSB=GND; BMP390: SDO=GND) |
+| IMU address | 0x68 (MPU6050: AD0=GND) |
 | Pull-ups | External 4.7 kΩ recommended |
+
+> Both barometer and MPU6050 share the same I2C bus. The `sensor_hal` initializes the bus;
+> `imu_hal` uses `sensor_hal_get_i2c_bus_handle()` to add the IMU device without reinitializing the bus.
 
 ### 11.3 Sensor Wiring (DevKit → Sensor Module)
 
-Both sensors share the same I2C bus and default address (0x77). Only one sensor
-is connected at a time. The active driver is selected via `idf.py menuconfig`.
+The barometric sensor and IMU share the same I2C bus with different addresses.
+Only one barometric sensor is connected at a time. The active baro driver is selected via `idf.py menuconfig`.
+The IMU is optional (`CONFIG_IMU_NONE` for baro-only operation).
 
-**MS5611 Wiring:**
+**MS5611 + MPU6050 Wiring:**
 ```
-ESP32-C3-DevKitC-02          MS5611 Module
-┌──────────────────┐         ┌─────────────┐
-│           3V3 ───┼────────►│ VCC         │
-│           GND ───┼────────►│ GND         │
-│        GPIO 6 ───┼────────►│ SDA         │
-│        GPIO 7 ───┼────────►│ SCL         │
-│                  │    CSB──┤►GND (0x77)  │
-│                  │    PS ──┤►VCC (I2C)   │
-└──────────────────┘         └─────────────┘
+ESP32-C3-DevKitC-02          MS5611 Module         MPU6050 Module
+┌──────────────────┐         ┌─────────────┐       ┌─────────────┐
+│           3V3 ───┼────────►│ VCC         │       │ VCC         │
+│           GND ───┼────────►│ GND         │       │ GND         │
+│        GPIO 6 ───┼────────►│ SDA         │───────│ SDA         │
+│        GPIO 7 ───┼────────►│ SCL         │───────│ SCL         │
+│                  │    CSB──┤►GND (0x77)  │       │ AD0──►GND   │
+│                  │    PS ──┤►VCC (I2C)   │       │ (0x68)      │
+└──────────────────┘         └─────────────┘       └─────────────┘
 ```
 
-**BMP390 Wiring:**
+**BMP390 + MPU6050 Wiring:**
 ```
-ESP32-C3-DevKitC-02          BMP390 Module
-┌──────────────────┐         ┌─────────────┐
-│           3V3 ───┼────────►│ VCC         │
-│           GND ───┼────────►│ GND         │
-│        GPIO 6 ───┼────────►│ SDA         │
-│        GPIO 7 ───┼────────►│ SCL         │
-│                  │    SDO──┤►GND (0x77)  │
-└──────────────────┘         └─────────────┘
+ESP32-C3-DevKitC-02          BMP390 Module         MPU6050 Module
+┌──────────────────┐         ┌─────────────┐       ┌─────────────┐
+│           3V3 ───┼────────►│ VCC         │       │ VCC         │
+│           GND ───┼────────►│ GND         │       │ GND         │
+│        GPIO 6 ───┼────────►│ SDA         │───────│ SDA         │
+│        GPIO 7 ───┼────────►│ SCL         │───────│ SCL         │
+│                  │    SDO──┤►GND (0x77)  │       │ AD0──►GND   │
+└──────────────────┘         └─────────────┘       └─────────────┘
 ```
 
 ### 11.4 Sensor Selection (Build-Time)
 
-To switch sensors, run:
+To switch sensors or enable/disable IMU, run:
 ```bash
 cd micro/
 idf.py menuconfig
 # Navigate to: Component config → Sensor driver → Pressure sensor driver
 # Select MS5611 or BMP390
+# Navigate to: Component config → IMU driver
+# Select MPU6050 or None (baro-only)
 idf.py build
 ```
 
-No application code changes are needed. The `sensor_hal` layer dispatches
-to the correct driver at compile time.
+No application code changes are needed. The `sensor_hal` and `imu_hal` layers dispatch
+to the correct drivers at compile time.
 
 ---
 

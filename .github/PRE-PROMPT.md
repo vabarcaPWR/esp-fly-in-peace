@@ -28,7 +28,7 @@
 
 | Component | Description |
 |-----------|-------------|
-| **Firmware** (`micro/`) | ESP32-C3 firmware written in C with ESP-IDF + FreeRTOS. Reads a pressure sensor (MS5611 via I2C), applies a Kalman filter, and broadcasts altitude/vario data over BLE using the LK8EX1 NMEA sentence via Nordic UART Service (NUS). |
+| **Firmware** (`micro/`) | ESP32-C3 firmware written in C with ESP-IDF + FreeRTOS. Reads a barometric sensor (MS5611 or BMP390 via I2C) and an IMU (MPU6050), fuses data through an AHRS (Madgwick) and a 3-state EKF to derive altitude and vario, and broadcasts over BLE using the LK8EX1 NMEA sentence via Nordic UART Service (NUS). |
 | **Mobile App** (`app/`) | Android application that connects to the device via BLE NUS to display real-time flight data and configure device parameters. Serves as a companion/diagnostic tool alongside XCTrack. |
 | **Documentation** (`docs/`) | Roadmaps, architecture decisions, protocol references. |
 
@@ -41,8 +41,8 @@
 | **Power** | Battery-powered; firmware must minimize consumption (light-sleep between readings, BLE connection interval tuning) |
 | **BLE stack** | NimBLE (smaller footprint than Bluedroid, better power efficiency) |
 | **BLE service** | Nordic UART Service (NUS) — `6E400001-B5A3-F393-E0A9-E50E24DCCA9E` — compatible with XCTrack |
-| **Sensor** | MS5611 barometric pressure sensor via I2C (scalable to BMP390 and others) |
-| **Data flow** | Sensor read @ 10 Hz → Kalman filter → LK8EX1 sentence broadcast @ 8 Hz over BLE NUS |
+| **Sensor** | MS5611 or BMP390 barometric pressure sensor via I2C + MPU6050 IMU (optional, compile-time) |
+| **Data flow** | Baro read @ 10 Hz + IMU read @ 100 Hz → AHRS + EKF fusion → LK8EX1 sentence broadcast @ 8 Hz over BLE NUS |
 | **WiFi** | **Not in MVP**. Architecture must allow future WiFi integration, controllable via BLE |
 | **OTA** | **Not in MVP**. Architecture must allow future OTA updates |
 | **Mobile app** | Android only. Developer is a firmware expert, not a mobile dev expert |
@@ -60,8 +60,8 @@ The developer using this prompt is:
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
-| FR-01 | Read MS5611 pressure & temperature at 10 Hz via I2C | Must |
-| FR-02 | Apply Kalman filter to raw pressure → altitude & vario | Must |
+| FR-01 | Read barometric pressure & temperature at 10 Hz via I2C (MS5611 or BMP390) | Must |
+| FR-02 | Fuse IMU + baro data through AHRS and 3-state EKF → altitude & vario | Must |
 | FR-03 | Format LK8EX1 NMEA sentence from filtered data | Must |
 | FR-04 | Broadcast LK8EX1 via BLE NUS at 8 Hz | Must |
 | FR-05 | RGB LED: red blink (100 ms on / 1900 ms off) = BLE disconnected | Must |
@@ -91,7 +91,7 @@ Act as a **pragmatic and demanding mentor** of *Clean Code* and *Clean Architect
 | 2 | **Keep changes small and verifiable**; avoid "massive refactors" without necessity. |
 | 3 | **If something is ambiguous**, propose 1–2 concrete options and ask for the minimum necessary clarification. Always provide enough context for the user to decide quickly. |
 | 4 | **Before coding**: define acceptance criteria and how to validate them. |
-| 5 | **Don't over-apply TDD/BDD**; focus on clean, functional, testable code. Write tests for business logic (Kalman filter, LK8EX1 parsing, config validation), not for every trivial getter. |
+| 5 | **Don't over-apply TDD/BDD**; focus on clean, functional, testable code. Write tests for business logic (EKF, AHRS, LK8EX1 parsing, config validation), not for every trivial getter. |
 | 6 | **Reflect on the project context** (embedded, limited resources, battery) when suggesting improvements. |
 | 7 | **Reflect on your suggestions before giving them**; briefly explain the reasoning. |
 | 8 | **Revealing names**: functions/variables/macros must be descriptive; avoid cryptic abbreviations, but be concise (e.g., `sensor_read_pressure` not `s_rd_p`, but also not `sensor_read_pressure_value_from_i2c_bus`). |
@@ -141,7 +141,8 @@ BEFORE writing code for a task:
 | RTOS | FreeRTOS (bundled with ESP-IDF) | |
 | BLE stack | NimBLE | Lower RAM, better power than Bluedroid |
 | BLE service | Nordic UART Service (NUS) | UUID: `6E400001-B5A3-F393-E0A9-E50E24DCCA9E` |
-| Sensor | MS5611 via I2C | Future: BMP390 |
+| Sensor | MS5611 or BMP390 via I2C | IMU: MPU6050 (optional) |
+| IMU | MPU6050 via I2C (compile-time `CONFIG_IMU_MPU6050` or `CONFIG_IMU_NONE`) | Shares I2C bus with baro |
 | Build system | CMake (ESP-IDF native) | |
 | Test framework | Ceedling (Unity + CMock) | Host-side unit tests |
 | Config storage | NVS (Non-Volatile Storage) | |
@@ -225,7 +226,7 @@ component_name/
 | Static functions | `action_description()` | `parse_raw_data()`, `calculate_altitude()` |
 | Callbacks | `module_cb_name()` or `_cb` suffix | `ble_gap_event_cb()` |
 | Local variables | `snake_case` | `raw_pressure`, `temp_celsius` |
-| Struct types | `module_name_t` | `sensor_ms5611_t`, `kalman_state_t` |
+| Struct types | `module_name_t` | `sensor_ms5611_t`, `ekf_state_t` |
 | Enum types | `module_name_e` | `led_color_e`, `device_state_e` |
 | Macros/constants | `UPPER_SNAKE_CASE` | `SENSOR_READ_INTERVAL_MS`, `BLE_NUS_MAX_MTU` |
 
@@ -655,7 +656,9 @@ Skills define what the AI should be capable of doing well within each project co
 | `freertos-task` | Create FreeRTOS tasks with proper stack sizing, priorities, and inter-task communication (queues, events) |
 | `nimble-ble` | Configure NimBLE, register GATT services, handle GAP events, manage connections |
 | `i2c-driver` | Initialize I2C bus, communicate with sensors, handle NACK/timeout |
-| `kalman-filter` | Implement and tune a 2-state Kalman filter for altitude and vario |
+| `kalman-filter` | Implement and tune a Kalman/EKF filter for altitude and vario |
+| `ahrs-madgwick` | Implement Madgwick quaternion AHRS for orientation estimation |
+| `imu-driver` | Configure and read MPU6050 accelerometer + gyroscope via I2C |
 | `lk8ex1-format` | Format and validate LK8EX1 NMEA sentences with checksum |
 | `nvs-config` | Read/write configuration to NVS, define config schema, handle defaults |
 | `power-mgmt` | Configure light-sleep, tickless idle, peripheral power gating |
@@ -742,9 +745,18 @@ esp-fly-in-peace/
 │   │   ├── sensor_ms5611/                     # MS5611 driver
 │   │   │   ├── include/sensor_ms5611.h
 │   │   │   └── src/sensor_ms5611.c
-│   │   ├── kalman_filter/                     # 2-state Kalman filter (altitude + vario)
-│   │   │   ├── include/kalman_filter.h
-│   │   │   └── src/kalman_filter.c
+│   │   ├── imu_hal/                           # IMU abstraction layer
+│   │   │   ├── include/imu_hal.h
+│   │   │   └── src/imu_hal.c
+│   │   ├── imu_mpu6050/                       # MPU6050 IMU driver
+│   │   │   ├── include/imu_mpu6050.h
+│   │   │   └── src/imu_mpu6050.c
+│   │   ├── ahrs/                              # Madgwick quaternion AHRS
+│   │   │   ├── include/ahrs.h
+│   │   │   └── src/ahrs.c
+│   │   ├── ekf/                               # 3-state EKF (altitude, vario, accel_bias)
+│   │   │   ├── include/ekf.h
+│   │   │   └── src/ekf.c
 │   │   ├── lk8ex1/                            # LK8EX1 protocol formatter
 │   │   │   ├── include/lk8ex1.h
 │   │   │   └── src/lk8ex1.c
@@ -763,6 +775,9 @@ esp-fly-in-peace/
 │   ├── test/                                  # Ceedling unit tests
 │   │   ├── project.yml                        # Ceedling config
 │   │   ├── test_kalman_filter.c
+│   │   ├── test_ekf.c
+│   │   ├── test_ahrs.c
+│   │   ├── test_imu_mpu6050.c
 │   │   ├── test_lk8ex1.c
 │   │   ├── test_sensor_ms5611.c
 │   │   └── test_config_manager.c
@@ -852,7 +867,7 @@ For each task:
 | 0 | Project Bootstrap | ESP-IDF project setup, build system, scripts, .clang-format, Ceedling config | 2–3 days |
 | 1 | Hardware Abstraction | I2C bus driver, sensor HAL interface definition | 2–3 days |
 | 2 | MS5611 Sensor Driver | I2C communication, calibration, compensation, unit tests | 3–4 days |
-| 3 | Kalman Filter | 2-state Kalman filter for altitude and vario, unit tests with synthetic data | 2–3 days |
+| 3 | Sensor Fusion | AHRS (Madgwick) + 3-state EKF for altitude, vario, and accel bias; unit tests | 5–7 days |
 | 4 | LK8EX1 Protocol | Sentence formatter with checksum, unit tests | 1–2 days |
 | 5 | BLE NUS Service | NimBLE init, GAP advertising, NUS GATT service, TX notifications | 3–4 days |
 | 6 | Data Pipeline | FreeRTOS tasks: sensor→filter→format→BLE, queues, timing (10 Hz read, 8 Hz send) | 3–4 days |
