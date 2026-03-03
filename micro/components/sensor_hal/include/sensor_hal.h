@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 
+#include "driver/i2c_master.h"
 #include "esp_err.h"
 
 #ifdef __cplusplus
@@ -45,6 +46,16 @@ extern "C"
      * @return Pointer to a static string, e.g. "MS5611" or "BMP390".
      */
     const char *sensor_hal_get_name(void);
+
+    /**
+     * @brief Return the I2C master bus handle managed by the HAL.
+     *
+     * Use this handle to add sensor devices via i2c_master_bus_add_device().
+     * Only valid after sensor_hal_init() returns ESP_OK.
+     *
+     * @return I2C bus handle, or NULL if not initialized.
+     */
+    i2c_master_bus_handle_t sensor_hal_get_i2c_bus_handle(void);
 
 #ifdef __cplusplus
 }

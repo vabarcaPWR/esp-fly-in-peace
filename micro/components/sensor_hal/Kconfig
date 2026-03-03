@@ -48,4 +48,22 @@ menu "Sensor driver"
             MS5611: 0x77 (CSB=GND) or 0x76 (CSB=VCC).
             BMP390: 0x77 (SDO=GND) or 0x76 (SDO=VCC).
 
+    config SENSOR_I2C_INTERNAL_PULLUP
+        bool "Enable I2C internal pull-ups"
+        default n
+        help
+            Enable weak internal pull-ups (~45 kOhm) on SDA and SCL lines.
+            Disabled by default because external 4.7 kOhm pull-ups are
+            recommended for reliable 400 kHz operation and lower power draw.
+            Each internal pull-up adds ~73 uA leakage at 3.3 V.
+
+    config SENSOR_I2C_ALLOW_PD
+        bool "Allow I2C power domain shutdown in sleep"
+        default y
+        help
+            When enabled, the I2C driver backs up and restores peripheral
+            registers around light-sleep, allowing the I2C power domain
+            to be completely shut off. Saves significant idle power at
+            the cost of a small amount of additional RAM (~100 bytes).
+
 endmenu

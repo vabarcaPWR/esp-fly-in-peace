@@ -28,7 +28,12 @@ static esp_err_t init_i2c_bus(void)
         .scl_io_num = CONFIG_SENSOR_I2C_SCL_GPIO,
         .clk_source = I2C_CLK_SRC_DEFAULT,
         .glitch_ignore_cnt = 7,
+#ifdef CONFIG_SENSOR_I2C_INTERNAL_PULLUP
         .flags.enable_internal_pullup = true,
+#endif
+#ifdef CONFIG_SENSOR_I2C_ALLOW_PD
+        .flags.allow_pd = true,
+#endif
     };
 
     esp_err_t ret = i2c_new_master_bus(&bus_cfg, &s_bus_handle);
@@ -93,6 +98,11 @@ esp_err_t sensor_hal_deinit(void)
 
     ESP_LOGI(TAG, "Sensor HAL deinitialized");
     return ret;
+}
+
+i2c_master_bus_handle_t sensor_hal_get_i2c_bus_handle(void)
+{
+    return s_bus_handle;
 }
 
 const char *sensor_hal_get_name(void)
