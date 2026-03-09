@@ -25,16 +25,16 @@
     - ../components/*/src
   :include:
     - ../components/*/include
+    - ../components/*/src
   :support:
     - support
-    - support/mocks
 
 :files:
   :source:
     - ../components/lk8ex1/src/lk8ex1.c
-    - ../components/lk8ex1/src/lk8ex1_conductor.c
     - ../components/lk8ex1/src/lk8ex1_model.c
     - ../components/lk8ex1/src/lk8ex1_hardware.c
+    - ../components/sensor_ms5611/src/sensor_ms5611_model.c
 
 :defines:
   :common: &common_defines []

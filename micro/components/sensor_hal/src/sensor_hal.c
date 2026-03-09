@@ -6,7 +6,7 @@
 #include "sdkconfig.h"
 
 #if defined(CONFIG_SENSOR_MS5611)
-// #include "sensor_ms5611.h"
+#include "sensor_ms5611.h"
 #elif defined(CONFIG_SENSOR_BMP390)
 // #include "sensor_bmp390.h"
 #else
@@ -16,6 +16,10 @@
 #define SENSOR_HAL_I2C_TIMEOUT_MS 100
 
 static const char *TAG = "sensor_hal";
+
+#if defined(CONFIG_SENSOR_MS5611)
+static sensor_ms5611_t s_ms5611;
+#endif
 
 static i2c_master_bus_handle_t s_bus_handle;
 static bool s_initialized;
@@ -52,7 +56,17 @@ esp_err_t sensor_hal_init(void)
     if (ESP_OK != ret)
         return ret;
 
-    // TODO(Phase 6/7): call sensor_ms5611_init() or sensor_bmp390_init() here
+#if defined(CONFIG_SENSOR_MS5611)
+    sensor_ms5611_cfg_t ms5611_cfg = {
+        .bus_handle = s_bus_handle,
+        .i2c_addr = CONFIG_SENSOR_I2C_ADDR,
+        .osr_index = SENSOR_MS5611_OSR_4096,
+    };
+    ret = sensor_ms5611_init(&s_ms5611, &ms5611_cfg);
+    if (ESP_OK != ret)
+        return ret;
+#endif
+
     ESP_LOGI(TAG, "Sensor HAL initialized: %s (I2C addr 0x%02X, SDA=%d, SCL=%d)", sensor_hal_get_name(),
              CONFIG_SENSOR_I2C_ADDR, CONFIG_SENSOR_I2C_SDA_GPIO, CONFIG_SENSOR_I2C_SCL_GPIO);
 
@@ -68,12 +82,14 @@ esp_err_t sensor_hal_read(sensor_data_t *out)
     if (!s_initialized)
         return ESP_ERR_INVALID_STATE;
 
-    // TODO(Phase 6/7): call sensor_ms5611_read() or sensor_bmp390_read() here
+#if defined(CONFIG_SENSOR_MS5611)
+    return sensor_ms5611_read(&s_ms5611, out);
+#else
     out->pressure_pa = 0;
     out->temperature_mc = 0;
     out->timestamp_us = esp_timer_get_time();
-
     return ESP_ERR_NOT_SUPPORTED;
+#endif
 }
 
 i2c_master_bus_handle_t sensor_hal_get_i2c_bus_handle(void)

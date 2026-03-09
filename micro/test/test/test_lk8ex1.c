@@ -3,7 +3,6 @@
 
 TEST_SOURCE_FILE("../components/lk8ex1/src/lk8ex1_model.c")
 TEST_SOURCE_FILE("../components/lk8ex1/src/lk8ex1_hardware.c")
-TEST_SOURCE_FILE("../components/lk8ex1/src/lk8ex1_conductor.c")
 
 #include <stdio.h>
 #include <string.h>

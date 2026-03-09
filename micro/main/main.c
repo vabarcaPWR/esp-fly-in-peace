@@ -9,9 +9,13 @@
 #include "freertos/task.h"
 #include "led_indicator.h"
 #include "lk8ex1.h"
+#include "sensor_hal.h"
 #include <esp_log.h>
 
 #define LK8EX1_TX_PERIOD_MS 125U
+#define SENSOR_READ_PERIOD_MS 100U
+#define SENSOR_READ_TASK_STACK_SIZE 3072U
+#define SENSOR_READ_TASK_PRIORITY 4U
 #define LK8EX1_TX_TASK_STACK_SIZE 4096U
 #define LK8EX1_TX_TASK_PRIORITY 3U
 #define LK8EX1_PROFILE_COMMAND_MAX_LEN 64U
@@ -45,6 +49,7 @@ typedef struct lk8ex1_simulation_state_s
 typedef struct application_threads_s
 {
     TaskHandle_t lk8ex1_sender_task;
+    TaskHandle_t sensor_read_task;
 } application_threads_t;
 
 static QueueHandle_t lk8ex1_profile_queue = NULL;
@@ -428,6 +433,10 @@ static esp_err_t initialize_modules(void)
     if (ESP_OK != led_result)
         return led_result;
 
+    esp_err_t sensor_result = sensor_hal_init();
+    if (ESP_OK != sensor_result)
+        ESP_LOGW(TAG, "sensor_hal_init failed: err=0x%x (continuing without sensor)", sensor_result);
+
     esp_err_t ble_result = initialize_ble_nus_module();
     if (ESP_OK != ble_result)
     {
@@ -454,6 +463,29 @@ static esp_err_t configure_modules_usage(void)
     return led_indicator_set_state(LED_STATE_BLE_DISCONNECTED);
 }
 
+static void sensor_read_task_fn(void *param)
+{
+    (void)param;
+
+    TickType_t last_wake_tick = xTaskGetTickCount();
+
+    while (true)
+    {
+        sensor_data_t data;
+        esp_err_t ret = sensor_hal_read(&data);
+        if (ESP_OK == ret)
+        {
+            ESP_LOGI(TAG, "[%s] P=%ld Pa  T=%ld m°C", sensor_hal_get_name(), (long)data.pressure_pa,
+                     (long)data.temperature_mc);
+        }
+        else
+        {
+            ESP_LOGW(TAG, "sensor_hal_read error: 0x%x", ret);
+        }
+        vTaskDelayUntil(&last_wake_tick, pdMS_TO_TICKS(SENSOR_READ_PERIOD_MS));
+    }
+}
+
 static esp_err_t create_lk8ex1_sender_thread(application_threads_t *threads)
 {
     if (!threads)
@@ -467,13 +499,30 @@ static esp_err_t create_lk8ex1_sender_thread(application_threads_t *threads)
     return ESP_OK;
 }
 
+static esp_err_t create_sensor_read_thread(application_threads_t *threads)
+{
+    if (!threads)
+        return ESP_ERR_INVALID_ARG;
+
+    BaseType_t task_created = xTaskCreate(sensor_read_task_fn, "sensor_read", SENSOR_READ_TASK_STACK_SIZE, NULL,
+                                          SENSOR_READ_TASK_PRIORITY, &threads->sensor_read_task);
+    if (task_created != pdPASS)
+        return ESP_FAIL;
+
+    return ESP_OK;
+}
+
 static esp_err_t create_threads(application_threads_t *threads)
 {
     esp_err_t queue_result = lk8ex1_create_profile_queue();
     if (ESP_OK != queue_result)
         return queue_result;
 
-    return create_lk8ex1_sender_thread(threads);
+    esp_err_t sender_result = create_lk8ex1_sender_thread(threads);
+    if (ESP_OK != sender_result)
+        return sender_result;
+
+    return create_sensor_read_thread(threads);
 }
 
 static esp_err_t launch_lk8ex1_sender_thread(const application_threads_t *threads)
@@ -496,6 +545,7 @@ void app_main(void)
 
     application_threads_t threads = {
         .lk8ex1_sender_task = NULL,
+        .sensor_read_task = NULL,
     };
 
     esp_err_t modules_result = initialize_modules();

@@ -46,12 +46,12 @@
   - [x] Task 5.1: Kconfig sensor selection (`choice SENSOR_DRIVER`)
   - [x] Task 5.2: `sensor_hal` public API and compile-time dispatch
   - [x] Task 5.3: I2C bus initialization
-- [ ] **Phase 6: MS5611 Sensor Driver**
-  - [ ] Task 6.1: MS5611 PROM calibration read
-  - [ ] Task 6.2: MS5611 raw pressure & temperature read
-  - [ ] Task 6.3: MS5611 compensation math
-  - [ ] Task 6.4: Ceedling unit tests for compensation
-  - [ ] Task 6.5: Integration test on hardware
+- [x] **Phase 6: MS5611 Sensor Driver**
+  - [x] Task 6.1: MS5611 PROM calibration read
+  - [x] Task 6.2: MS5611 raw pressure & temperature read
+  - [x] Task 6.3: MS5611 compensation math
+  - [x] Task 6.4: Ceedling unit tests for compensation
+  - [x] Task 6.5: Integration test on hardware
 - [ ] **Phase 7: BMP390 Sensor Driver**
   - [ ] Task 7.1: BMP390 trimming coefficients read
   - [ ] Task 7.2: BMP390 raw pressure & temperature read
@@ -1103,15 +1103,15 @@ bluetoothctl --timeout 10 scan on || true
 **Description**: Implement reading the 6 factory calibration coefficients (C1–C6) from the MS5611's PROM via I2C. These are needed for pressure/temperature compensation.
 
 **Acceptance Criteria**:
-- [ ] Component `sensor_ms5611` created in `micro/components/sensor_ms5611/`
-- [ ] `sensor_ms5611_t` and `sensor_ms5611_cfg_t` structs per architecture §4.2
-- [ ] `sensor_ms5611_init(sensor_ms5611_t *self, const sensor_ms5611_cfg_t *cfg)` reads all 6 PROM coefficients
-- [ ] Sends reset command (`0x1E`) before PROM read
-- [ ] Calibration data stored in `self->calibration[6]`
-- [ ] Validates PROM CRC (word 7)
-- [ ] Handles I2C errors (retry once, then return error)
-- [ ] Logs calibration values at INFO level on successful init
-- [ ] Uses ESP-IDF I2C driver directly (no wrapper)
+- [x] Component `sensor_ms5611` created in `micro/components/sensor_ms5611/`
+- [x] `sensor_ms5611_t` and `sensor_ms5611_cfg_t` structs per architecture §4.2
+- [x] `sensor_ms5611_init(sensor_ms5611_t *self, const sensor_ms5611_cfg_t *cfg)` reads all 6 PROM coefficients
+- [x] Sends reset command (`0x1E`) before PROM read
+- [x] Calibration data stored in `self->calibration[6]`
+- [x] Validates PROM CRC (word 7)
+- [x] Handles I2C errors (retry once, then return error)
+- [x] Logs calibration values at INFO level on successful init
+- [x] Uses ESP-IDF I2C driver directly (no wrapper)
 
 **Validation**:
 - Flash to DevKitC-02 with MS5611 connected, verify calibration values in log output
@@ -1133,13 +1133,13 @@ bluetoothctl --timeout 10 scan on || true
 **Description**: Implement the ADC conversion and raw data read for pressure (D1) and temperature (D2).
 
 **Acceptance Criteria**:
-- [ ] `sensor_ms5611_read(sensor_ms5611_t *self, sensor_data_t *out)` performs full read cycle
-- [ ] Starts D1 (pressure) ADC conversion, waits, reads 24-bit result
-- [ ] Starts D2 (temperature) ADC conversion, waits, reads 24-bit result
-- [ ] Configurable OSR per `sensor_ms5611_cfg_t.osr` (256, 512, 1024, 2048, 4096)
-- [ ] Default OSR: 4096 (~9.04 ms conversion time per measurement)
-- [ ] Populates `out->timestamp_us` with `esp_timer_get_time()`
-- [ ] Handles I2C read errors
+- [x] `sensor_ms5611_read(sensor_ms5611_t *self, sensor_data_t *out)` performs full read cycle
+- [x] Starts D1 (pressure) ADC conversion, waits, reads 24-bit result
+- [x] Starts D2 (temperature) ADC conversion, waits, reads 24-bit result
+- [x] Configurable OSR per `sensor_ms5611_cfg_t.osr` (256, 512, 1024, 2048, 4096)
+- [x] Default OSR: 4096 (~9.04 ms conversion time per measurement)
+- [x] Populates `out->timestamp_us` with `esp_timer_get_time()`
+- [x] Handles I2C read errors
 
 **Validation**:
 - Flash to hardware, log raw D1 and D2 values, verify non-zero and in expected range
@@ -1159,12 +1159,12 @@ bluetoothctl --timeout 10 scan on || true
 **Description**: Implement the second-order temperature compensation algorithm from the MS5611 datasheet.
 
 **Acceptance Criteria**:
-- [ ] Full compensation per datasheet (including second-order for T < 20°C and T < -15°C)
-- [ ] Output pressure in Pascals → `out->pressure_pa` (`int32_t`)
-- [ ] Output temperature in milli-Celsius → `out->temperature_mc` (`int32_t`, e.g., 23500 = 23.5°C)
-- [ ] Uses 64-bit intermediate calculations to avoid overflow
-- [ ] Pure computation (no I2C calls) — separable for unit testing
-- [ ] `sensor_ms5611_deinit(sensor_ms5611_t *self)` releases resources
+- [x] Full compensation per datasheet (including second-order for T < 20°C and T < -15°C)
+- [x] Output pressure in Pascals → `out->pressure_pa` (`int32_t`)
+- [x] Output temperature in milli-Celsius → `out->temperature_mc` (`int32_t`, e.g., 23500 = 23.5°C)
+- [x] Uses 64-bit intermediate calculations to avoid overflow
+- [x] Pure computation (no I2C calls) — separable for unit testing
+- [x] `sensor_ms5611_deinit(sensor_ms5611_t *self)` releases resources
 
 **Validation**:
 - Datasheet test vector: C1=40127, C2=36924, C3=23317, C4=23282, C5=33464, C6=28312, D1=9085466, D2=8569150 → TEMP=2007, P=100009
@@ -1179,12 +1179,12 @@ bluetoothctl --timeout 10 scan on || true
 **Description**: Write unit tests for the MS5611 compensation math using known test vectors.
 
 **Acceptance Criteria**:
-- [ ] Test file `micro/test/test_sensor_ms5611.c` exists
-- [ ] Test: datasheet reference vector produces expected P and T values
-- [ ] Test: second-order compensation activates for T < 20°C
-- [ ] Test: second-order compensation activates for T < -15°C
-- [ ] Test: init with NULL parameters returns `ESP_ERR_INVALID_ARG`
-- [ ] All tests pass in `ceedling test:all`
+- [x] Test file `micro/test/test_sensor_ms5611.c` exists
+- [x] Test: datasheet reference vector produces expected P and T values
+- [x] Test: second-order compensation activates for T < 20°C
+- [x] Test: second-order compensation activates for T < -15°C
+- [x] Test: init with NULL parameters returns `ESP_ERR_INVALID_ARG`
+- [x] All tests pass in `ceedling test:all`
 
 **Validation**:
 - Run `./scripts/micro/test.sh` — all tests green
@@ -1201,12 +1201,12 @@ bluetoothctl --timeout 10 scan on || true
 **Description**: Run the MS5611 driver on actual hardware through `sensor_hal` and verify readings are reasonable.
 
 **Acceptance Criteria**:
-- [ ] Pressure readings in range 30000–110000 Pa (300–1100 mbar)
-- [ ] Temperature readings reasonable (e.g., 15–35°C indoors → 15000–35000 milli-°C)
-- [ ] Readings stable (±10 Pa over 10 seconds at rest)
-- [ ] 10 Hz read rate achieved without I2C errors
-- [ ] `sensor_hal_get_name()` returns `"MS5611"`
-- [ ] Log output shows formatted pressure and temperature values
+- [x] Pressure readings in range 30000–110000 Pa (300–1100 mbar)
+- [x] Temperature readings reasonable (e.g., 15–35°C indoors → 15000–35000 milli-°C)
+- [x] Readings stable (±10 Pa over 10 seconds at rest)
+- [x] 10 Hz read rate achieved without I2C errors
+- [x] `sensor_hal_get_name()` returns `"MS5611"`
+- [x] Log output shows formatted pressure and temperature values
 
 **Validation**:
 - Flash firmware, observe sensor readings via `sensor_hal_read()` in serial monitor for 60 seconds
