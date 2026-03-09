@@ -58,16 +58,6 @@ extern "C"
      */
     esp_err_t sensor_ms5611_read(sensor_ms5611_t *self, sensor_data_t *out);
 
-    /**
-     * @brief Release resources held by the MS5611 driver.
-     *
-     * Removes the I2C device. The instance must not be used after this call.
-     *
-     * @param self  Initialised driver instance. Must not be NULL.
-     * @return ESP_OK on success, or an error code.
-     */
-    esp_err_t sensor_ms5611_deinit(sensor_ms5611_t *self);
-
 #ifdef __cplusplus
 }
 #endif

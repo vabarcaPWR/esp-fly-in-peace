@@ -132,10 +132,3 @@ esp_err_t sensor_ms5611_hardware_read_raw(sensor_ms5611_t *self, uint32_t *d1, u
 
     return read_adc(self, d2);
 }
-
-esp_err_t sensor_ms5611_hardware_deinit(sensor_ms5611_t *self)
-{
-    esp_err_t ret = i2c_master_bus_rm_device(self->dev);
-    self->dev = NULL;
-    return ret;
-}
