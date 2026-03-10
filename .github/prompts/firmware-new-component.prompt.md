@@ -15,7 +15,7 @@ Generate the following files:
 ```
 micro/components/{{COMPONENT_NAME}}/
 ├── CMakeLists.txt
-├── include/
+├── inc/
 │   └── {{COMPONENT_NAME}}.h        # Public API header
 └── src/
     ├── {{COMPONENT_NAME}}.c        # Implementation
@@ -27,7 +27,7 @@ And the test file:
 
 ## Rules
 
-1. **Public header** (`include/{{COMPONENT_NAME}}.h`):
+1. **Public header** (`inc/{{COMPONENT_NAME}}.h`):
    - Include guard: `#ifndef {{COMPONENT_NAME_UPPER}}_H`
    - `extern "C"` wrapper for C++ compatibility
    - Doxygen comments for all public functions
@@ -45,7 +45,7 @@ And the test file:
    ```cmake
    idf_component_register(
        SRCS "src/{{COMPONENT_NAME}}.c"
-       INCLUDE_DIRS "include"
+       INCLUDE_DIRS "inc"
        REQUIRES {{DEPENDENCIES}}
    )
    ```
@@ -62,7 +62,7 @@ And the test file:
 For `COMPONENT_NAME=led_indicator`, `PURPOSE=Drive WS2812 RGB LED for status indication`,
 `DEPENDENCIES=driver`:
 
-- `micro/components/led_indicator/include/led_indicator.h`
+- `micro/components/led_indicator/inc/led_indicator.h`
 - `micro/components/led_indicator/src/led_indicator.c`
 - `micro/components/led_indicator/src/led_indicator_types.h`
 - `micro/components/led_indicator/CMakeLists.txt`

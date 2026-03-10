@@ -180,7 +180,7 @@ For every module/component implemented in those phases:
 
 ### Task 0.3: Configure Ceedling for host-side unit tests
 
-**Description**: Set up Ceedling in `micro/test/` for host-side unit testing. Configure `project.yml` to find source files in `micro/components/*/src/` and `micro/components/*/include/`.
+**Description**: Set up Ceedling in `micro/test/` for host-side unit testing. Configure `project.yml` to find source files in `micro/components/*/src/` and `micro/components/*/inc/`.
 
 **Acceptance Criteria**:
 - [x] `micro/test/project.yml` exists with correct paths
@@ -412,7 +412,7 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 
 **Files to create**:
 - `micro/components/lk8ex1/CMakeLists.txt`
-- `micro/components/lk8ex1/include/lk8ex1.h`
+- `micro/components/lk8ex1/inc/lk8ex1.h`
 - `micro/components/lk8ex1/src/lk8ex1.c`
 - `micro/components/lk8ex1/src/lk8ex1_model.c`
 - `micro/components/lk8ex1/src/lk8ex1_model.h`
@@ -434,7 +434,7 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 - Unit tests with known NMEA sentences
 
 **Files to modify**:
-- `micro/components/lk8ex1/include/lk8ex1.h`
+- `micro/components/lk8ex1/inc/lk8ex1.h`
 - `micro/components/lk8ex1/src/lk8ex1.c`
 
 ---
@@ -503,7 +503,7 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 
 **Files to create**:
 - `micro/components/ble_nus/CMakeLists.txt`
-- `micro/components/ble_nus/include/ble_nus.h`
+- `micro/components/ble_nus/inc/ble_nus.h`
 - `micro/components/ble_nus/src/ble_nus.c`
 - `micro/components/ble_nus/src/ble_nus_model.c`
 - `micro/components/ble_nus/src/ble_nus_model.h`
@@ -919,7 +919,7 @@ bluetoothctl --timeout 10 scan on || true
 
 **Files to create**:
 - `micro/components/led_indicator/CMakeLists.txt`
-- `micro/components/led_indicator/include/led_indicator.h`
+- `micro/components/led_indicator/inc/led_indicator.h`
 - `micro/components/led_indicator/src/led_indicator.c`
 
 ---
@@ -1044,7 +1044,7 @@ bluetoothctl --timeout 10 scan on || true
 - Build fails with no sensor selected → `#error` message
 
 **Files to create**:
-- `micro/components/sensor_hal/include/sensor_hal.h`
+- `micro/components/sensor_hal/inc/sensor_hal.h`
 - `micro/components/sensor_hal/src/sensor_hal.c`
 
 ---
@@ -1118,7 +1118,7 @@ bluetoothctl --timeout 10 scan on || true
 
 **Files to create**:
 - `micro/components/sensor_ms5611/CMakeLists.txt`
-- `micro/components/sensor_ms5611/include/sensor_ms5611.h`
+- `micro/components/sensor_ms5611/inc/sensor_ms5611.h`
 - `micro/components/sensor_ms5611/src/sensor_ms5611.c`
 
 **Notes**:
@@ -1256,7 +1256,7 @@ bluetoothctl --timeout 10 scan on || true
 
 **Files to create**:
 - `micro/components/sensor_bmp390/CMakeLists.txt`
-- `micro/components/sensor_bmp390/include/sensor_bmp390.h`
+- `micro/components/sensor_bmp390/inc/sensor_bmp390.h`
 - `micro/components/sensor_bmp390/src/sensor_bmp390.c`
 
 **Notes**:
@@ -1422,7 +1422,7 @@ The MPU6050 provides high-rate (100 Hz) accelerometer and gyroscope data for:
 - Build succeeds with `CONFIG_IMU_NONE=y` (baro-only fallback)
 
 **Files to create**:
-- `micro/components/imu_hal/include/imu_hal.h`
+- `micro/components/imu_hal/inc/imu_hal.h`
 - `micro/components/imu_hal/src/imu_hal.c`
 
 ---
@@ -1453,7 +1453,7 @@ The MPU6050 provides high-rate (100 Hz) accelerometer and gyroscope data for:
 
 **Files to create**:
 - `micro/components/imu_mpu6050/CMakeLists.txt`
-- `micro/components/imu_mpu6050/include/imu_mpu6050.h`
+- `micro/components/imu_mpu6050/inc/imu_mpu6050.h`
 - `micro/components/imu_mpu6050/src/imu_mpu6050.c`
 
 **Notes**:
@@ -1567,7 +1567,7 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 **Files to create**:
 - `micro/components/ahrs/CMakeLists.txt`
-- `micro/components/ahrs/include/ahrs.h`
+- `micro/components/ahrs/inc/ahrs.h`
 - `micro/components/ahrs/src/ahrs.c`
 
 **Notes**:
@@ -1597,7 +1597,7 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 - Upward acceleration (e.g., thermal entry): output > 0 m/s²
 
 **Files to modify**:
-- `micro/components/ahrs/include/ahrs.h`
+- `micro/components/ahrs/inc/ahrs.h`
 - `micro/components/ahrs/src/ahrs.c`
 
 **Notes**:
@@ -1651,7 +1651,7 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 **Files to create**:
 - `micro/components/ekf/CMakeLists.txt`
-- `micro/components/ekf/include/ekf.h`
+- `micro/components/ekf/inc/ekf.h`
 - `micro/components/ekf/src/ekf.c`
 
 **Notes**:
@@ -1697,7 +1697,7 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 - After calibration, `ekf_update_baro()` produces altitude matching known value
 
 **Files to modify**:
-- `micro/components/ekf/include/ekf.h`
+- `micro/components/ekf/inc/ekf.h`
 - `micro/components/ekf/src/ekf.c`
 
 ---
@@ -1988,7 +1988,7 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 **Files to create**:
 - `micro/components/config_manager/CMakeLists.txt`
-- `micro/components/config_manager/include/config_manager.h`
+- `micro/components/config_manager/inc/config_manager.h`
 - `micro/components/config_manager/src/config_manager.c`
 
 ---
@@ -2034,7 +2034,7 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 **Files to modify**:
 - `micro/components/ble_nus/src/ble_nus.c` (add Config GATT service)
-- `micro/components/ble_nus/include/ble_nus.h` (config service types)
+- `micro/components/ble_nus/inc/ble_nus.h` (config service types)
 
 **Notes**: Config Service UUID defined in `ble_protocol.md` §Config Service.
 
@@ -2122,7 +2122,7 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 **Files to create**:
 - `micro/components/power_manager/CMakeLists.txt`
-- `micro/components/power_manager/include/power_manager.h`
+- `micro/components/power_manager/inc/power_manager.h`
 - `micro/components/power_manager/src/power_manager.c`
 
 ---

@@ -23,7 +23,7 @@ Recommended structure:
 ```
 micro/components/<module>/
 ├── CMakeLists.txt
-├── include/
+├── inc/
 │   └── <module>.h
 └── src/
     ├── <module>_conductor.c

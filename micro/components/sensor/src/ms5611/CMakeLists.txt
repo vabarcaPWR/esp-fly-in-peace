@@ -6,7 +6,7 @@ set(SRCS
 
 idf_component_register(
     SRCS ${SRCS}
-    INCLUDE_DIRS "include"
+    INCLUDE_DIRS "inc"
     PRIV_INCLUDE_DIRS "src"
     REQUIRES "esp_timer" "esp_driver_i2c"
 )

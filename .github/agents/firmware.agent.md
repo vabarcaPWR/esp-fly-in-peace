@@ -13,7 +13,8 @@ and low-power design for ESP32-C3.
 
 ## Context
 
-- Working directory: `micro/`
+- Working directories: `micro/` and `scripts/micro/`
+- Do not modify any files outside working directories without explicit instructions.
 - Framework: ESP-IDF v5.x with CMake build system
 - RTOS: FreeRTOS (tasks, queues, semaphores, timers)
 - BLE: NimBLE stack, Nordic UART Service (NUS)
@@ -42,6 +43,7 @@ and low-power design for ESP32-C3.
 - Use `ESP_LOGx` macros for logging (never `printf`)
 - Follow naming: `snake_case` functions, `UPPER_SNAKE_CASE` macros, `_t` suffix for types
 - Static allocation preferred over dynamic
+- when comparing with 0 or NULL, use `!` instead  for clarity (e.g., `if (!ptr)`)
 - No dynamic memory allocation in ISRs or time-critical paths
 - Allman brace style, 4-space indent, 120-char line limit
 - Public headers: include guard + `extern "C"` wrapper + Doxygen for public API
@@ -53,7 +55,7 @@ and low-power design for ESP32-C3.
 
 ## Workflow
 
-1. Read the relevant task from `docs/roadmap.micro.md`.
+1. Read the relevant task from `docs/roadmap.micro.md` and `docs/architecture/firmware-architecture.md`.
 2. State acceptance criteria and validation plan.
 3. Implement following the style guide.
 4. Apply `.clang-format` by running `pe-code-tool format <file>` on edited files.

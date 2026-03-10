@@ -208,7 +208,7 @@ if (!self || !cfg)
 ```
 component_name/
 ├── CMakeLists.txt            // ESP-IDF component registration
-├── include/
+├── inc/
 │   └── component_name.h      // Public API (include guard, extern "C", Doxygen)
 └── src/
     └── component_name.c      // Implementation (private types, static functions)
@@ -555,7 +555,7 @@ Create a new ESP-IDF component for the esp-fly-in-peace firmware.
 ## Output Structure
 Generate the following files:
 - `micro/components/{{COMPONENT_NAME}}/CMakeLists.txt`
-- `micro/components/{{COMPONENT_NAME}}/include/{{COMPONENT_NAME}}.h` (public API)
+- `micro/components/{{COMPONENT_NAME}}/inc/{{COMPONENT_NAME}}.h` (public API)
 - `micro/components/{{COMPONENT_NAME}}/src/{{COMPONENT_NAME}}.c` (implementation)
 - `micro/components/{{COMPONENT_NAME}}/src/{{COMPONENT_NAME}}_types.h` (private types)
 - `micro/test/test_{{COMPONENT_NAME}}.c` (Ceedling test)
@@ -740,37 +740,37 @@ esp-fly-in-peace/
 │   │   └── Kconfig.projbuild                  # Project-level Kconfig
 │   ├── components/
 │   │   ├── sensor_hal/                        # Sensor abstraction layer
-│   │   │   ├── include/sensor_hal.h
+│   │   │   ├── inc/sensor_hal.h
 │   │   │   └── src/sensor_hal.c
 │   │   ├── sensor_ms5611/                     # MS5611 driver
-│   │   │   ├── include/sensor_ms5611.h
+│   │   │   ├── inc/sensor_ms5611.h
 │   │   │   └── src/sensor_ms5611.c
 │   │   ├── imu_hal/                           # IMU abstraction layer
-│   │   │   ├── include/imu_hal.h
+│   │   │   ├── inc/imu_hal.h
 │   │   │   └── src/imu_hal.c
 │   │   ├── imu_mpu6050/                       # MPU6050 IMU driver
-│   │   │   ├── include/imu_mpu6050.h
+│   │   │   ├── inc/imu_mpu6050.h
 │   │   │   └── src/imu_mpu6050.c
 │   │   ├── ahrs/                              # Madgwick quaternion AHRS
-│   │   │   ├── include/ahrs.h
+│   │   │   ├── inc/ahrs.h
 │   │   │   └── src/ahrs.c
 │   │   ├── ekf/                               # 3-state EKF (altitude, vario, accel_bias)
-│   │   │   ├── include/ekf.h
+│   │   │   ├── inc/ekf.h
 │   │   │   └── src/ekf.c
 │   │   ├── lk8ex1/                            # LK8EX1 protocol formatter
-│   │   │   ├── include/lk8ex1.h
+│   │   │   ├── inc/lk8ex1.h
 │   │   │   └── src/lk8ex1.c
 │   │   ├── ble_nus/                           # BLE Nordic UART Service
-│   │   │   ├── include/ble_nus.h
+│   │   │   ├── inc/ble_nus.h
 │   │   │   └── src/ble_nus.c
 │   │   ├── led_indicator/                     # RGB LED driver
-│   │   │   ├── include/led_indicator.h
+│   │   │   ├── inc/led_indicator.h
 │   │   │   └── src/led_indicator.c
 │   │   ├── config_manager/                    # NVS configuration
-│   │   │   ├── include/config_manager.h
+│   │   │   ├── inc/config_manager.h
 │   │   │   └── src/config_manager.c
 │   │   └── power_manager/                     # Power management
-│   │       ├── include/power_manager.h
+│   │       ├── inc/power_manager.h
 │   │       └── src/power_manager.c
 │   ├── test/                                  # Ceedling unit tests
 │   │   ├── project.yml                        # Ceedling config

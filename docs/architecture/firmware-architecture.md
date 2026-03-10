@@ -123,7 +123,7 @@ Recommended internal file split per component:
 
 ```
 component_name/
-├── include/
+├── inc/
 │   └── component_name.h                 # Public API (conductor-facing)
 └── src/
     ├── component_name_conductor.c
@@ -325,7 +325,7 @@ endif()
 
 idf_component_register(
     SRCS ${SRCS}
-    INCLUDE_DIRS "include"
+    INCLUDE_DIRS "inc"
     REQUIRES ${REQUIRES}
 )
 ```

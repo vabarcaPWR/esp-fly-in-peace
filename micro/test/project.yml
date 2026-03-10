@@ -24,7 +24,7 @@
   :source:
     - ../components/*/src
   :include:
-    - ../components/*/include
+    - ../components/*/inc
     - ../components/*/src
   :support:
     - support

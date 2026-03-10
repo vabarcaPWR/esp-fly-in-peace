@@ -14,7 +14,7 @@ Create a sensor driver that implements the sensor HAL interface for the esp-fly-
 ```
 micro/components/sensor_{{SENSOR_NAME}}/
 ├── CMakeLists.txt
-├── include/
+├── inc/
 │   └── sensor_{{SENSOR_NAME}}.h       # Public API
 └── src/
     ├── sensor_{{SENSOR_NAME}}.c       # Implementation
@@ -25,7 +25,7 @@ Test: `micro/test/test_sensor_{{SENSOR_NAME}}.c`
 
 ## Requirements
 
-1. **Implement the `sensor_hal_interface_t`** defined in `micro/components/sensor_hal/include/sensor_hal.h`:
+1. **Implement the `sensor_hal_interface_t`** defined in `micro/components/sensor_hal/inc/sensor_hal.h`:
    - `init(self, cfg)` → `esp_err_t`
    - `read(self)` → `esp_err_t`
    - `deinit(self)` → `void`
