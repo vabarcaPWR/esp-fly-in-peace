@@ -12,25 +12,32 @@ Create a sensor driver that implements the sensor HAL interface for the esp-fly-
 ## Output Structure
 
 ```
-micro/components/sensor_{{SENSOR_NAME}}/
+micro/components/sensor/
 ├── CMakeLists.txt
-├── inc/
-│   └── sensor_{{SENSOR_NAME}}.h       # Public API
+├── sensor.h
 └── src/
-    ├── sensor_{{SENSOR_NAME}}.c       # Implementation
-    └── sensor_{{SENSOR_NAME}}_types.h  # Private types (calibration data, raw readings)
+    ├── sensor.c
+    └── {{SENSOR_NAME}}/
+        ├── CMakeLists.txt
+        ├── inc/
+        │   └── {{SENSOR_NAME}}.h
+        └── src/
+            ├── {{SENSOR_NAME}}_conductor.c
+            ├── {{SENSOR_NAME}}_model.c
+            ├── {{SENSOR_NAME}}_model.h
+            ├── {{SENSOR_NAME}}_hardware.c
+            └── {{SENSOR_NAME}}_hardware.h
 ```
 
 Test: `micro/test/test_sensor_{{SENSOR_NAME}}.c`
 
+## IA instructions
+
+1. Do not modify `micro/components/sensor/sensor.h` — implement the API defined there.
+
 ## Requirements
 
-1. **Implement the `sensor_hal_interface_t`** defined in `micro/components/sensor_hal/inc/sensor_hal.h`:
-   - `init(self, cfg)` → `esp_err_t`
-   - `read(self)` → `esp_err_t`
-   - `deinit(self)` → `void`
-   - `get_pressure(self)` → `int32_t` (Pa)
-   - `get_temperature(self)` → `int32_t` (°C × 100)
+1. **Implement the `sensor_t`** api defined in `micro/components/sensor/sensor.h`:
 
 2. **Calibration**: Read factory calibration data from sensor PROM/registers during `init`.
 
