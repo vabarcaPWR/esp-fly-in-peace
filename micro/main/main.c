@@ -54,6 +54,24 @@ typedef struct application_threads_s
 
 static QueueHandle_t lk8ex1_profile_queue = NULL;
 
+static bool startup_step_succeeded(const char *step_name, esp_err_t result)
+{
+    if (ESP_OK == result)
+        return true;
+
+    ESP_LOGE(TAG, "%s failed: err=0x%x", step_name, result);
+    return false;
+}
+
+static void application_threads_reset(application_threads_t *threads)
+{
+    if (!threads)
+        return;
+
+    threads->lk8ex1_sender_task = NULL;
+    threads->sensor_read_task = NULL;
+}
+
 static const char *lk8ex1_profile_to_name(lk8ex1_sim_profile_e profile)
 {
     switch (profile)
@@ -283,18 +301,26 @@ static bool lk8ex1_build_profile_sentence(const lk8ex1_simulation_state_t *state
         .battery_mv = 0,
     };
 
-    if (LK8EX1_SIM_PROFILE_NOMINAL == state->profile)
+    switch (state->profile)
+    {
+    case LK8EX1_SIM_PROFILE_NOMINAL:
         lk8ex1_build_nominal_data(state->frame_index, &lk8ex1_data);
-    else if (LK8EX1_SIM_PROFILE_CLIMB == state->profile)
+        break;
+    case LK8EX1_SIM_PROFILE_CLIMB:
         lk8ex1_build_climb_data(state->frame_index, &lk8ex1_data);
-    else if (LK8EX1_SIM_PROFILE_SINK == state->profile)
+        break;
+    case LK8EX1_SIM_PROFILE_SINK:
         lk8ex1_build_sink_data(state->frame_index, &lk8ex1_data);
-    else if (LK8EX1_SIM_PROFILE_EDGE == state->profile)
+        break;
+    case LK8EX1_SIM_PROFILE_EDGE:
         lk8ex1_build_edge_data(state->frame_index, &lk8ex1_data);
-    else if (LK8EX1_SIM_PROFILE_MALFORMED_CHECKSUM == state->profile)
+        break;
+    case LK8EX1_SIM_PROFILE_MALFORMED_CHECKSUM:
         lk8ex1_build_nominal_data(state->frame_index, &lk8ex1_data);
-    else
+        break;
+    default:
         return false;
+    }
 
     if (ESP_OK != lk8ex1_format(&lk8ex1_data, sentence, sentence_size))
         return false;
@@ -543,36 +569,17 @@ void app_main(void)
 {
     ESP_LOGI(TAG, "esp-fly-in-peace firmware starting");
 
-    application_threads_t threads = {
-        .lk8ex1_sender_task = NULL,
-        .sensor_read_task = NULL,
-    };
+    application_threads_t threads;
+    application_threads_reset(&threads);
 
-    esp_err_t modules_result = initialize_modules();
-    if (ESP_OK != modules_result)
-    {
-        ESP_LOGE(TAG, "initialize_modules failed: err=0x%x", modules_result);
+    if (!startup_step_succeeded("initialize_modules", initialize_modules()))
         return;
-    }
 
-    esp_err_t modules_usage_result = configure_modules_usage();
-    if (ESP_OK != modules_usage_result)
-    {
-        ESP_LOGE(TAG, "configure_modules_usage failed: err=0x%x", modules_usage_result);
+    if (!startup_step_succeeded("configure_modules_usage", configure_modules_usage()))
         return;
-    }
 
-    esp_err_t create_threads_result = create_threads(&threads);
-    if (ESP_OK != create_threads_result)
-    {
-        ESP_LOGE(TAG, "create_threads failed: err=0x%x", create_threads_result);
+    if (!startup_step_succeeded("create_threads", create_threads(&threads)))
         return;
-    }
 
-    esp_err_t launch_threads_result = launch_threads(&threads);
-    if (ESP_OK != launch_threads_result)
-    {
-        ESP_LOGE(TAG, "launch_threads failed: err=0x%x", launch_threads_result);
-        return;
-    }
+    (void)startup_step_succeeded("launch_threads", launch_threads(&threads));
 }

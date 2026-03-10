@@ -1,7 +1,6 @@
-#include "sensor_ms5611.h"
-
 #include "esp_log.h"
 #include "esp_timer.h"
+#include "sensor_ms5611.h"
 #include "sensor_ms5611_hardware.h"
 #include "sensor_ms5611_model.h"
 

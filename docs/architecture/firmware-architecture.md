@@ -10,6 +10,7 @@
 1. [High-Level Overview](#1-high-level-overview)
 2. [Layer Architecture](#2-layer-architecture)
     - [2.1 Conductor-Model-Hardware Pattern](#21-conductor-model-hardware-pattern)
+    - [2.2 Sensor Factory Pattern](#22-sensor-factory-pattern)
 3. [Component Catalog](#3-component-catalog)
     - [3.2 Implemented File Mapping (Phase 2 and 3)](#32-implemented-file-mapping-phase-2-and-3)
 4. [Component Interface Contracts (C API)](#4-component-interface-contracts-c-api)
@@ -134,8 +135,12 @@ If a component is pure algorithm/formatting, it can omit `_hardware` and keep on
 
 Implementation template and closure checklist: `docs/architecture/conductor-model-hardware-template.md`.
 
----
+### 2.2 Sensor Factory Pattern
 
+- All the sensors must implement the api defined in `sensor.h` and be accessible through the `get_sensor(const char *sensor_name)` factory function defined in `sensor.c`.
+- DO NOT CHANGE the `sensor.h` file, as it defines the contract for all the sensors. If you need to add a new sensor, create a new folder in `components/sensor/src/<sensor_name>` and implement the required functions. Then, add a new condition in the `get_sensor()` function to return an instance of your new sensor when requested by name.
+
+---
 ## 3. Component Catalog
 
 ```

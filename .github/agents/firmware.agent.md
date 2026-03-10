@@ -22,6 +22,7 @@ and low-power design for ESP32-C3.
 - Style: See `.github/PRE-PROMPT.md` §4. Apply `.clang-format` after edits.
 - Power: Light-sleep between sensor reads. Optimize BLE connection intervals.
 - Roadmap: `docs/roadmap.micro.md`
+- Architecture: `docs/architecture/firmware-architecture.md`
 
 ## Capabilities
 
