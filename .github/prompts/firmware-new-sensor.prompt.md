@@ -1,6 +1,6 @@
 # New Sensor Driver
 
-Create a sensor driver that implements the sensor HAL interface for the esp-fly-in-peace variometer.
+Create a sensor driver that plugs into the sensor factory in `micro/components/sensor` for the esp-fly-in-peace variometer.
 
 ## Input
 
@@ -34,10 +34,12 @@ Test: `micro/test/test_sensor_{{SENSOR_NAME}}.c`
 ## IA instructions
 
 1. Do not modify `micro/components/sensor/sensor.h` — implement the API defined there.
+2. Register the new driver in `micro/components/sensor/src/sensor.c` through `get_sensor(const char *sensor_name)`.
+3. Keep the implementation inside `micro/components/sensor/src/{{SENSOR_NAME}}/`.
 
 ## Requirements
 
-1. **Implement the `sensor_t`** api defined in `micro/components/sensor/sensor.h`:
+1. **Implement the `sensor_t` API** defined in `micro/components/sensor/sensor.h`:
 
 2. **Calibration**: Read factory calibration data from sensor PROM/registers during `init`.
 
@@ -55,9 +57,12 @@ Test: `micro/test/test_sensor_{{SENSOR_NAME}}.c`
    - Test read with valid calibration data
 
 6. **Apply `.clang-format`** after generating all files.
+7. **CMake integration**:
+   - Update `micro/components/sensor/CMakeLists.txt` to compile the new source files.
+   - Keep public headers in `inc/` and implementation in `src/` inside the sensor folder.
 
 ## Notes
 
-- The sensor HAL allows swapping sensors without changing the data pipeline.
+- The factory in `micro/components/sensor/src/sensor.c` allows swapping sensors without changing the data pipeline.
 - Sensor drivers should NOT create FreeRTOS tasks — the pipeline task calls `read()`.
 - Keep the driver stateless except for calibration data and last reading.

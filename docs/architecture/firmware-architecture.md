@@ -137,17 +137,18 @@ Implementation template and closure checklist: `docs/architecture/conductor-mode
 
 ### 2.2 Sensor Factory Pattern
 
-- All the sensors must implement the api defined in `sensor.h` and be accessible through the `get_sensor(const char *sensor_name)` factory function defined in `sensor.c`.
-- DO NOT CHANGE the `sensor.h` file, as it defines the contract for all the sensors. If you need to add a new sensor, create a new folder in `components/sensor/src/<sensor_name>` and implement the required functions. Then, add a new condition in the `get_sensor()` function to return an instance of your new sensor when requested by name.
+- All sensors must implement the API defined in `micro/components/sensor/sensor.h` and be exposed through `get_sensor(const char *sensor_name)` in `micro/components/sensor/src/sensor.c`.
+- `sensor.h` is the contract source of truth and must remain stable for all drivers.
+- New sensors must be added under `micro/components/sensor/src/<sensor_name>/` following conductor-model-hardware.
+- Every new sensor integration must update the factory (`get_sensor()`) and `micro/components/sensor/CMakeLists.txt`.
+- New sensors must not be created as new top-level components (`sensor_<name>`); they belong under the `sensor` component.
 
 ---
 ## 3. Component Catalog
 
 ```
 micro/components/
-├── sensor_hal/            # Sensor abstraction layer (compile-time dispatch via Kconfig)
-├── sensor_ms5611/         # MS5611 I2C driver (selected via CONFIG_SENSOR_MS5611)
-├── sensor_bmp390/         # BMP390 I2C driver (selected via CONFIG_SENSOR_BMP390)
+├── sensor/                # Sensor factory + shared contract + driver folders (ms5611, bmp390, ...)
 ├── imu_hal/               # IMU abstraction layer (compile-time dispatch via Kconfig)
 ├── imu_mpu6050/           # MPU6050 I2C driver (selected via CONFIG_IMU_MPU6050)
 ├── ahrs/                  # Madgwick quaternion AHRS (orientation estimation)
@@ -161,9 +162,7 @@ micro/components/
 
 | Component | Layer | Dependencies | FreeRTOS Primitives Used |
 |-----------|-------|-------------|---------------------------|
-| `sensor_hal` | HAL | Selected driver (`sensor_ms5611` or `sensor_bmp390`) | — |
-| `sensor_ms5611` | HAL | `sensor_hal`, ESP-IDF I2C driver | — |
-| `sensor_bmp390` | HAL | `sensor_hal`, ESP-IDF I2C driver | — |
+| `sensor` | HAL | ESP-IDF I2C driver, Kconfig, internal driver folder selected by factory | — |
 | `imu_hal` | HAL | Selected driver (`imu_mpu6050`) or stub (`CONFIG_IMU_NONE`) | — |
 | `imu_mpu6050` | HAL | `imu_hal`, `sensor_hal` (shared I2C bus), ESP-IDF I2C driver | — |
 | `ahrs` | Processing | (none — pure math) | — |
@@ -179,9 +178,7 @@ micro/components/
 | Component | Conductor | Model | Hardware |
 |-----------|-----------|-------|----------|
 | `ble_nus` | GAP/GATT lifecycle, subscriptions, fragmentation, callbacks | Connection state, packet policy, notify eligibility | NimBLE host, GAP/GATT APIs |
-| `sensor_hal` | Driver selection and read orchestration | Sensor-independent read contract | I2C bus lifecycle + selected driver binding |
-| `sensor_ms5611` | Read sequence orchestration and retries | Compensation math + calibration state | MS5611 register access via I2C |
-| `sensor_bmp390` | Read/config sequencing and retries | Compensation/filter state | BMP390 register access via I2C |
+| `sensor` | Driver selection via `get_sensor()`, lifecycle, read orchestration | Sensor contract (`sensor_t`) and driver-independent policy | I2C bus lifecycle + selected driver register access |
 | `imu_hal` | Driver selection and read orchestration | Sensor-independent read contract | I2C device lifecycle + selected driver binding |
 | `imu_mpu6050` | Read sequence orchestration and retries | Scaling/conversion state | MPU6050 register access via I2C |
 | `ahrs` | API guards and state lifecycle | Madgwick quaternion filter math | Not applicable |
@@ -214,6 +211,8 @@ or explicitly move it with matching updates in this matrix.
 
 Public headers keep the same APIs described below. Internally, each component implementation follows the
 **conductor-model-hardware** split from §2.1.
+
+For new sensor work, the normative architecture is the Sensor Factory Pattern in §2.2 (`micro/components/sensor`).
 
 ### 4.1 sensor_hal — Sensor Abstraction (Compile-Time Selection)
 

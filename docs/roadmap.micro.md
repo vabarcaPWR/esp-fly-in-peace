@@ -1222,6 +1222,11 @@ bluetoothctl --timeout 10 scan on || true
 **Objective**: Implement a fully functional BMP390 barometric pressure sensor driver with NVM trimming, compensation, and IIR filter support.  
 **Estimated Duration**: 3–4 days  
 **Dependencies**: Phase 5 (sensor_hal + I2C init)  
+
+> **Module architecture rule (effective for new sensors):**
+> Implement sensor drivers under `micro/components/sensor/src/<sensor_name>/`,
+> implement the `sensor_t` contract from `micro/components/sensor/sensor.h`,
+> and register the driver in `micro/components/sensor/src/sensor.c` via `get_sensor()`.
  
 **Refactorización (obligatoria)**:
 - Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
@@ -1230,7 +1235,7 @@ bluetoothctl --timeout 10 scan on || true
 - Convención de nombres por rol obligatoria: `*_conductor.c`, `*_model.c`, `*_hardware.c` (si aplica al módulo).
 - Repetir la validación de la fase después de cada refactorización.
 
-**Architecture Reference**: `firmware-architecture.md` §4.3 `sensor_bmp390`
+**Architecture Reference**: `firmware-architecture.md` §2.2 Sensor Factory Pattern
 
 ---
 
@@ -1239,7 +1244,7 @@ bluetoothctl --timeout 10 scan on || true
 **Description**: Implement reading the 11 NVM trimming coefficients from the BMP390 and validate the chip ID.
 
 **Acceptance Criteria**:
-- [ ] Component `sensor_bmp390` created in `micro/components/sensor_bmp390/`
+- [ ] Driver folder `bmp390` created in `micro/components/sensor/src/bmp390/`
 - [ ] `sensor_bmp390_t` and `sensor_bmp390_cfg_t` structs per architecture §4.3
 - [ ] `sensor_bmp390_init(sensor_bmp390_t *self, const sensor_bmp390_cfg_t *cfg)` implemented
 - [ ] Reads and validates chip ID register (expected: `0x60`)
@@ -1255,9 +1260,12 @@ bluetoothctl --timeout 10 scan on || true
 - Flash to DevKitC-02 with BMP390 connected, verify chip ID and coefficients in log output
 
 **Files to create**:
-- `micro/components/sensor_bmp390/CMakeLists.txt`
-- `micro/components/sensor_bmp390/inc/sensor_bmp390.h`
-- `micro/components/sensor_bmp390/src/sensor_bmp390.c`
+- `micro/components/sensor/src/bmp390/CMakeLists.txt`
+- `micro/components/sensor/src/bmp390/inc/bmp390.h`
+- `micro/components/sensor/src/bmp390/src/bmp390_conductor.c`
+- `micro/components/sensor/src/bmp390/src/bmp390_model.c`
+- `micro/components/sensor/src/bmp390/src/bmp390_hardware.c`
+- `micro/components/sensor/src/sensor.c` (factory registration in `get_sensor()`)
 
 **Notes**:
 - BMP390 I2C address: `0x77` (SDO=GND) or `0x76` (SDO=VCC). Default: `0x77`.
@@ -1284,7 +1292,7 @@ bluetoothctl --timeout 10 scan on || true
 - Flash to hardware, log raw pressure and temperature values
 
 **Files to modify**:
-- `micro/components/sensor_bmp390/src/sensor_bmp390.c`
+- `micro/components/sensor/src/bmp390/src/bmp390_conductor.c`
 
 **Notes**:
 - Conversion time depends on OSR: ~5 ms (1x) to ~40 ms (32x).
@@ -1308,7 +1316,7 @@ bluetoothctl --timeout 10 scan on || true
 - Compare output with Bosch reference implementation / BMP3 API
 
 **Files to modify**:
-- `micro/components/sensor_bmp390/src/sensor_bmp390.c`
+- `micro/components/sensor/src/bmp390/src/bmp390_model.c`
 
 ---
 

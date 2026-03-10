@@ -575,7 +575,7 @@ Generate the following files:
 ```markdown
 # New Sensor Driver
 
-Create a sensor driver that implements the sensor HAL interface.
+Create a sensor driver that integrates with the sensor factory in `micro/components/sensor`.
 
 ## Input
 - Sensor name: {{SENSOR_NAME}} (e.g., ms5611, bmp390)
@@ -583,14 +583,14 @@ Create a sensor driver that implements the sensor HAL interface.
 - Datasheet reference: {{DATASHEET_URL}}
 
 ## Requirements
-- Implement the sensor_interface_t (defined in micro/components/sensor_hal/)
-- Functions: init, read, deinit, get_config
+- Implement the `sensor_t` API defined in `micro/components/sensor/sensor.h`
+- Register the new sensor in `micro/components/sensor/src/sensor.c` via `get_sensor()`
 - Include calibration/compensation per datasheet
 - Unit tests for compensation math (use known test vectors from datasheet)
 - Handle bus errors gracefully (retry once, then return error)
 
 ## Output
-- `micro/components/sensor_{{SENSOR_NAME}}/` (full component)
+- `micro/components/sensor/src/{{SENSOR_NAME}}/` (driver folder)
 - `micro/test/test_sensor_{{SENSOR_NAME}}.c` (Ceedling tests)
 ```
 
@@ -739,12 +739,12 @@ esp-fly-in-peace/
 │   │   ├── main.c                             # Entry point (app_main)
 │   │   └── Kconfig.projbuild                  # Project-level Kconfig
 │   ├── components/
-│   │   ├── sensor_hal/                        # Sensor abstraction layer
-│   │   │   ├── inc/sensor_hal.h
-│   │   │   └── src/sensor_hal.c
-│   │   ├── sensor_ms5611/                     # MS5611 driver
-│   │   │   ├── inc/sensor_ms5611.h
-│   │   │   └── src/sensor_ms5611.c
+│   │   ├── sensor/                            # Sensor factory + sensor drivers
+│   │   │   ├── sensor.h
+│   │   │   └── src/
+│   │   │       ├── sensor.c
+│   │   │       ├── ms5611/
+│   │   │       └── bmp390/
 │   │   ├── imu_hal/                           # IMU abstraction layer
 │   │   │   ├── inc/imu_hal.h
 │   │   │   └── src/imu_hal.c
