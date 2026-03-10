@@ -9,7 +9,7 @@
 #include "freertos/task.h"
 #include "led_indicator.h"
 #include "lk8ex1.h"
-#include "sensor_hal.h"
+#include "sensor.h"
 #include <esp_log.h>
 
 #define LK8EX1_TX_PERIOD_MS 125U
@@ -459,10 +459,6 @@ static esp_err_t initialize_modules(void)
     if (ESP_OK != led_result)
         return led_result;
 
-    esp_err_t sensor_result = sensor_hal_init();
-    if (ESP_OK != sensor_result)
-        ESP_LOGW(TAG, "sensor_hal_init failed: err=0x%x (continuing without sensor)", sensor_result);
-
     esp_err_t ble_result = initialize_ble_nus_module();
     if (ESP_OK != ble_result)
     {
@@ -495,14 +491,30 @@ static void sensor_read_task_fn(void *param)
 
     TickType_t last_wake_tick = xTaskGetTickCount();
 
+    const baro_sensor_t *sensor = get_baro_sensor("ms5611");
+    if (!sensor)
+    {
+        ESP_LOGW(TAG, "Barometric sensor not found");
+        vTaskDelete(NULL);
+        return;
+    }
+
+    if (sensor->init() != ESP_OK)
+    {
+        ESP_LOGW(TAG, "Barometric sensor init failed");
+        vTaskDelete(NULL);
+        return;
+    }
+
+    const char *sensor_name = sensor->get_name() ? sensor->get_name() : "unknown";
+
     while (true)
     {
-        sensor_data_t data;
-        esp_err_t ret = sensor_hal_read(&data);
+        baro_data_t data = {0};
+        esp_err_t ret = sensor->read(&data);
         if (ESP_OK == ret)
         {
-            ESP_LOGI(TAG, "[%s] P=%ld Pa  T=%ld m°C", sensor_hal_get_name(), (long)data.pressure_pa,
-                     (long)data.temperature_mc);
+            ESP_LOGI(TAG, "[%s] P=%ld Pa  T=%ld m°C", sensor_name, (long)data.pressure_pa, (long)data.temperature_mc);
         }
         else
         {
