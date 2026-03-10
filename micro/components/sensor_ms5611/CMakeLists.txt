@@ -8,5 +8,5 @@ idf_component_register(
     SRCS ${SRCS}
     INCLUDE_DIRS "include"
     PRIV_INCLUDE_DIRS "src"
-    REQUIRES "sensor_hal" "esp_timer" "esp_driver_i2c"
+    REQUIRES "esp_timer" "esp_driver_i2c"
 )

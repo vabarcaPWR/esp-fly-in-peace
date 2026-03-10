@@ -5,11 +5,20 @@
 
 #include "driver/i2c_master.h"
 #include "esp_err.h"
-#include "sensor_hal.h"
 
 #ifdef __cplusplus
 extern "C"
 {
+#endif
+
+#ifndef SENSOR_DATA_T_DEFINED
+#define SENSOR_DATA_T_DEFINED
+    typedef struct sensor_data_s
+    {
+        int32_t pressure_pa;
+        int32_t temperature_mc;
+        int64_t timestamp_us;
+    } sensor_data_t;
 #endif
 
     /** @brief OSR index constants for MS5611 ADC oversampling ratio. */

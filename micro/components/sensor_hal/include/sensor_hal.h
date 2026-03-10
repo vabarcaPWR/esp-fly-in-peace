@@ -11,6 +11,8 @@ extern "C"
 {
 #endif
 
+#ifndef SENSOR_DATA_T_DEFINED
+#define SENSOR_DATA_T_DEFINED
     /** @brief Sensor output data common to all drivers. */
     typedef struct sensor_data_s
     {
@@ -18,6 +20,7 @@ extern "C"
         int32_t temperature_mc; /**< Temperature in milli-Celsius (e.g. 23500 = 23.5 °C). */
         int64_t timestamp_us;   /**< Microsecond timestamp from esp_timer_get_time(). */
     } sensor_data_t;
+#endif
 
     /**
      * @brief Initialize the selected sensor driver and the I2C bus.
