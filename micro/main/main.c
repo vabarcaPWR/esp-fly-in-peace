@@ -29,9 +29,7 @@ typedef struct application_threads_s
 static bool startup_step_succeeded(const char *step_name, esp_err_t result)
 {
     if (result == ESP_OK)
-    {
         return true;
-    }
 
     ESP_LOGE(TAG, "%s failed: err=0x%x", step_name, result);
     return false;
@@ -40,9 +38,7 @@ static bool startup_step_succeeded(const char *step_name, esp_err_t result)
 static void application_threads_reset(application_threads_t *threads)
 {
     if (!threads)
-    {
         return;
-    }
 
     threads->lk8ex1_sender_task = NULL;
     threads->sensor_read_task = NULL;
@@ -55,9 +51,7 @@ static void ble_led_state_callback(bool connected, uint16_t conn_handle)
     led_state_e next_state = connected ? LED_STATE_BLE_CONNECTED : LED_STATE_BLE_DISCONNECTED;
     esp_err_t set_state_result = led_indicator_set_state(next_state);
     if (set_state_result != ESP_OK)
-    {
         ESP_LOGW(TAG, "led_indicator_set_state failed: err=0x%x", set_state_result);
-    }
 }
 
 static void sensor_read_task_fn(void *param)
@@ -138,16 +132,12 @@ static esp_err_t configure_modules_usage(void)
 static esp_err_t create_lk8ex1_sender_thread(application_threads_t *threads)
 {
     if (!threads)
-    {
         return ESP_ERR_INVALID_ARG;
-    }
 
     BaseType_t task_created = xTaskCreate(lk8ex1_simulation_sender_task, "lk8ex1_tx", LK8EX1_TX_TASK_STACK_SIZE, NULL,
                                           LK8EX1_TX_TASK_PRIORITY, &threads->lk8ex1_sender_task);
     if (task_created != pdPASS)
-    {
         return ESP_FAIL;
-    }
 
     return ESP_OK;
 }
@@ -155,16 +145,12 @@ static esp_err_t create_lk8ex1_sender_thread(application_threads_t *threads)
 static esp_err_t create_sensor_read_thread(application_threads_t *threads)
 {
     if (!threads)
-    {
         return ESP_ERR_INVALID_ARG;
-    }
 
     BaseType_t task_created = xTaskCreate(sensor_read_task_fn, "sensor_read", SENSOR_READ_TASK_STACK_SIZE, NULL,
                                           SENSOR_READ_TASK_PRIORITY, &threads->sensor_read_task);
     if (task_created != pdPASS)
-    {
         return ESP_FAIL;
-    }
 
     return ESP_OK;
 }
@@ -173,9 +159,7 @@ static esp_err_t create_threads(application_threads_t *threads)
 {
     esp_err_t sender_result = create_lk8ex1_sender_thread(threads);
     if (sender_result != ESP_OK)
-    {
         return sender_result;
-    }
 
     return create_sensor_read_thread(threads);
 }
@@ -183,9 +167,7 @@ static esp_err_t create_threads(application_threads_t *threads)
 static esp_err_t launch_threads(const application_threads_t *threads)
 {
     if (!threads || !threads->lk8ex1_sender_task)
-    {
         return ESP_ERR_INVALID_ARG;
-    }
 
     xTaskNotifyGive(threads->lk8ex1_sender_task);
     return ESP_OK;
@@ -198,20 +180,10 @@ void app_main(void)
     application_threads_t threads;
     application_threads_reset(&threads);
 
-    if (!startup_step_succeeded("initialize_modules", initialize_modules()))
-    {
-        return;
-    }
+    bool ret = startup_step_succeeded("initialize_modules", initialize_modules());
+    ret? ret = startup_step_succeeded("configure_modules_usage", configure_modules_usage()): ret; 
+    ret? ret = startup_step_succeeded("create_threads", create_threads(&threads)): ret; 
+    ret? ret = startup_step_succeeded("launch_threads", launch_threads(&threads)): ret;
 
-    if (!startup_step_succeeded("configure_modules_usage", configure_modules_usage()))
-    {
-        return;
-    }
-
-    if (!startup_step_succeeded("create_threads", create_threads(&threads)))
-    {
-        return;
-    }
-
-    (void)startup_step_succeeded("launch_threads", launch_threads(&threads));
+    return reet;
 }
