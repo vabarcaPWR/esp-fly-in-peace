@@ -175,7 +175,7 @@ static esp_err_t launch_threads(const application_threads_t *threads)
 
 void app_main(void)
 {
-    ESP_LOGI(TAG, "esp-fly-in-peace firmware starting");
+    ESP_LOGI(TAG, BLE_COMPAT_DEVICE_NAME " firmware starting");
 
     application_threads_t threads;
     application_threads_reset(&threads);
