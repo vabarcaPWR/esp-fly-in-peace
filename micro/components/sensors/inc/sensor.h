@@ -9,33 +9,33 @@ extern "C"
 {
 #endif
 
-    typedef struct baro_data_s
+    typedef struct data_baro_s
     {
         int32_t pressure_pa;
         int32_t temperature_mc;
         int64_t timestamp_us;
-    } baro_data_t;
+    } data_baro_t;
 
-    typedef struct imu_data_s
+    typedef struct data_imu_s
     {
-    } imu_data_t;
+    } data_imu_t;
 
-    typedef struct baro_sensor_s
+    typedef struct sensor_baro_s
     {
         esp_err_t (*init)(void);
-        esp_err_t (*read)(baro_data_t *out);
+        esp_err_t (*read)(data_baro_t *out);
         const char *(*get_name)(void);
-    } baro_sensor_t;
+    } sensor_baro_t;
 
     typedef struct imu_sensor_s
     {
         esp_err_t (*init)(void);
-        esp_err_t (*read)(imu_data_t *out);
+        esp_err_t (*read)(data_imu_t *out);
         const char *(*get_name)(void);
-    } imu_sensor_t;
+    } sensor_imu_t;
 
-    const baro_sensor_t *get_baro_sensor(const char *sensor_name);
-    const imu_sensor_t *get_imu_sensor(const char *sensor_name);
+    const sensor_baro_t *get_baro_sensor(const char *sensor_name);
+    const sensor_imu_t *get_imu_sensor(const char *sensor_name);
 
 #ifdef __cplusplus
 }

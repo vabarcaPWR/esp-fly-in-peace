@@ -3,7 +3,7 @@
 
 #include <string.h>
 
-const baro_sensor_t *get_baro_sensor(const char *sensor_name)
+const sensor_baro_t *get_baro_sensor(const char *sensor_name)
 {
     if (!sensor_name)
         return NULL;
@@ -14,7 +14,7 @@ const baro_sensor_t *get_baro_sensor(const char *sensor_name)
     return NULL;
 }
 
-const imu_sensor_t *get_imu_sensor(const char *sensor_name)
+const sensor_imu_t *get_imu_sensor(const char *sensor_name)
 {
     if (!sensor_name)
         return NULL;

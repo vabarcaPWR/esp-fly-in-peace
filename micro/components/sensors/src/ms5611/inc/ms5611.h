@@ -9,7 +9,7 @@ extern "C"
 {
 #endif
 
-    const baro_sensor_t *get_ms5611_sensor(void);
+    const sensor_baro_t *get_ms5611_sensor(void);
 
 #ifdef __cplusplus
 }

@@ -11,7 +11,7 @@ esp_err_t ms5611_init(void)
     return ESP_OK;
 }
 
-esp_err_t ms5611_read(baro_data_t *out)
+esp_err_t ms5611_read(data_baro_t *out)
 {
     if (!out)
     {
@@ -315,7 +315,7 @@ esp_err_t ms5611_init(void)
     return ESP_OK;
 }
 
-esp_err_t ms5611_read(baro_data_t *out)
+esp_err_t ms5611_read(data_baro_t *out)
 {
     if (!out)
     {
@@ -371,7 +371,7 @@ esp_err_t ms5611_init(void)
     return ESP_OK;
 }
 
-esp_err_t ms5611_read(baro_data_t *out)
+esp_err_t ms5611_read(data_baro_t *out)
 {
     if (!out)
     {
@@ -390,9 +390,9 @@ const char *ms5611_get_name(void)
     return "MS5611";
 }
 
-const baro_sensor_t *get_ms5611_sensor(void)
+const sensor_baro_t *get_ms5611_sensor(void)
 {
-    static baro_sensor_t sensor = {
+    static sensor_baro_t sensor = {
         .init = ms5611_init,
         .read = ms5611_read,
         .get_name = ms5611_get_name,

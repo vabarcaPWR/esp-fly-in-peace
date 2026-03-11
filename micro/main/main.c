@@ -49,7 +49,7 @@ static void sensor_read_task_fn(void *param)
 
     TickType_t last_wake_tick = xTaskGetTickCount();
 
-    const baro_sensor_t *sensor = get_baro_sensor("ms5611");
+    const sensor_baro_t *sensor = get_baro_sensor("ms5611");
     if (!sensor)
     {
         ESP_LOGW(TAG, "Barometric sensor not found");
@@ -68,7 +68,7 @@ static void sensor_read_task_fn(void *param)
 
     while (true)
     {
-        baro_data_t data = {0};
+        data_baro_t data = {0};
         esp_err_t ret = sensor->read(&data);
         if (ret == ESP_OK)
         {
