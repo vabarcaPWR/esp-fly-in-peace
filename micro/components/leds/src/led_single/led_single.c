@@ -193,10 +193,10 @@ static const char *led_single_get_name(void)
 const led_t *get_single_led(void)
 {
     static const led_t led = {
-    .init = led_single_init,
-    .set_state = led_single_set_state,
-    .get_state = led_single_get_state,
-    .get_name = led_single_get_name,
+        .init = led_single_init,
+        .set_state = led_single_set_state,
+        .get_state = led_single_get_state,
+        .get_name = led_single_get_name,
     };
 
     return &led;
