@@ -185,5 +185,5 @@ void app_main(void)
     ret? ret = startup_step_succeeded("create_threads", create_threads(&threads)): ret; 
     ret? ret = startup_step_succeeded("launch_threads", launch_threads(&threads)): ret;
 
-    return reet;
+    return ret;
 }
