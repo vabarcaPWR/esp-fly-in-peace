@@ -25,11 +25,13 @@
     - ../components/*/src
     - ../components/sensors/src
     - ../components/sensors/src/*/src
+    - ../main
   :include:
     - ../components/*/inc
     - ../components/*/src
     - ../components/sensors/src/*/inc
     - ../components/sensors/src/*/src
+    - ../main
   :support:
     - support
 
