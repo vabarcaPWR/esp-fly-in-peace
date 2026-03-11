@@ -575,7 +575,7 @@ Generate the following files:
 ```markdown
 # New Sensor Driver
 
-Create a sensor driver that integrates with the sensor factory in `micro/components/sensor`.
+Create a sensor driver that integrates with the sensor factory in `micro/components/sensors`.
 
 ## Input
 - Sensor name: {{SENSOR_NAME}} (e.g., ms5611, bmp390)
@@ -583,14 +583,14 @@ Create a sensor driver that integrates with the sensor factory in `micro/compone
 - Datasheet reference: {{DATASHEET_URL}}
 
 ## Requirements
-- Implement the `sensor_t` API defined in `micro/components/sensor/sensor.h`
-- Register the new sensor in `micro/components/sensor/src/sensor.c` via `get_sensor()`
+- Implement the `sensor_t` API defined in `micro/components/sensors/sensor.h`
+- Register the new sensor in `micro/components/sensors/src/sensor.c` via `get_sensor()`
 - Include calibration/compensation per datasheet
 - Unit tests for compensation math (use known test vectors from datasheet)
 - Handle bus errors gracefully (retry once, then return error)
 
 ## Output
-- `micro/components/sensor/src/{{SENSOR_NAME}}/` (driver folder)
+- `micro/components/sensors/src/{{SENSOR_NAME}}/` (driver folder)
 - `micro/test/test_sensor_{{SENSOR_NAME}}.c` (Ceedling tests)
 ```
 

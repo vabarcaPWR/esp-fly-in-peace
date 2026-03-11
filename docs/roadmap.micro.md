@@ -44,7 +44,7 @@
   - [x] Task 4.3: Integration with BLE connection state
 - [x] **Phase 5: Sensor HAL (Compile-Time Abstraction)**
   - [x] Task 5.1: Kconfig sensor selection (`choice SENSOR_DRIVER`)
-  - [x] Task 5.2: `sensor_hal` public API and compile-time dispatch
+  - [x] Task 5.2: `sensor` public API and compile-time dispatch
   - [x] Task 5.3: I2C bus initialization
 - [x] **Phase 6: MS5611 Sensor Driver**
   - [x] Task 6.1: MS5611 PROM calibration read
@@ -997,7 +997,7 @@ bluetoothctl --timeout 10 scan on || true
 - Convención de nombres por rol obligatoria: `*_conductor.c`, `*_model.c`, `*_hardware.c` (si aplica al módulo).
 - Repetir la validación de la fase después de cada refactorización.
 
-**Architecture Reference**: `firmware-architecture.md` §4.1 `sensor_hal`
+**Architecture Reference**: `firmware-architecture.md` §4.1 `sensor`
 
 ---
 
@@ -1006,8 +1006,8 @@ bluetoothctl --timeout 10 scan on || true
 **Description**: Create the Kconfig menu for compile-time sensor driver selection.
 
 **Acceptance Criteria**:
-- [x] Component `sensor_hal` created in `micro/components/sensor_hal/`
-- [x] `sensor_hal/Kconfig` with `choice SENSOR_DRIVER` block per architecture §4.1
+- [x] Component `sensor` created in `micro/components/sensors/`
+- [x] `sensors/Kconfig` with `choice SENSOR_DRIVER` block per architecture §4.1
 - [x] Options: `CONFIG_SENSOR_MS5611` (default), `CONFIG_SENSOR_BMP390`
 - [x] Each option has help text with sensor specs (I2C address, resolution, accuracy)
 - [x] Selection visible in `idf.py menuconfig` under "Component config → Sensor driver"
@@ -1017,23 +1017,23 @@ bluetoothctl --timeout 10 scan on || true
 - `sdkconfig` contains `CONFIG_SENSOR_MS5611=y` by default
 
 **Files to create**:
-- `micro/components/sensor_hal/Kconfig`
-- `micro/components/sensor_hal/CMakeLists.txt`
+- `micro/components/sensors/Kconfig`
+- `micro/components/sensors/CMakeLists.txt`
 
 ---
 
-### Task 5.2: `sensor_hal` public API and compile-time dispatch
+### Task 5.2: `sensor` public API and compile-time dispatch
 
-**Description**: Implement the `sensor_hal` public API with `#if defined()` compile-time dispatch per architecture §4.1.
+**Description**: Implement the `sensor` public API with `#if defined()` compile-time dispatch per architecture §4.1.
 
 **Acceptance Criteria**:
 - [x] `sensor_data_t` struct per architecture: `pressure_pa` (int32), `temperature_mc` (int32), `timestamp_us` (int64)
 - [x] Public API per architecture contract:
-  - `esp_err_t sensor_hal_init(void)` — configures I2C, reads calibration
-  - `esp_err_t sensor_hal_read(sensor_data_t *out)` — full read cycle (trigger → wait → read → compensate)
-  - `esp_err_t sensor_hal_deinit(void)` — releases I2C, powers down
-  - `const char *sensor_hal_get_name(void)` — returns `"MS5611"` or `"BMP390"`
-- [x] `sensor_hal.c` uses `#if defined(CONFIG_SENSOR_MS5611)` / `#elif defined(CONFIG_SENSOR_BMP390)` dispatch
+  - `esp_err_t sensor_init(void)` — configures I2C, reads calibration
+  - `esp_err_t sensor_read(sensor_data_t *out)` — full read cycle (trigger → wait → read → compensate)
+  - `esp_err_t sensor_deinit(void)` — releases I2C, powers down
+  - `const char *sensor_get_name(void)` — returns `"MS5611"` or `"BMP390"`
+- [x] `sensor.c` uses `#if defined(CONFIG_SENSOR_MS5611)` / `#elif defined(CONFIG_SENSOR_BMP390)` dispatch
 - [x] `#else #error` if no sensor selected
 - [x] CMakeLists.txt conditionally adds `REQUIRES sensor_ms5611` or `sensor_bmp390` per architecture
 - [x] **NO function pointers, NO `void *ctx`** — compile-time dispatch only
@@ -1044,20 +1044,20 @@ bluetoothctl --timeout 10 scan on || true
 - Build fails with no sensor selected → `#error` message
 
 **Files to create**:
-- `micro/components/sensor_hal/inc/sensor_hal.h`
-- `micro/components/sensor_hal/src/sensor_hal.c`
+- `micro/components/sensors/inc/sensor.h`
+- `micro/components/sensors/src/sensor.c`
 
 ---
 
 ### Task 5.3: I2C bus initialization
 
-**Description**: Initialize the I2C master bus in `sensor_hal_init()` using ESP-IDF's I2C driver directly (no wrapper component). Per architecture, sensor drivers use ESP-IDF I2C directly.
+**Description**: Initialize the I2C master bus in `sensor_init()` using ESP-IDF's I2C driver directly (no wrapper component). Per architecture, sensor drivers use ESP-IDF I2C directly.
 
 **Acceptance Criteria**:
-- [x] I2C master bus configured in `sensor_hal_init()` before calling driver init
+- [x] I2C master bus configured in `sensor_init()` before calling driver init
 - [x] I2C port: `I2C_NUM_0`, SDA: GPIO 6, SCL: GPIO 7, Clock: 400 kHz (per architecture §11.2)
 - [x] Pull-ups: configured via GPIO config (external 4.7 kΩ recommended)
-- [x] I2C bus released in `sensor_hal_deinit()`
+- [x] I2C bus released in `sensor_deinit()`
 - [x] Uses ESP-IDF v5.x `i2c_master.h` API
 
 **Validation**:
@@ -1065,18 +1065,18 @@ bluetoothctl --timeout 10 scan on || true
 - (After Phase 6) I2C scan detects sensor at address 0x77
 
 **Files to modify**:
-- `micro/components/sensor_hal/src/sensor_hal.c`
+- `micro/components/sensors/src/sensor.c`
 
 **Notes**:
 - **No `i2c_bus` wrapper component**: per architecture decision, sensor drivers use ESP-IDF I2C directly to minimize abstraction layers.
-- I2C initialization happens once in `sensor_hal_init()`, then the driver handle is passed to the selected sensor driver.
+- I2C initialization happens once in `sensor_init()`, then the driver handle is passed to the selected sensor driver.
 
 **Status Note (2026-03-03 — Phase 5 complete)**:
-- Component `sensor_hal` created with Kconfig (`choice SENSOR_DRIVER`), public API header, and compile-time dispatch implementation.
+- Component `sensor` created with Kconfig (`choice SENSOR_DRIVER`), public API header, and compile-time dispatch implementation.
 - Kconfig exposes sensor selection plus I2C pin/frequency/address configuration under "Component config → Sensor driver".
 - `sdkconfig` confirms `CONFIG_SENSOR_MS5611=y` default, I2C on GPIO 6/7 at 400 kHz, address 0x77.
-- `sensor_hal.c` uses ESP-IDF v5.x `i2c_master.h` API (`i2c_new_master_bus`/`i2c_del_master_bus`), internal pull-ups enabled.
-- Driver init/read/deinit stubs return `ESP_ERR_NOT_SUPPORTED` for `sensor_hal_read()` — will be wired to real driver in Phase 6/7.
+- `sensor.c` uses ESP-IDF v5.x `i2c_master.h` API (`i2c_new_master_bus`/`i2c_del_master_bus`), internal pull-ups enabled.
+- Driver init/read/deinit stubs return `ESP_ERR_NOT_SUPPORTED` for `sensor_read()` — will be wired to real driver in Phase 6/7.
 - Build succeeds with zero warnings. `.clang-format` applied.
 
 ---
@@ -1085,7 +1085,7 @@ bluetoothctl --timeout 10 scan on || true
 
 **Objective**: Implement a fully functional MS5611 barometric pressure sensor driver with PROM calibration, ADC conversion, and second-order compensation.  
 **Estimated Duration**: 3–4 days  
-**Dependencies**: Phase 5 (sensor_hal + I2C init)  
+**Dependencies**: Phase 5 (sensor + I2C init)  
  
 **Refactorización (obligatoria)**:
 - Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
@@ -1198,22 +1198,22 @@ bluetoothctl --timeout 10 scan on || true
 
 ### Task 6.5: Integration test on hardware
 
-**Description**: Run the MS5611 driver on actual hardware through `sensor_hal` and verify readings are reasonable.
+**Description**: Run the MS5611 driver on actual hardware through `sensor` and verify readings are reasonable.
 
 **Acceptance Criteria**:
 - [x] Pressure readings in range 30000–110000 Pa (300–1100 mbar)
 - [x] Temperature readings reasonable (e.g., 15–35°C indoors → 15000–35000 milli-°C)
 - [x] Readings stable (±10 Pa over 10 seconds at rest)
 - [x] 10 Hz read rate achieved without I2C errors
-- [x] `sensor_hal_get_name()` returns `"MS5611"`
+- [x] `sensor_get_name()` returns `"MS5611"`
 - [x] Log output shows formatted pressure and temperature values
 
 **Validation**:
-- Flash firmware, observe sensor readings via `sensor_hal_read()` in serial monitor for 60 seconds
+- Flash firmware, observe sensor readings via `sensor_read()` in serial monitor for 60 seconds
 - Compare pressure reading with known altitude / weather station data
 
 **Files to modify**:
-- `micro/main/main.c` (temporary test loop: call `sensor_hal_init()`, loop `sensor_hal_read()` at 10 Hz)
+- `micro/main/main.c` (temporary test loop: call `sensor_init()`, loop `sensor_read()` at 10 Hz)
 
 ---
 
@@ -1221,12 +1221,12 @@ bluetoothctl --timeout 10 scan on || true
 
 **Objective**: Implement a fully functional BMP390 barometric pressure sensor driver with NVM trimming, compensation, and IIR filter support.  
 **Estimated Duration**: 3–4 days  
-**Dependencies**: Phase 5 (sensor_hal + I2C init)  
+**Dependencies**: Phase 5 (sensor + I2C init)  
 
 > **Module architecture rule (effective for new sensors):**
-> Implement sensor drivers under `micro/components/sensor/src/<sensor_name>/`,
-> implement the `sensor_t` contract from `micro/components/sensor/sensor.h`,
-> and register the driver in `micro/components/sensor/src/sensor.c` via `get_sensor()`.
+> Implement sensor drivers under `micro/components/sensors/src/<sensor_name>/`,
+> implement the `sensor_t` contract from `micro/components/sensors/inc/sensor.h`,
+> and register the driver in `micro/components/sensors/src/sensor.c` via `get_sensor()`.
  
 **Refactorización (obligatoria)**:
 - Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
@@ -1244,7 +1244,7 @@ bluetoothctl --timeout 10 scan on || true
 **Description**: Implement reading the 11 NVM trimming coefficients from the BMP390 and validate the chip ID.
 
 **Acceptance Criteria**:
-- [ ] Driver folder `bmp390` created in `micro/components/sensor/src/bmp390/`
+- [ ] Driver folder `bmp390` created in `micro/components/sensors/src/bmp390/`
 - [ ] `sensor_bmp390_t` and `sensor_bmp390_cfg_t` structs per architecture §4.3
 - [ ] `sensor_bmp390_init(sensor_bmp390_t *self, const sensor_bmp390_cfg_t *cfg)` implemented
 - [ ] Reads and validates chip ID register (expected: `0x60`)
@@ -1260,12 +1260,12 @@ bluetoothctl --timeout 10 scan on || true
 - Flash to DevKitC-02 with BMP390 connected, verify chip ID and coefficients in log output
 
 **Files to create**:
-- `micro/components/sensor/src/bmp390/CMakeLists.txt`
-- `micro/components/sensor/src/bmp390/inc/bmp390.h`
-- `micro/components/sensor/src/bmp390/src/bmp390_conductor.c`
-- `micro/components/sensor/src/bmp390/src/bmp390_model.c`
-- `micro/components/sensor/src/bmp390/src/bmp390_hardware.c`
-- `micro/components/sensor/src/sensor.c` (factory registration in `get_sensor()`)
+- `micro/components/sensors/src/bmp390/CMakeLists.txt`
+- `micro/components/sensors/src/bmp390/inc/bmp390.h`
+- `micro/components/sensors/src/bmp390/src/bmp390_conductor.c`
+- `micro/components/sensors/src/bmp390/src/bmp390_model.c`
+- `micro/components/sensors/src/bmp390/src/bmp390_hardware.c`
+- `micro/components/sensors/src/sensor.c` (factory registration in `get_sensor()`)
 
 **Notes**:
 - BMP390 I2C address: `0x77` (SDO=GND) or `0x76` (SDO=VCC). Default: `0x77`.
@@ -1292,7 +1292,7 @@ bluetoothctl --timeout 10 scan on || true
 - Flash to hardware, log raw pressure and temperature values
 
 **Files to modify**:
-- `micro/components/sensor/src/bmp390/src/bmp390_conductor.c`
+- `micro/components/sensors/src/bmp390/src/bmp390_conductor.c`
 
 **Notes**:
 - Conversion time depends on OSR: ~5 ms (1x) to ~40 ms (32x).
@@ -1316,7 +1316,7 @@ bluetoothctl --timeout 10 scan on || true
 - Compare output with Bosch reference implementation / BMP3 API
 
 **Files to modify**:
-- `micro/components/sensor/src/bmp390/src/bmp390_model.c`
+- `micro/components/sensors/src/bmp390/src/bmp390_model.c`
 
 ---
 
@@ -1341,14 +1341,14 @@ bluetoothctl --timeout 10 scan on || true
 
 ### Task 7.5: Integration test on hardware
 
-**Description**: Run the BMP390 driver on actual hardware through `sensor_hal` and verify readings.
+**Description**: Run the BMP390 driver on actual hardware through `sensor` and verify readings.
 
 **Acceptance Criteria**:
 - [ ] Pressure readings in range 30000–125000 Pa (300–1250 hPa)
 - [ ] Temperature readings reasonable (15000–35000 milli-°C indoors)
 - [ ] Readings stable (noise ≤ ±3 Pa at rest — BMP390 is more precise than MS5611)
 - [ ] 10 Hz read rate achieved without I2C errors
-- [ ] `sensor_hal_get_name()` returns `"BMP390"`
+- [ ] `sensor_get_name()` returns `"BMP390"`
 - [ ] Sensor selected via `idf.py menuconfig` → `CONFIG_SENSOR_BMP390=y`
 
 **Validation**:
@@ -1362,9 +1362,9 @@ bluetoothctl --timeout 10 scan on || true
 
 ## Phase 7.5: IMU HAL (MPU6050)
 
-**Objective**: Create an IMU hardware abstraction layer with compile-time driver selection (same pattern as `sensor_hal`) and implement the MPU6050 driver for 3-axis accelerometer + 3-axis gyroscope. The MPU6050 shares the I2C bus with the barometric sensor (I2C_NUM_0, address 0x68).  
+**Objective**: Create an IMU hardware abstraction layer with compile-time driver selection (same pattern as `sensor`) and implement the MPU6050 driver for 3-axis accelerometer + 3-axis gyroscope. The MPU6050 shares the I2C bus with the barometric sensor (I2C_NUM_0, address 0x68).  
 **Estimated Duration**: 3–4 days  
-**Dependencies**: Phase 5 (sensor_hal + I2C bus initialization)  
+**Dependencies**: Phase 5 (sensor + I2C bus initialization)  
 
 **Design Rationale**:
 The MPU6050 provides high-rate (100 Hz) accelerometer and gyroscope data for:
@@ -1383,7 +1383,7 @@ The MPU6050 provides high-rate (100 Hz) accelerometer and gyroscope data for:
 
 ### Task 7.5.1: Kconfig IMU selection and I2C configuration
 
-**Description**: Create the Kconfig menu for compile-time IMU driver selection, following the same pattern as `sensor_hal`.
+**Description**: Create the Kconfig menu for compile-time IMU driver selection, following the same pattern as `sensor`.
 
 **Acceptance Criteria**:
 - [ ] Component `imu_hal` created in `micro/components/imu_hal/`
@@ -1405,13 +1405,13 @@ The MPU6050 provides high-rate (100 Hz) accelerometer and gyroscope data for:
 
 **Notes**:
 - MPU6050 I2C address: `0x68` (AD0=GND) or `0x69` (AD0=VCC). Default: `0x68`.
-- The IMU shares I2C_NUM_0 with the barometric sensor. The bus is already initialized in `sensor_hal_init()` — the IMU driver uses `sensor_hal_get_i2c_bus_handle()` to add its device handle.
+- The IMU shares I2C_NUM_0 with the barometric sensor. The bus is already initialized in `sensor_init()` — the IMU driver uses `sensor_get_i2c_bus_handle()` to add its device handle.
 
 ---
 
 ### Task 7.5.2: imu_hal public API and compile-time dispatch
 
-**Description**: Implement the `imu_hal` public API with compile-time dispatch, following the same pattern as `sensor_hal`.
+**Description**: Implement the `imu_hal` public API with compile-time dispatch, following the same pattern as `sensor`.
 
 **Acceptance Criteria**:
 - [ ] `imu_data_t` struct: `accel_x`, `accel_y`, `accel_z` (float, m/s²), `gyro_x`, `gyro_y`, `gyro_z` (float, rad/s), `timestamp_us` (int64)
@@ -1422,7 +1422,7 @@ The MPU6050 provides high-rate (100 Hz) accelerometer and gyroscope data for:
   - `const char *imu_hal_get_name(void)` — returns `"MPU6050"` or `"NONE"`
 - [ ] `imu_hal.c` uses `#if defined(CONFIG_IMU_MPU6050)` dispatch
 - [ ] `CONFIG_IMU_NONE` compiles stub that returns `ESP_ERR_NOT_SUPPORTED` — allows baro-only operation without code changes
-- [ ] Uses `sensor_hal_get_i2c_bus_handle()` to share the I2C bus with the barometric sensor
+- [ ] Uses `sensor_get_i2c_bus_handle()` to share the I2C bus with the barometric sensor
 - [ ] **NO function pointers** — compile-time dispatch only
 
 **Validation**:
@@ -1454,7 +1454,7 @@ The MPU6050 provides high-rate (100 Hz) accelerometer and gyroscope data for:
   - Populates `out->timestamp_us` with `esp_timer_get_time()`
 - [ ] `esp_err_t imu_mpu6050_deinit(imu_mpu6050_t *self)` — puts sensor in sleep mode, releases I2C device
 - [ ] Handles I2C errors (retry once, then return error)
-- [ ] Uses ESP-IDF I2C driver directly via bus handle from `sensor_hal_get_i2c_bus_handle()`
+- [ ] Uses ESP-IDF I2C driver directly via bus handle from `sensor_get_i2c_bus_handle()`
 
 **Validation**:
 - Flash to hardware with MPU6050 connected, verify WHO_AM_I and accel/gyro readings in log output
@@ -1513,7 +1513,7 @@ The MPU6050 provides high-rate (100 Hz) accelerometer and gyroscope data for:
 - Tilt the board: accel X/Y change, verify readings are coherent
 
 **Files to modify**:
-- `micro/main/main.c` (temporary test loop: init both `sensor_hal` + `imu_hal`, read both)
+- `micro/main/main.c` (temporary test loop: init both `sensor` + `imu_hal`, read both)
 
 ---
 
@@ -1535,7 +1535,7 @@ Reference: *Widnall & Sinha, "Optimizing the Gains of the Baro-Inertial Vertical
 **Architecture**:
 - Component `ahrs`: pure math, no ESP-IDF dependencies, fully host-testable via Ceedling.
 - Component `ekf`: pure math, no ESP-IDF dependencies, fully host-testable via Ceedling.
-- Both compatible with any barometric sensor (MS5611, BMP390) via `sensor_hal` abstraction and any IMU via `imu_hal` abstraction.
+- Both compatible with any barometric sensor (MS5611, BMP390) via `sensor` abstraction and any IMU via `imu_hal` abstraction.
 
 **State model**:
 
@@ -1830,7 +1830,7 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 **Acceptance Criteria**:
 - [ ] `baro_task` created with Priority 5, stack 4096 bytes
 - [ ] Loop every 100 ms:
-  1. `sensor_hal_read(&sensor_data)` — blocks ~18 ms for sensor conversion
+  1. `sensor_read(&sensor_data)` — blocks ~18 ms for sensor conversion
   2. Write result to a shared `baro_latest_t` struct (atomic flag + data)
   3. Set `baro_new_data_available` flag (read by `fusion_task`)
   4. `vTaskDelay(remaining time to hit 100 ms period)`
@@ -1921,7 +1921,7 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 - [ ] Temporary simulation code in `main.c` removed
 - [ ] `app_main()` orchestrates initialization in correct order:
   1. `led_indicator_init()` → `LED_STATE_BOOT`
-  2. `sensor_hal_init()`
+  2. `sensor_init()`
   3. `imu_hal_init()` (when `CONFIG_IMU_MPU6050=y`)
   4. `ahrs_init()` + `ekf_init()`
   5. `ble_nus_init()`

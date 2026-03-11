@@ -84,7 +84,7 @@ Dependencies point strictly **downward**. No layer may reference a layer above i
 ├───────┼──────────┼───────────┼────────────────────────────────────┤
 │       │          │     HAL Layer                                  │
 │       │    ┌─────┴─────┐  ┌──┴───────┐                           │
-│       │    │ sensor_hal │  │ imu_hal  │                           │
+│       │    │ sensor │  │ imu_hal  │                           │
 │       │    │ sensor_    │  │ imu_     │                           │
 │       │    │ ms5611/390 │  │ mpu6050  │                           │
 │       │    └─────┬─────┘  └──┬───────┘                           │
@@ -137,10 +137,10 @@ Implementation template and closure checklist: `docs/architecture/conductor-mode
 
 ### 2.2 Sensor Factory Pattern
 
-- All sensors must implement the API defined in `micro/components/sensor/sensor.h` and be exposed through `get_sensor(const char *sensor_name)` in `micro/components/sensor/src/sensor.c`.
+- All sensors must implement the API defined in `micro/components/sensors/sensor.h` and be exposed through `get_sensor(const char *sensor_name)` in `micro/components/sensors/src/sensor.c`.
 - `sensor.h` is the contract source of truth and must remain stable for all drivers.
-- New sensors must be added under `micro/components/sensor/src/<sensor_name>/` following conductor-model-hardware.
-- Every new sensor integration must update the factory (`get_sensor()`) and `micro/components/sensor/CMakeLists.txt`.
+- New sensors must be added under `micro/components/sensors/src/<sensor_name>/` following conductor-model-hardware.
+- Every new sensor integration must update the factory (`get_sensor()`) and `micro/components/sensors/CMakeLists.txt`.
 - New sensors must not be created as new top-level components (`sensor_<name>`); they belong under the `sensor` component.
 
 ---
@@ -164,7 +164,7 @@ micro/components/
 |-----------|-------|-------------|---------------------------|
 | `sensor` | HAL | ESP-IDF I2C driver, Kconfig, internal driver folder selected by factory | — |
 | `imu_hal` | HAL | Selected driver (`imu_mpu6050`) or stub (`CONFIG_IMU_NONE`) | — |
-| `imu_mpu6050` | HAL | `imu_hal`, `sensor_hal` (shared I2C bus), ESP-IDF I2C driver | — |
+| `imu_mpu6050` | HAL | `imu_hal`, `sensor` (shared I2C bus), ESP-IDF I2C driver | — |
 | `ahrs` | Processing | (none — pure math) | — |
 | `ekf` | Processing | (none — pure math) | — |
 | `lk8ex1` | Service | (none — pure formatting) | — |
@@ -212,9 +212,9 @@ or explicitly move it with matching updates in this matrix.
 Public headers keep the same APIs described below. Internally, each component implementation follows the
 **conductor-model-hardware** split from §2.1.
 
-For new sensor work, the normative architecture is the Sensor Factory Pattern in §2.2 (`micro/components/sensor`).
+For new sensor work, the normative architecture is the Sensor Factory Pattern in §2.2 (`micro/components/sensors`).
 
-### 4.1 sensor_hal — Sensor Abstraction (Compile-Time Selection)
+### 4.1 sensor — Sensor Abstraction (Compile-Time Selection)
 
 Defines a hardware-independent API for pressure/temperature sensors.
 The active sensor driver (MS5611 or BMP390) is selected **at compile time** via Kconfig
@@ -224,7 +224,7 @@ selected driver is compiled into the binary.
 #### Kconfig Selection Mechanism
 
 ```kconfig
-# sensor_hal/Kconfig
+# sensors/Kconfig
 choice SENSOR_DRIVER
     prompt "Pressure sensor driver"
     default SENSOR_MS5611
@@ -247,10 +247,10 @@ choice SENSOR_DRIVER
 endchoice
 ```
 
-#### Public API (sensor_hal.h)
+#### Public API (sensor.h)
 
 ```c
-// sensor_hal.h — Uniform API, resolved at compile time
+// sensor.h — Uniform API, resolved at compile time
 
 #include <esp_err.h>
 #include <stdint.h>
@@ -264,25 +264,25 @@ typedef struct sensor_data_s
 } sensor_data_t;
 
 /// Initialize the selected sensor driver. Called once at startup.
-esp_err_t sensor_hal_init(void);
+esp_err_t sensor_init(void);
 
 /// Read compensated pressure and temperature from the sensor.
 /// Blocks for the sensor's conversion time (~10-20 ms depending on driver/OSR).
-esp_err_t sensor_hal_read(sensor_data_t *out);
+esp_err_t sensor_read(sensor_data_t *out);
 
 /// Deinitialize the sensor. Release I2C bus, power down.
-esp_err_t sensor_hal_deinit(void);
+esp_err_t sensor_deinit(void);
 
 /// Return a human-readable name of the active sensor (e.g., "MS5611", "BMP390").
-const char *sensor_hal_get_name(void);
+const char *sensor_get_name(void);
 ```
 
-#### Compile-Time Dispatch (sensor_hal.c)
+#### Compile-Time Dispatch (sensor.c)
 
 ```c
-// sensor_hal.c — Thin dispatch layer
+// sensor.c — Thin dispatch layer
 
-#include "sensor_hal.h"
+#include "sensor.h"
 #include "sdkconfig.h"
 
 #if defined(CONFIG_SENSOR_MS5611)
@@ -295,7 +295,7 @@ const char *sensor_hal_get_name(void);
     #error "No sensor driver selected. Run idf.py menuconfig → Sensor driver."
 #endif
 
-esp_err_t sensor_hal_init(void)
+esp_err_t sensor_init(void)
 {
 #if defined(CONFIG_SENSOR_MS5611)
     static const sensor_ms5611_cfg_t cfg = { ... };
@@ -306,14 +306,14 @@ esp_err_t sensor_hal_init(void)
 #endif
 }
 
-// sensor_hal_read() and sensor_hal_deinit() follow the same pattern.
+// sensor_read() and sensor_deinit() follow the same pattern.
 ```
 
 #### CMakeLists.txt Conditional Compilation
 
 ```cmake
-# sensor_hal/CMakeLists.txt
-set(SRCS "src/sensor_hal.c")
+# sensors/CMakeLists.txt
+set(SRCS "src/sensor.c")
 set(REQUIRES "")
 
 if(CONFIG_SENSOR_MS5611)
@@ -330,20 +330,20 @@ idf_component_register(
 ```
 
 **Contract**:
-- `sensor_hal_init()` — configures I2C, reads calibration data. Called once from `app_main()`.
-- `sensor_hal_read()` — performs a complete read cycle (trigger → wait → read → compensate). Blocks for the sensor's conversion time.
-- `sensor_hal_deinit()` — releases I2C bus, powers down sensor.
+- `sensor_init()` — configures I2C, reads calibration data. Called once from `app_main()`.
+- `sensor_read()` — performs a complete read cycle (trigger → wait → read → compensate). Blocks for the sensor's conversion time.
+- `sensor_deinit()` — releases I2C bus, powers down sensor.
 - All functions return `ESP_OK` on success, appropriate `esp_err_t` on failure.
-- `sensor_hal_read()` populates `sensor_data_t` with compensated values. On error, `out` is not modified.
+- `sensor_read()` populates `sensor_data_t` with compensated values. On error, `out` is not modified.
 - Only the selected driver is compiled. No unused code in the binary.
-- **Adding a new sensor**: create `sensor_<name>/`, add a `config SENSOR_<NAME>` entry to the Kconfig `choice`, and add the `#elif` branch in `sensor_hal.c`.
+- **Adding a new sensor**: create `sensor_<name>/`, add a `config SENSOR_<NAME>` entry to the Kconfig `choice`, and add the `#elif` branch in `sensor.c`.
 
 ---
 
 ### 4.2 sensor_ms5611 — MS5611 I2C Driver
 
 Barometric pressure sensor driver. Selected via `CONFIG_SENSOR_MS5611` in Kconfig.
-Called exclusively through `sensor_hal` — never directly by application code.
+Called exclusively through `sensor` — never directly by application code.
 
 ```c
 // sensor_ms5611.h
@@ -378,7 +378,7 @@ esp_err_t sensor_ms5611_deinit(sensor_ms5611_t *self);
 ### 4.3 sensor_bmp390 — BMP390 I2C Driver
 
 Barometric pressure sensor driver. Selected via `CONFIG_SENSOR_BMP390` in Kconfig.
-Called exclusively through `sensor_hal` — never directly by application code.
+Called exclusively through `sensor` — never directly by application code.
 
 ```c
 // sensor_bmp390.h
@@ -462,7 +462,7 @@ const char *imu_hal_get_name(void);
 ```
 
 **Contract**:
-- `imu_hal_init()` — configures IMU via shared I2C bus (`sensor_hal_get_i2c_bus_handle()`). Validates WHO_AM_I.
+- `imu_hal_init()` — configures IMU via shared I2C bus (`sensor_get_i2c_bus_handle()`). Validates WHO_AM_I.
 - `imu_hal_read()` — burst-reads accel + gyro (14 bytes, ~0.6 ms at 400 kHz). Non-blocking.
 - `imu_hal_deinit()` — puts IMU in sleep mode, releases I2C device.
 - I2C address: 0x68 (AD0=GND), shares I2C_NUM_0 bus with barometric sensor at 0x77.
@@ -785,7 +785,7 @@ Total cycle: ~0.7 ms (7% CPU at 100 Hz). This is the highest-priority applicatio
 
 ```
 loop (every 100 ms — 10 Hz):
-    1. sensor_hal_read(&sensor_data)           // blocks ~18 ms (MS5611 OSR 4096)
+    1. sensor_read(&sensor_data)           // blocks ~18 ms (MS5611 OSR 4096)
     2. Write to shared baro_latest struct
     3. Set baro_new_data_available flag
     4. Feed TWDT
@@ -952,7 +952,7 @@ graph TB
     end
 
     subgraph "baro_task (10 Hz)"
-        S1[sensor_hal_read]
+        S1[sensor_read]
     end
 
     subgraph "ble_sender_task (8 Hz)"
@@ -993,7 +993,7 @@ graph TB
   (MS5611/       (10 Hz)           (100 Hz)             (8 Hz)                 ┌─────────┐
    BMP390)   ┌──────────────┐  ┌──────────────────┐  ┌──────────────────┐     │         │
   ┌────────┐ │              │  │                  │  │                  │     │ NUS TX  │
-  │ I2C    │ │ sensor_hal   │  │ 3. imu_hal_read  │  │ 7. Read shared   │     │ notify  │
+  │ I2C    │ │ sensor   │  │ 3. imu_hal_read  │  │ 7. Read shared   │     │ notify  │
   │ (0x77) ├►│ _read()      ├─►│ 4. ahrs_update   │  │ 8. lk8ex1_format ├────►│ to      │
   └────────┘ │ ~18ms block  │  │ 5. ekf_predict   │  │ 9. ble_nus_send  │     │ client  │
              └──────────────┘  │ 6. ekf_update    │  │                  │     │         │
@@ -1225,8 +1225,8 @@ stateDiagram-v2
 | IMU address | 0x68 (MPU6050: AD0=GND) |
 | Pull-ups | External 4.7 kΩ recommended |
 
-> Both barometer and MPU6050 share the same I2C bus. The `sensor_hal` initializes the bus;
-> `imu_hal` uses `sensor_hal_get_i2c_bus_handle()` to add the IMU device without reinitializing the bus.
+> Both barometer and MPU6050 share the same I2C bus. The `sensor` initializes the bus;
+> `imu_hal` uses `sensor_get_i2c_bus_handle()` to add the IMU device without reinitializing the bus.
 
 ### 11.3 Sensor Wiring (DevKit → Sensor Module)
 
@@ -1272,7 +1272,7 @@ idf.py menuconfig
 idf.py build
 ```
 
-No application code changes are needed. The `sensor_hal` and `imu_hal` layers dispatch
+No application code changes are needed. The `sensor` and `imu_hal` layers dispatch
 to the correct drivers at compile time.
 
 ---
