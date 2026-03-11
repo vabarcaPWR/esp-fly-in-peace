@@ -184,6 +184,4 @@ void app_main(void)
     ret? ret = startup_step_succeeded("configure_modules_usage", configure_modules_usage()): ret; 
     ret? ret = startup_step_succeeded("create_threads", create_threads(&threads)): ret; 
     ret? ret = startup_step_succeeded("launch_threads", launch_threads(&threads)): ret;
-
-    return ret;
 }

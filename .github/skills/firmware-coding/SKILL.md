@@ -49,6 +49,8 @@ pe-code-tool format <file_name>
 - No comments in `.c` files. Code must be self-explanatory through clear naming. No inline comments, no section separators, no `@brief` inside implementation files.
 - Do not repeat yourself. Extract shared logic into well-named helper functions.
 - Function and variable names must convey intent. If a comment is needed, rename the symbol instead.
+- Never ever use `!!`. 
+- Use `if(a)` instead of `if(a != 0)` and `if(!a)` instead of `if(a == 0)` or `if(a == NULL)`. 
 - Use
 ```c
     if(a)
@@ -61,8 +63,7 @@ instead of
       return;
     }
 ```
-- Use `!` for negative conditions instead of `== false` or `== NULL`.
-- Use
+- Use ternary operator for sequential checks when possible to avoid nested ifs. Like this:
 ```c
     bool ret = func_a();
     ret? ret = func_b(): ret; 
@@ -78,7 +79,7 @@ or
     ret? ret = func_d(): ret;
     return ret;
 ```
-when possible
+
 
 ## Best Practices
 

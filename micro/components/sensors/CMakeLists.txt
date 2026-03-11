@@ -4,4 +4,5 @@ idf_component_register(
     INCLUDE_DIRS "inc"
                  "src/ms5611/inc"
     REQUIRES esp_timer
+    PRIV_REQUIRES esp_driver_i2c
 )
