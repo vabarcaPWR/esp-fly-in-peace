@@ -3,6 +3,7 @@
 #include "ble_nus.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "led.h"
 #include "lk8ex1_simulation_runtime.h"
 #include "sensor.h"
 #include <esp_log.h>
@@ -18,6 +19,7 @@
 #endif
 
 static const char *TAG = "main";
+static const led_t *led = NULL;
 
 typedef struct application_threads_s
 {
@@ -92,8 +94,32 @@ static esp_err_t initialize_ble_nus_module(void)
     return ble_nus_init(&ble_config);
 }
 
+static esp_err_t initialize_led_module(void)
+{
+    led = get_led("single");
+    if (!led || !led->init || !led->set_state)
+        return ESP_ERR_NOT_FOUND;
+
+    return led->init();
+}
+
+static void ble_connection_led_state_handler(bool connected, uint16_t conn_handle)
+{
+    (void)conn_handle;
+
+    if (!led || !led->set_state)
+        return;
+
+    led_state_e state = connected ? LED_STATE_BLE_CONNECTED : LED_STATE_BLE_DISCONNECTED;
+    led->set_state(state);
+}
+
 static esp_err_t initialize_modules(void)
 {
+    esp_err_t led_result = initialize_led_module();
+    if (led_result != ESP_OK)
+        return led_result;
+
     esp_err_t ble_result = initialize_ble_nus_module();
     if (ble_result != ESP_OK)
         return ble_result;
@@ -104,6 +130,10 @@ static esp_err_t initialize_modules(void)
 static esp_err_t configure_modules_usage(void)
 {
     ble_nus_register_rx_callback(lk8ex1_simulation_ble_rx_callback);
+    ble_nus_register_state_callback(ble_connection_led_state_handler);
+    if (led && led->set_state)
+        led->set_state(ble_nus_is_connected() ? LED_STATE_BLE_CONNECTED : LED_STATE_BLE_DISCONNECTED);
+
     return ESP_OK;
 }
 

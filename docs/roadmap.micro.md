@@ -971,27 +971,27 @@ _Historical note only. This evidence does not close the reopened milestone._
 - [ ] `led_state_e led_get_state(void)` — returns current state
 - [ ] Pattern definitions per architecture §8.3:
   - `BOOT` (bootloader/startup): LED always ON
-  - `BLE_DISCONNECTED`: LED blink (100 ms ON / 1900 ms OFF)
-  - `BLE_CONNECTED`: LED blink (100 ms ON / 4900 ms OFF)
+  - `BLE_DISCONNECTED`: LED blink (25 ms ON / 950 ms OFF)
+  - `BLE_CONNECTED`: LED blink (25 ms ON / 3950 ms OFF)
   - `WIFI_ENABLED`: LED blink (reserved for future)
-  - `ERROR`: LED fast blink (100 ms ON / 100 ms OFF)
-- [ ] LED task runs at 10 Hz (100 ms tick), evaluates on/off state within pattern cycle
+  - `ERROR`: LED fast blink (250 ms ON / 250 ms OFF)
+- [ ] LED task runs at 40 Hz (25 ms tick), evaluates on/off state within pattern cycle
 - [ ] Default state on boot: `LED_STATE_BOOT` → transitions to `LED_STATE_BLE_DISCONNECTED` after init
 
 **Validation**:
-- Boot → LED always ON → 100/1900 blink after init completes
+- Boot → LED always ON → 25/950 blink after init completes
 - Verify all patterns with visual inspection
 
 **Status Note (2026-02-24 — implementation + host validation)**:
 _Historical note only. This evidence does not close the reopened milestone._
 - Previous prototype state-machine evidence existed, but current source-of-truth is the reopened factory-based implementation in `micro/components/leds/`.
 - Queue-based state updates implemented with depth `1` and `xQueueOverwrite` semantics.
-- Pattern timing implemented exactly at 100 ms tick resolution:
+- Pattern timing implemented exactly at 25 ms tick resolution:
   - `BOOT`: LED always ON
-  - `BLE_DISCONNECTED`: 1 tick ON / 19 ticks OFF
-  - `BLE_CONNECTED`: 1 tick ON / 49 ticks OFF
+  - `BLE_DISCONNECTED`: 1 tick ON / 38 ticks OFF
+  - `BLE_CONNECTED`: 1 tick ON / 158 ticks OFF
   - `WIFI_ENABLED`: blink (stub)
-  - `ERROR`: 1 tick ON / 1 tick OFF
+  - `ERROR`: 10 ticks ON / 10 ticks OFF
 
 ---
 
@@ -1001,8 +1001,8 @@ _Historical note only. This evidence does not close the reopened milestone._
 
 **Acceptance Criteria**:
 - [ ] `ble_nus_register_state_callback()` used to hook BLE state changes
-- [ ] BLE connect → active backend `set_state(LED_STATE_BLE_CONNECTED)` (100 ms ON / 4900 ms OFF)
-- [ ] BLE disconnect → active backend `set_state(LED_STATE_BLE_DISCONNECTED)` (100 ms ON / 1900 ms OFF)
+- [ ] BLE connect → active backend `set_state(LED_STATE_BLE_CONNECTED)` (25 ms ON / 3950 ms OFF)
+- [ ] BLE disconnect → active backend `set_state(LED_STATE_BLE_DISCONNECTED)` (25 ms ON / 950 ms OFF)
 - [ ] Transition is immediate and visible
 
 **Validation**:
@@ -2187,9 +2187,9 @@ Assumptions for planning:
 | LED State | Pattern | Duty Cycle | Average LED Current |
 |-----------|---------|------------|---------------------|
 | `BOOT` | always ON | 100% | `2.00 mA` |
-| `BLE_DISCONNECTED` | 100 ms ON / 1900 ms OFF | 5% | `0.10 mA` |
-| `BLE_CONNECTED` | 100 ms ON / 4900 ms OFF | 2% | `0.04 mA` |
-| `ERROR` | 100 ms ON / 100 ms OFF | 50% | `1.00 mA` |
+| `BLE_DISCONNECTED` | 25 ms ON / 950 ms OFF | 2.56% | `0.051 mA` |
+| `BLE_CONNECTED` | 25 ms ON / 3950 ms OFF | 0.63% | `0.013 mA` |
+| `ERROR` | 250 ms ON / 250 ms OFF | 50% | `1.00 mA` |
 
 Planning note:
 - Compared with previous WS2812-oriented assumptions, this configuration reduces average LED current and simplifies hardware control.
