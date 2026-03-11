@@ -24,13 +24,13 @@ menu "Sensor driver"
 
     config SENSOR_I2C_SDA_GPIO
         int "I2C SDA GPIO number"
-        default 8
+        default 6
         help
             GPIO number for I2C SDA line connected to the pressure sensor.
 
     config SENSOR_I2C_SCL_GPIO
         int "I2C SCL GPIO number"
-        default 9
+        default 7
         help
             GPIO number for I2C SCL line connected to the pressure sensor.
 

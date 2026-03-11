@@ -939,6 +939,7 @@ bluetoothctl --timeout 10 scan on || true
 - [ ] Internal backend functions turn status LED on/off
 - [ ] Uses ESP-IDF GPIO driver for single-color LED control
 - [ ] Uses the onboard status LED pin of ESP32-C3 Super Mini
+- [ ] LED GPIO does not collide with active sensor I2C pins
 
 **Validation**:
 - Select `single` backend via factory, flash firmware, and verify boot + runtime patterns
@@ -971,27 +972,27 @@ _Historical note only. This evidence does not close the reopened milestone._
 - [ ] `led_state_e led_get_state(void)` — returns current state
 - [ ] Pattern definitions per architecture §8.3:
   - `BOOT` (bootloader/startup): LED always ON
-  - `BLE_DISCONNECTED`: LED blink (25 ms ON / 950 ms OFF)
-  - `BLE_CONNECTED`: LED blink (25 ms ON / 3950 ms OFF)
+  - `BLE_DISCONNECTED`: LED blink (15 ms ON / 950 ms OFF)
+  - `BLE_CONNECTED`: LED blink (15 ms ON / 3950 ms OFF)
   - `WIFI_ENABLED`: LED blink (reserved for future)
   - `ERROR`: LED fast blink (250 ms ON / 250 ms OFF)
-- [ ] LED task runs at 40 Hz (25 ms tick), evaluates on/off state within pattern cycle
+- [ ] LED task runs at 200 Hz (5 ms tick), evaluates on/off state within pattern cycle
 - [ ] Default state on boot: `LED_STATE_BOOT` → transitions to `LED_STATE_BLE_DISCONNECTED` after init
 
 **Validation**:
-- Boot → LED always ON → 25/950 blink after init completes
+- Boot → LED always ON → 15/950 blink after init completes
 - Verify all patterns with visual inspection
 
 **Status Note (2026-02-24 — implementation + host validation)**:
 _Historical note only. This evidence does not close the reopened milestone._
 - Previous prototype state-machine evidence existed, but current source-of-truth is the reopened factory-based implementation in `micro/components/leds/`.
 - Queue-based state updates implemented with depth `1` and `xQueueOverwrite` semantics.
-- Pattern timing implemented exactly at 25 ms tick resolution:
+- Pattern timing implemented exactly at 5 ms tick resolution:
   - `BOOT`: LED always ON
-  - `BLE_DISCONNECTED`: 1 tick ON / 38 ticks OFF
-  - `BLE_CONNECTED`: 1 tick ON / 158 ticks OFF
+  - `BLE_DISCONNECTED`: 3 ticks ON / 190 ticks OFF
+  - `BLE_CONNECTED`: 3 ticks ON / 790 ticks OFF
   - `WIFI_ENABLED`: blink (stub)
-  - `ERROR`: 10 ticks ON / 10 ticks OFF
+  - `ERROR`: 50 ticks ON / 50 ticks OFF
 
 ---
 
@@ -1001,8 +1002,8 @@ _Historical note only. This evidence does not close the reopened milestone._
 
 **Acceptance Criteria**:
 - [ ] `ble_nus_register_state_callback()` used to hook BLE state changes
-- [ ] BLE connect → active backend `set_state(LED_STATE_BLE_CONNECTED)` (25 ms ON / 3950 ms OFF)
-- [ ] BLE disconnect → active backend `set_state(LED_STATE_BLE_DISCONNECTED)` (25 ms ON / 950 ms OFF)
+- [ ] BLE connect → active backend `set_state(LED_STATE_BLE_CONNECTED)` (15 ms ON / 3950 ms OFF)
+- [ ] BLE disconnect → active backend `set_state(LED_STATE_BLE_DISCONNECTED)` (15 ms ON / 950 ms OFF)
 - [ ] Transition is immediate and visible
 
 **Validation**:
@@ -1107,7 +1108,7 @@ _Historical note only. This evidence does not close the reopened milestone._
 
 **Acceptance Criteria**:
 - [x] I2C master bus initialization is explicitly owned by the selected backend path
-- [x] I2C port: `I2C_NUM_0`, SDA: GPIO 6, SCL: GPIO 7, Clock: 400 kHz (per architecture §11.2)
+- [x] I2C port: `I2C_NUM_0`, SDA: GPIO 6, SCL: GPIO 7, Clock: 400 kHz (current board configuration)
 - [x] Pull-ups: configured via GPIO config (external 4.7 kΩ recommended)
 - [x] Uses ESP-IDF v5.x `i2c_master.h` API
 
@@ -2187,8 +2188,8 @@ Assumptions for planning:
 | LED State | Pattern | Duty Cycle | Average LED Current |
 |-----------|---------|------------|---------------------|
 | `BOOT` | always ON | 100% | `2.00 mA` |
-| `BLE_DISCONNECTED` | 25 ms ON / 950 ms OFF | 2.56% | `0.051 mA` |
-| `BLE_CONNECTED` | 25 ms ON / 3950 ms OFF | 0.63% | `0.013 mA` |
+| `BLE_DISCONNECTED` | 15 ms ON / 950 ms OFF | 1.55% | `0.031 mA` |
+| `BLE_CONNECTED` | 15 ms ON / 3950 ms OFF | 0.38% | `0.008 mA` |
 | `ERROR` | 250 ms ON / 250 ms OFF | 50% | `1.00 mA` |
 
 Planning note:
