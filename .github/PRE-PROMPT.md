@@ -37,7 +37,7 @@
 | Constraint | Detail |
 |------------|--------|
 | **Target MCU** | ESP32-C3 (RISC-V, single core, 400 KB SRAM, BLE 5.0) |
-| **Dev board (MVP)** | ESP32-C3-DevKitC-02 v1.1 (USB-CDC, onboard RGB LED WS2812) |
+| **Dev board (MVP)** | ESP32-C3 Super Mini (USB-CDC, external WS2812 RGB LED on GPIO2) |
 | **Power** | Battery-powered; firmware must minimize consumption (light-sleep between readings, BLE connection interval tuning) |
 | **BLE stack** | NimBLE (smaller footprint than Bluedroid, better power efficiency) |
 | **BLE service** | Nordic UART Service (NUS) — `6E400001-B5A3-F393-E0A9-E50E24DCCA9E` — compatible with XCTrack |
@@ -135,7 +135,7 @@ BEFORE writing code for a task:
 | Aspect | Choice | Notes |
 |--------|--------|-------|
 | MCU | ESP32-C3 | RISC-V, BLE 5.0, low power |
-| Dev board (MVP) | ESP32-C3-DevKitC-02 v1.1 | USB-CDC, RGB LED (WS2812 on GPIO8) |
+| Dev board (MVP) | ESP32-C3 Super Mini | USB-CDC, RGB LED (WS2812 DIN on GPIO2) |
 | Framework | ESP-IDF v5.x | Official Espressif framework |
 | Language | C (C11) | Some C++ where ESP-IDF APIs require it |
 | RTOS | FreeRTOS (bundled with ESP-IDF) | |

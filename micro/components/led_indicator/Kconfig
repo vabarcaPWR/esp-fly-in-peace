@@ -1,0 +1,22 @@
+menu "LED indicator"
+
+    config LED_INDICATOR_GPIO
+        int "WS2812 data GPIO"
+        default 2
+        help
+            GPIO used to drive the WS2812 data line.
+
+    config LED_INDICATOR_PIXEL_COUNT
+        int "WS2812 pixel count"
+        range 1 64
+        default 1
+        help
+            Number of WS2812 pixels in the LED strip.
+
+    config LED_INDICATOR_RMT_RESOLUTION_HZ
+        int "RMT resolution (Hz)"
+        default 10000000
+        help
+            RMT clock resolution used by the LED driver.
+
+endmenu

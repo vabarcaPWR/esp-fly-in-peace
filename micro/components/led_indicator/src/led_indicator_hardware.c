@@ -3,10 +3,11 @@
 #include "driver/gpio.h"
 #include "esp_log.h"
 #include "led_strip.h"
+#include "sdkconfig.h"
 
-#define LED_INDICATOR_GPIO GPIO_NUM_8
-#define LED_INDICATOR_PIXEL_COUNT 1U
-#define LED_INDICATOR_RMT_RESOLUTION_HZ 10000000U
+#define LED_INDICATOR_GPIO ((gpio_num_t)CONFIG_LED_INDICATOR_GPIO)
+#define LED_INDICATOR_PIXEL_COUNT ((uint32_t)CONFIG_LED_INDICATOR_PIXEL_COUNT)
+#define LED_INDICATOR_RMT_RESOLUTION_HZ ((uint32_t)CONFIG_LED_INDICATOR_RMT_RESOLUTION_HZ)
 
 static const char *TAG = "led_hw";
 

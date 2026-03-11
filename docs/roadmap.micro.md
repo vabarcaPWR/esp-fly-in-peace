@@ -2,7 +2,7 @@
 
 > **Project**: esp-fly-in-peace  
 > **Component**: Firmware (`micro/`)  
-> **Target**: ESP32-C3-DevKitC-02 v1.1  
+> **Target**: ESP32-C3 Super Mini  
 > **Master reference**: `.github/PRE-PROMPT.md`
 
 ---
@@ -123,7 +123,7 @@ For every module/component implemented in those phases:
 
 ## Phase 0: Project Bootstrap
 
-**Objective**: Set up a working ESP-IDF project that compiles, flashes, and runs a "Hello World" on the ESP32-C3-DevKitC-02.  
+**Objective**: Set up a working ESP-IDF project that compiles, flashes, and runs a "Hello World" on the ESP32-C3 Super Mini.  
 **Estimated Duration**: 2–3 days  
 **Dependencies**: None
 
@@ -234,7 +234,7 @@ For every module/component implemented in those phases:
 - [x] `sdkconfig.defaults` exists at `micro/sdkconfig.defaults`
 - [x] NimBLE is enabled, Bluedroid is disabled
 - [x] FreeRTOS tick rate is 1000 Hz (1 ms resolution for timing)
-- [x] Flash size set to 4 MB (DevKitC-02)
+- [x] Flash size set to 4 MB
 - [x] Log level default set to INFO
 - [x] Power management enabled (`CONFIG_PM_ENABLE=y`)
 - [x] Building with these defaults succeeds
@@ -261,7 +261,7 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 
 ### Task 0.6: Verify "Hello World" builds, flashes, and runs
 
-**Description**: End-to-end verification: build the firmware, flash it to the DevKitC-02, and verify the startup log message appears in the serial monitor.
+**Description**: End-to-end verification: build the firmware, flash it to the ESP32-C3 Super Mini, and verify the startup log message appears in the serial monitor.
 
 **Acceptance Criteria**:
 - [x] `idf.py build` succeeds with 0 errors, 0 warnings (except SDK warnings)
@@ -897,10 +897,10 @@ bluetoothctl --timeout 10 scan on || true
 
 **Acceptance Criteria**:
 - [x] Component `led_indicator` created in `micro/components/led_indicator/`
-- [x] `esp_err_t led_indicator_init(void)` — configures RMT channel on GPIO 8, creates LED task (Priority 1, 2048 bytes)
+- [x] `esp_err_t led_indicator_init(void)` — configures RMT channel on GPIO 2, creates LED task (Priority 1, 2048 bytes)
 - [x] Internal functions to set RGB color and turn off LED via RMT
 - [x] Uses ESP-IDF `led_strip` component or direct RMT encoding for WS2812 timing
-- [x] GPIO 8 (WS2812 data pin on DevKitC-02 v1.1)
+- [x] GPIO 2 (WS2812 data pin on ESP32-C3 Super Mini)
 
 **Validation**:
 - Flash firmware, LED lights up with a test color
@@ -912,7 +912,7 @@ bluetoothctl --timeout 10 scan on || true
   - `led_indicator_conductor.c`
   - `led_indicator_model.c`
   - `led_indicator_hardware.c`
-- WS2812 hardware backend implemented with `espressif/led_strip` over RMT on GPIO 8.
+- WS2812 hardware backend implemented with `espressif/led_strip` over RMT on GPIO 2.
 - Build validation:
   - `./scripts/micro/build.sh` ✅
 
@@ -1103,7 +1103,7 @@ bluetoothctl --timeout 10 scan on || true
 **Description**: Implement reading the 6 factory calibration coefficients (C1–C6) from the MS5611's PROM via I2C. These are needed for pressure/temperature compensation.
 
 **Acceptance Criteria**:
-- [x] Component `sensor_ms5611` created in `micro/components/sensor_ms5611/`
+- [x] MS5611 driver created in `micro/components/sensors/src/ms5611/`
 - [x] `sensor_ms5611_t` and `sensor_ms5611_cfg_t` structs per architecture §4.2
 - [x] `sensor_ms5611_init(sensor_ms5611_t *self, const sensor_ms5611_cfg_t *cfg)` reads all 6 PROM coefficients
 - [x] Sends reset command (`0x1E`) before PROM read
@@ -1114,12 +1114,14 @@ bluetoothctl --timeout 10 scan on || true
 - [x] Uses ESP-IDF I2C driver directly (no wrapper)
 
 **Validation**:
-- Flash to DevKitC-02 with MS5611 connected, verify calibration values in log output
+- Flash to ESP32-C3 Super Mini with MS5611 connected, verify calibration values in log output
 
 **Files to create**:
-- `micro/components/sensor_ms5611/CMakeLists.txt`
-- `micro/components/sensor_ms5611/inc/sensor_ms5611.h`
-- `micro/components/sensor_ms5611/src/sensor_ms5611.c`
+- `micro/components/sensors/src/ms5611/CMakeLists.txt`
+- `micro/components/sensors/src/ms5611/inc/ms5611.h`
+- `micro/components/sensors/src/ms5611/src/ms5611_conductor.c`
+- `micro/components/sensors/src/ms5611/src/ms5611_model.c`
+- `micro/components/sensors/src/ms5611/src/ms5611_hardware.c`
 
 **Notes**:
 - MS5611 I2C address: `0x77` (CSB low) or `0x76` (CSB high). Default: `0x77`.
@@ -1145,7 +1147,8 @@ bluetoothctl --timeout 10 scan on || true
 - Flash to hardware, log raw D1 and D2 values, verify non-zero and in expected range
 
 **Files to modify**:
-- `micro/components/sensor_ms5611/src/sensor_ms5611.c`
+- `micro/components/sensors/src/ms5611/src/ms5611_conductor.c`
+- `micro/components/sensors/src/ms5611/src/ms5611_hardware.c`
 
 **Notes**:
 - Conversion commands: `0x40 + 2*OSR_index` (pressure), `0x50 + 2*OSR_index` (temperature)
@@ -1170,7 +1173,7 @@ bluetoothctl --timeout 10 scan on || true
 - Datasheet test vector: C1=40127, C2=36924, C3=23317, C4=23282, C5=33464, C6=28312, D1=9085466, D2=8569150 → TEMP=2007, P=100009
 
 **Files to modify**:
-- `micro/components/sensor_ms5611/src/sensor_ms5611.c`
+- `micro/components/sensors/src/ms5611/src/ms5611_model.c`
 
 ---
 
@@ -1257,7 +1260,7 @@ bluetoothctl --timeout 10 scan on || true
 - [ ] Uses ESP-IDF I2C driver directly (no wrapper)
 
 **Validation**:
-- Flash to DevKitC-02 with BMP390 connected, verify chip ID and coefficients in log output
+- Flash to ESP32-C3 Super Mini with BMP390 connected, verify chip ID and coefficients in log output
 
 **Files to create**:
 - `micro/components/sensors/src/bmp390/CMakeLists.txt`

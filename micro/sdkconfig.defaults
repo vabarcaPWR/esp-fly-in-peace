@@ -1,5 +1,5 @@
 # sdkconfig.defaults — esp-fly-in-peace
-# Optimal settings for ESP32-C3 DevKitC-02 v1.1 with NimBLE
+# Optimal settings for ESP32-C3 Super Mini with NimBLE
 
 # --- BLE: NimBLE stack (lighter than Bluedroid) ---
 CONFIG_BT_ENABLED=y
@@ -12,8 +12,15 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 # --- FreeRTOS: 1 ms tick for precise timing ---
 CONFIG_FREERTOS_HZ=1000
 
-# --- Flash: 4 MB (DevKitC-02 v1.1) ---
+# --- Flash: 4 MB ---
 CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+
+# --- ESP32-C3 Super Mini GPIO defaults ---
+CONFIG_SENSOR_I2C_SDA_GPIO=8
+CONFIG_SENSOR_I2C_SCL_GPIO=9
+CONFIG_LED_INDICATOR_GPIO=2
+CONFIG_LED_INDICATOR_PIXEL_COUNT=1
+CONFIG_LED_INDICATOR_RMT_RESOLUTION_HZ=10000000
 
 # --- Log level: INFO (default) ---
 CONFIG_LOG_DEFAULT_LEVEL_INFO=y

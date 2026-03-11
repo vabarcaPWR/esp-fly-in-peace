@@ -1203,23 +1203,25 @@ stateDiagram-v2
 
 ## 11. Hardware Mapping
 
-### 11.1 ESP32-C3-DevKitC-02 v1.1 Pin Assignment
+### 11.1 ESP32-C3 Super Mini Pin Assignment
 
 | GPIO | Function | Peripheral | Notes |
 |------|----------|-----------|-------|
-| GPIO 6 | I2C SDA | I2C_NUM_0 | Sensor + IMU data line (4.7 kΩ pull-up) |
-| GPIO 7 | I2C SCL | I2C_NUM_0 | Sensor + IMU clock line (4.7 kΩ pull-up) |
-| GPIO 8 | WS2812 data | RMT CH0 | Onboard RGB LED |
+| GPIO 8 | I2C SDA | I2C_NUM_0 | Sensor + IMU data line (4.7 kΩ pull-up) |
+| GPIO 9 | I2C SCL | I2C_NUM_0 | Sensor + IMU clock line (4.7 kΩ pull-up) |
+| GPIO 2 | WS2812 data | RMT CH0 | External RGB LED data input (DIN) |
 | GPIO 18 | USB D- | USB-CDC | Serial monitor / flash |
 | GPIO 19 | USB D+ | USB-CDC | Serial monitor / flash |
+
+For an external WS2812 RGB LED on the Super Mini, connect DIN to GPIO 2, VCC to 3V3, and GND to GND.
 
 ### 11.2 I2C Configuration
 
 | Parameter | Value |
 |-----------|-------|
 | Port | I2C_NUM_0 |
-| SDA | GPIO 6 |
-| SCL | GPIO 7 |
+| SDA | GPIO 8 |
+| SCL | GPIO 9 |
 | Clock speed | 400 kHz (Fast Mode) |
 | Barometer address | 0x77 (MS5611: CSB=GND; BMP390: SDO=GND) |
 | IMU address | 0x68 (MPU6050: AD0=GND) |
@@ -1228,7 +1230,7 @@ stateDiagram-v2
 > Both barometer and MPU6050 share the same I2C bus. The `sensor` initializes the bus;
 > `imu_hal` uses `sensor_get_i2c_bus_handle()` to add the IMU device without reinitializing the bus.
 
-### 11.3 Sensor Wiring (DevKit → Sensor Module)
+### 11.3 Sensor Wiring (Super Mini → Sensor Module)
 
 The barometric sensor and IMU share the same I2C bus with different addresses.
 Only one barometric sensor is connected at a time. The active baro driver is selected via `idf.py menuconfig`.
@@ -1236,12 +1238,12 @@ The IMU is optional (`CONFIG_IMU_NONE` for baro-only operation).
 
 **MS5611 + MPU6050 Wiring:**
 ```
-ESP32-C3-DevKitC-02          MS5611 Module         MPU6050 Module
+ESP32-C3 Super Mini          MS5611 Module         MPU6050 Module
 ┌──────────────────┐         ┌─────────────┐       ┌─────────────┐
 │           3V3 ───┼────────►│ VCC         │       │ VCC         │
 │           GND ───┼────────►│ GND         │       │ GND         │
-│        GPIO 6 ───┼────────►│ SDA         │───────│ SDA         │
-│        GPIO 7 ───┼────────►│ SCL         │───────│ SCL         │
+│        GPIO 8 ───┼────────►│ SDA         │───────│ SDA         │
+│        GPIO 9 ───┼────────►│ SCL         │───────│ SCL         │
 │                  │    CSB──┤►GND (0x77)  │       │ AD0──►GND   │
 │                  │    PS ──┤►VCC (I2C)   │       │ (0x68)      │
 └──────────────────┘         └─────────────┘       └─────────────┘
@@ -1249,12 +1251,12 @@ ESP32-C3-DevKitC-02          MS5611 Module         MPU6050 Module
 
 **BMP390 + MPU6050 Wiring:**
 ```
-ESP32-C3-DevKitC-02          BMP390 Module         MPU6050 Module
+ESP32-C3 Super Mini          BMP390 Module         MPU6050 Module
 ┌──────────────────┐         ┌─────────────┐       ┌─────────────┐
 │           3V3 ───┼────────►│ VCC         │       │ VCC         │
 │           GND ───┼────────►│ GND         │       │ GND         │
-│        GPIO 6 ───┼────────►│ SDA         │───────│ SDA         │
-│        GPIO 7 ───┼────────►│ SCL         │───────│ SCL         │
+│        GPIO 8 ───┼────────►│ SDA         │───────│ SDA         │
+│        GPIO 9 ───┼────────►│ SCL         │───────│ SCL         │
 │                  │    SDO──┤►GND (0x77)  │       │ AD0──►GND   │
 └──────────────────┘         └─────────────┘       └─────────────┘
 ```
