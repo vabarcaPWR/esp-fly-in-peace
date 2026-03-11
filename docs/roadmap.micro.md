@@ -39,12 +39,14 @@
   - [x] Task 3.5.3: Validate end-to-end with app frame inspector and record evidence
   - [x] Task 3.5.4: Validate NUS TX stream through Linux app console mirror
 - [ ] **Phase 4: LED Indicator**
-  - [ ] Task 4.1: Status LED driver (single color)
+  - [ ] Task 4.0: LED factory contract and backend registration
+  - [ ] Task 4.1: Status LED driver backend (`single`)
   - [ ] Task 4.2: LED state machine (patterns per `led_state_e`)
   - [ ] Task 4.3: Integration with BLE connection state
-- [x] **Phase 5: Sensor HAL (Compile-Time Abstraction)**
+  - [ ] Task 4.4: Future backend readiness (`ws2811` / `ws8211`)
+- [x] **Phase 5: Sensor Factory (Runtime Selection + Shared Contract)**
   - [x] Task 5.1: Kconfig sensor selection (`choice SENSOR_DRIVER`)
-  - [x] Task 5.2: `sensor` public API and compile-time dispatch
+  - [x] Task 5.2: `sensor` public API and factory dispatch
   - [x] Task 5.3: I2C bus initialization
 - [x] **Phase 6: MS5611 Sensor Driver**
   - [x] Task 6.1: MS5611 PROM calibration read
@@ -60,7 +62,7 @@
   - [ ] Task 7.5: Integration test on hardware
 - [ ] **Phase 7.5: IMU HAL (MPU6050)**
   - [ ] Task 7.5.1: Kconfig IMU selection and I2C configuration
-  - [ ] Task 7.5.2: imu_hal public API and compile-time dispatch
+  - [ ] Task 7.5.2: imu_hal public API and factory dispatch
   - [ ] Task 7.5.3: MPU6050 I2C driver (init, accel+gyro read, self-test)
   - [ ] Task 7.5.4: Ceedling unit tests for MPU6050
   - [ ] Task 7.5.5: Integration test on hardware
@@ -890,39 +892,72 @@ bluetoothctl --timeout 10 scan on || true
 
 **Architecture Reference**: `firmware-architecture.md` §4.7 `led`, §8.3 LED State Machine
 
+**Design Rule (Factory Pattern for LED)**:
+- The `led` module must follow a factory pattern aligned with the existing sensor strategy (`get_baro_sensor()` / `get_imu_sensor()`): static registration of LED backends and runtime selection via `get_led(const char *led_name)`.
+- Public driver contract is represented by `led_t` (function-pointer table). The selected backend exposes operations through this contract.
+- First backend target is `single` (onboard status LED). Future backend `ws2811` (`ws8211` naming variant) must plug into the same contract without changing application-level call sites.
+- Source of truth for current implementation: `micro/components/leds/inc/led.h` and `micro/components/leds/src/led.c`.
+
 ---
 
-### Task 4.1: Status LED driver (single color)
+### Task 4.0: LED factory contract and backend registration
 
-**Description**: Create the `led` component that drives the onboard status LED of the ESP32-C3 Super Mini.
+**Description**: Formalize `led_t` as backend contract and implement factory registration/selection for current and future LED types.
 
 **Acceptance Criteria**:
-- [ ] Component `led` created in `micro/components/led/`
-- [ ] `esp_err_t led_init(void)` — configures status LED GPIO and creates LED task (Priority 1, 2048 bytes)
-- [ ] Internal functions to turn status LED on/off
+- [ ] `led_t` defines the backend operation table currently implemented in `components/leds` (`init`, `get_name`)
+- [ ] `get_led(const char *led_name)` resolves a backend from a static registry and returns `NULL` for unknown names
+- [ ] A `single` backend is registered in the factory and exposed by name
+- [ ] Factory logic is backend-agnostic (no `single`-specific branching in app-level code)
+- [ ] Selection and fallback behavior are documented in component API notes
+- [ ] Contract extension path is defined so Task 4.2 can add state-machine operations to `led_t` without breaking factory selection
+
+**Validation**:
+- Host/unit test coverage for factory selection:
+  - `get_led("single")` returns valid backend
+  - unknown name returns `NULL`
+  - `NULL` input returns `NULL`
+- Firmware build remains green with selected backend
+
+**LED Factory pattern**
+- Led API implemented as `led_t` structure
+- Files:
+  - `micro/components/leds/src/led.c` (factory)
+  - `micro/components/leds/inc/led.h` (factory API)
+  - `micro/components/leds/CMakeLists.txt` (led component + factory)
+  
+---
+
+### Task 4.1: Status LED driver backend (`single`)
+
+**Description**: Implement the `single` backend in the `led` component to drive the onboard status LED of the ESP32-C3 Super Mini.
+
+**Acceptance Criteria**:
+- [ ] Component `led` created in `micro/components/leds/`
+- [ ] Backend `single` implements `led_t` operations used by the factory contract
+- [ ] `single.init()` configures status LED GPIO and creates LED task (Priority 1, 2048 bytes)
+- [ ] Internal backend functions turn status LED on/off
 - [ ] Uses ESP-IDF GPIO driver for single-color LED control
 - [ ] Uses the onboard status LED pin of ESP32-C3 Super Mini
 
 **Validation**:
-- Flash firmware, status LED turns on in boot state and follows blink patterns per state
+- Select `single` backend via factory, flash firmware, and verify boot + runtime patterns
 
 **Status Note (2026-02-24 — implementation + build validation)**:
 _Historical note only. This evidence does not close the reopened milestone._
-- New component added: `micro/components/led/`.
-- Public API implemented: `led_init`, `led_set_state`, `led_get_state`.
-- Internal split applied per project rule:
-  - `led_conductor.c`
-  - `led_model.c`
-  - `led_hardware.c`
-- Status LED hardware backend implemented with GPIO on ESP32-C3 Super Mini.
+- New component added: `micro/components/leds/`.
+- Factory API currently implemented in:
+  - `micro/components/leds/src/led.c`
+  - `micro/components/leds/inc/led.h`
+- Backend state-machine/hardware files are pending in this reopened phase.
 - Build validation:
   - `./scripts/micro/build.sh` ✅
 
 
 **Files to create**:
-- `micro/components/led/CMakeLists.txt`
-- `micro/components/led/inc/led.h`
-- `micro/components/led/src/led.c`
+- `micro/components/leds/src/single/CMakeLists.txt`
+- `micro/components/leds/src/single/inc/single.h`
+- `micro/components/leds/src/single/src/single.c`
 
 ---
 
@@ -949,7 +984,7 @@ _Historical note only. This evidence does not close the reopened milestone._
 
 **Status Note (2026-02-24 — implementation + host validation)**:
 _Historical note only. This evidence does not close the reopened milestone._
-- State machine implemented in `led_model.c` and consumed by a dedicated LED task (`10 Hz`) in `led_conductor.c`.
+- Previous prototype state-machine evidence existed, but current source-of-truth is the reopened factory-based implementation in `micro/components/leds/`.
 - Queue-based state updates implemented with depth `1` and `xQueueOverwrite` semantics.
 - Pattern timing implemented exactly at 100 ms tick resolution:
   - `BOOT`: LED always ON
@@ -962,12 +997,12 @@ _Historical note only. This evidence does not close the reopened milestone._
 
 ### Task 4.3: Integration with BLE connection state
 
-**Description**: Register a BLE state callback to automatically change LED state on connect/disconnect.
+**Description**: Register a BLE state callback to automatically change LED state on connect/disconnect, without coupling to a concrete LED backend.
 
 **Acceptance Criteria**:
 - [ ] `ble_nus_register_state_callback()` used to hook BLE state changes
-- [ ] BLE connect → `led_set_state(LED_STATE_BLE_CONNECTED)` (100 ms ON / 4900 ms OFF)
-- [ ] BLE disconnect → `led_set_state(LED_STATE_BLE_DISCONNECTED)` (100 ms ON / 1900 ms OFF)
+- [ ] BLE connect → active backend `set_state(LED_STATE_BLE_CONNECTED)` (100 ms ON / 4900 ms OFF)
+- [ ] BLE disconnect → active backend `set_state(LED_STATE_BLE_DISCONNECTED)` (100 ms ON / 1900 ms OFF)
 - [ ] Transition is immediate and visible
 
 **Validation**:
@@ -987,9 +1022,25 @@ _Historical note only. This evidence does not close the reopened milestone._
 
 ---
 
-## Phase 5: Sensor HAL (Compile-Time Abstraction)
+### Task 4.4: Future backend readiness (`ws2811` / `ws8211`)
 
-**Objective**: Create the sensor hardware abstraction layer with compile-time driver selection via Kconfig. NO `i2c_bus` wrapper — sensor drivers use ESP-IDF I2C directly per architecture decision.  
+**Description**: Prepare extension points so a future `ws2811`/`ws8211` backend can be added as a drop-in factory backend.
+
+**Acceptance Criteria**:
+- [ ] Roadmap defines `ws2811`/`ws8211` as non-blocking future backend
+- [ ] Contract parity required: `ws2811`/`ws8211` must implement the same `led_t` operations as `single`
+- [ ] App-level orchestration must remain unchanged when switching `single` ↔ `ws2811`/`ws8211`
+- [ ] Build-system and component structure notes include where to register additional backend files
+
+**Validation**:
+- Design review confirms no app-level API changes are required for adding `ws2811`/`ws8211`
+- Factory tests remain valid after backend addition (selection behavior unchanged)
+
+---
+
+## Phase 5: Sensor Factory (Runtime Selection + Shared Contract)
+
+**Objective**: Create the sensor abstraction layer with runtime factory selection (`get_baro_sensor()` / `get_imu_sensor()`) and a shared contract in `sensor.h`. NO `i2c_bus` wrapper — sensor drivers use ESP-IDF I2C directly per architecture decision.  
 **Estimated Duration**: 1–2 days  
 **Dependencies**: Phase 1 (interface contract in `firmware-architecture.md` §4.1)  
  
@@ -1025,25 +1076,24 @@ _Historical note only. This evidence does not close the reopened milestone._
 
 ---
 
-### Task 5.2: `sensor` public API and compile-time dispatch
+### Task 5.2: `sensor` public API and factory dispatch
 
-**Description**: Implement the `sensor` public API with `#if defined()` compile-time dispatch per architecture §4.1.
+**Description**: Implement the `sensor` public API with factory-based runtime dispatch per architecture.
 
 **Acceptance Criteria**:
-- [x] `sensor_data_t` struct per architecture: `pressure_pa` (int32), `temperature_mc` (int32), `timestamp_us` (int64)
-- [x] Public API per architecture contract:
-  - `esp_err_t sensor_init(void)` — configures I2C, reads calibration
-  - `esp_err_t sensor_read(sensor_data_t *out)` — full read cycle (trigger → wait → read → compensate)
-  - `const char *sensor_get_name(void)` — returns `"MS5611"` or `"BMP390"`
-- [x] `sensor.c` uses `#if defined(CONFIG_SENSOR_MS5611)` / `#elif defined(CONFIG_SENSOR_BMP390)` dispatch
-- [x] `#else #error` if no sensor selected
-- [x] `sensors/CMakeLists.txt` registers driver sources from `micro/components/sensors/src/<driver>/` per selected sensor architecture
-- [x] **NO function pointers, NO `void *ctx`** — compile-time dispatch only
+- [x] `data_baro_t` struct contract: `pressure_pa` (int32), `temperature_mc` (int32), `timestamp_us` (int64)
+- [x] `sensor_baro_t` contract defined with function pointers: `init`, `read`, `get_name`
+- [x] Factory API exposed:
+  - `const sensor_baro_t *get_baro_sensor(const char *sensor_name)`
+  - `const sensor_imu_t *get_imu_sensor(const char *sensor_name)`
+- [x] `sensor.c` resolves barometric backend by name (current: `"ms5611"`)
+- [x] Unknown/NULL sensor name returns `NULL`
+- [x] `micro/components/sensors/CMakeLists.txt` registers available backends
 
 **Validation**:
-- Build succeeds with `CONFIG_SENSOR_MS5611=y`
-- Build succeeds with `CONFIG_SENSOR_BMP390=y` (once Phase 7 exists; stub for now)
-- Build fails with no sensor selected → `#error` message
+- `get_baro_sensor("ms5611")` returns valid backend
+- `get_baro_sensor(NULL)` and unknown names return `NULL`
+- Build succeeds with current registered backend set
 
 **Files to create**:
 - `micro/components/sensors/inc/sensor.h`
@@ -1053,10 +1103,10 @@ _Historical note only. This evidence does not close the reopened milestone._
 
 ### Task 5.3: I2C bus initialization
 
-**Description**: Initialize the I2C master bus in `sensor_init()` using ESP-IDF's I2C driver directly (no wrapper component). Per architecture, sensor drivers use ESP-IDF I2C directly.
+**Description**: Define and implement I2C initialization ownership for factory-selected sensor backends using ESP-IDF's I2C driver directly (no wrapper component).
 
 **Acceptance Criteria**:
-- [x] I2C master bus configured in `sensor_init()` before calling driver init
+- [x] I2C master bus initialization is explicitly owned by the selected backend path
 - [x] I2C port: `I2C_NUM_0`, SDA: GPIO 6, SCL: GPIO 7, Clock: 400 kHz (per architecture §11.2)
 - [x] Pull-ups: configured via GPIO config (external 4.7 kΩ recommended)
 - [x] Uses ESP-IDF v5.x `i2c_master.h` API
@@ -1070,14 +1120,14 @@ _Historical note only. This evidence does not close the reopened milestone._
 
 **Notes**:
 - **No `i2c_bus` wrapper component**: per architecture decision, sensor drivers use ESP-IDF I2C directly to minimize abstraction layers.
-- I2C initialization happens once in `sensor_init()`, then the driver handle is passed to the selected sensor driver.
+- With factory pattern, ownership of bus setup stays explicit in the selected backend flow and is not hidden behind an extra wrapper module.
 
 **Status Note (2026-03-03 — Phase 5 complete)**:
-- Component `sensor` created with Kconfig (`choice SENSOR_DRIVER`), public API header, and compile-time dispatch implementation.
+- Component `sensors` created with Kconfig support, public API header, and factory dispatch implementation.
 - Kconfig exposes sensor selection plus I2C pin/frequency/address configuration under "Component config → Sensor driver".
 - `sdkconfig` confirms `CONFIG_SENSOR_MS5611=y` default, I2C on GPIO 6/7 at 400 kHz, address 0x77.
-- `sensor.c` uses ESP-IDF v5.x `i2c_master.h` API (`i2c_new_master_bus`/`i2c_del_master_bus`), internal pull-ups enabled.
-- Driver init/read stubs return `ESP_ERR_NOT_SUPPORTED` for `sensor_read()` — will be wired to real driver in Phase 6/7.
+- `sensor.c` exposes factory entry points (`get_baro_sensor()` / `get_imu_sensor()`), with `ms5611` already registered for barometric sensor selection.
+- Driver registration remains extensible for upcoming backends (BMP390, IMU).
 - Build succeeds with zero warnings. `.clang-format` applied.
 
 ---
@@ -1095,7 +1145,15 @@ _Historical note only. This evidence does not close the reopened milestone._
 - Convención de nombres por rol obligatoria: `*_conductor.c`, `*_model.c`, `*_hardware.c` (si aplica al módulo).
 - Repetir la validación de la fase después de cada refactorización.
 
-**Architecture Reference**: `firmware-architecture.md` §4.2 `ms5611`
+**Architecture Reference**: `firmware-architecture.md` §4.2 `ms5611` and Sensor Factory Pattern
+
+**Sensor Factory pattern**
+- Sensor API implemented as `sensor_baro_t`/`sensor_imu_t` contracts declared in `sensor.h`.
+- Each backend registers and returns a contract instance through factory entry points.
+- Files:
+  - `micro/components/sensors/src/sensor.c` (factory)
+  - `micro/components/sensors/inc/sensor.h` (factory API)
+  - `micro/components/sensors/CMakeLists.txt` (sensor component + factory)
 
 ---
 
@@ -1228,8 +1286,8 @@ _Historical note only. This evidence does not close the reopened milestone._
 
 > **Module architecture rule (effective for new sensors):**
 > Implement sensor drivers under `micro/components/sensors/src/<sensor_name>/`,
-> implement the `sensor_t` contract from `micro/components/sensors/inc/sensor.h`,
-> and register the driver in `micro/components/sensors/src/sensor.c` via `get_sensor()`.
+> implement the `sensor_baro_t` contract from `micro/components/sensors/inc/sensor.h`,
+> and register the driver in `micro/components/sensors/src/sensor.c` via `get_baro_sensor()`.
  
 **Refactorización (obligatoria)**:
 - Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
@@ -1239,6 +1297,14 @@ _Historical note only. This evidence does not close the reopened milestone._
 - Repetir la validación de la fase después de cada refactorización.
 
 **Architecture Reference**: `firmware-architecture.md` §2.2 Sensor Factory Pattern
+
+**Sensor Factory pattern**
+- Sensor API implemented as `sensor_baro_t`/`sensor_imu_t` contracts in `sensor.h`.
+- Add required backend operations while keeping factory selector behavior stable.
+- Files:
+  - `micro/components/sensors/src/sensor.c` (factory)
+  - `micro/components/sensors/inc/sensor.h` (factory API)
+  - `micro/components/sensors/CMakeLists.txt` (sensor component + factory)
 
 ---
 
@@ -1268,7 +1334,7 @@ _Historical note only. This evidence does not close the reopened milestone._
 - `micro/components/sensors/src/bmp390/src/bmp390_conductor.c`
 - `micro/components/sensors/src/bmp390/src/bmp390_model.c`
 - `micro/components/sensors/src/bmp390/src/bmp390_hardware.c`
-- `micro/components/sensors/src/sensor.c` (factory registration in `get_sensor()`)
+- `micro/components/sensors/src/sensor.c` (factory registration in `get_baro_sensor()`)
 
 **Notes**:
 - BMP390 I2C address: `0x77` (SDO=GND) or `0x76` (SDO=VCC). Default: `0x77`.
@@ -1411,20 +1477,20 @@ The MPU6050 provides high-rate (100 Hz) accelerometer and gyroscope data for:
 
 ---
 
-### Task 7.5.2: imu_hal public API and compile-time dispatch
+### Task 7.5.2: imu_hal public API and factory dispatch
 
-**Description**: Implement the `imu_hal` public API with compile-time dispatch, following the same pattern as `sensor`.
+**Description**: Implement the `imu_hal` public API with factory dispatch, following the same pattern as `sensor`.
 
 **Acceptance Criteria**:
-- [ ] `imu_data_t` struct: `accel_x`, `accel_y`, `accel_z` (float, m/s²), `gyro_x`, `gyro_y`, `gyro_z` (float, rad/s), `timestamp_us` (int64)
+- [ ] `data_imu_t` struct: `accel_x`, `accel_y`, `accel_z` (float, m/s²), `gyro_x`, `gyro_y`, `gyro_z` (float, rad/s), `timestamp_us` (int64)
 - [ ] Public API:
   - `esp_err_t imu_hal_init(void)` — configures IMU, reads WHO_AM_I
-  - `esp_err_t imu_hal_read(imu_data_t *out)` — reads accel + gyro (non-blocking, ~0.6 ms at 400 kHz I2C)
+  - `esp_err_t imu_hal_read(data_imu_t *out)` — reads accel + gyro (non-blocking, ~0.6 ms at 400 kHz I2C)
   - `const char *imu_hal_get_name(void)` — returns `"MPU6050"` or `"NONE"`
-- [ ] `imu_hal.c` uses `#if defined(CONFIG_IMU_MPU6050)` dispatch
-- [ ] `CONFIG_IMU_NONE` compiles stub that returns `ESP_ERR_NOT_SUPPORTED` — allows baro-only operation without code changes
+- [ ] `imu_hal` exposes factory selector compatible with `sensor_imu_t` contract
+- [ ] `CONFIG_IMU_NONE` can map to a stub backend that returns `ESP_ERR_NOT_SUPPORTED` — allows baro-only operation without code changes
 - [ ] Uses `sensor_get_i2c_bus_handle()` to share the I2C bus with the barometric sensor
-- [ ] **NO function pointers** — compile-time dispatch only
+- [ ] Factory behavior remains deterministic and testable for valid/invalid backend names
 
 **Validation**:
 - Build succeeds with `CONFIG_IMU_MPU6050=y`
@@ -1449,7 +1515,7 @@ The MPU6050 provides high-rate (100 Hz) accelerometer and gyroscope data for:
   - Wakes sensor (PWR_MGMT_1: disable sleep, select PLL clock source)
   - Configures sample rate divider, DLPF, accel/gyro full-scale ranges
   - Computes scaling factors: accel (LSB → m/s²), gyro (LSB → rad/s)
-- [ ] `esp_err_t imu_mpu6050_read(imu_mpu6050_t *self, imu_data_t *out)`:
+- [ ] `esp_err_t imu_mpu6050_read(imu_mpu6050_t *self, data_imu_t *out)`:
   - Burst read of 14 bytes (accel XYZ + temp + gyro XYZ) starting at register `0x3B`
   - Converts raw 16-bit values to physical units using scaling factors
   - Populates `out->timestamp_us` with `esp_timer_get_time()`
@@ -1563,7 +1629,7 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 - [ ] `ahrs_cfg_t` struct: `beta` (default 0.1 — filter gain, trades convergence speed vs noise), `sample_rate_hz` (default 100)
 - [ ] `ahrs_state_t` struct: quaternion `q[4]` (w, x, y, z), rotation matrix `r[3][3]` (body→NED), `initialized` flag
 - [ ] `esp_err_t ahrs_init(ahrs_state_t *state, const ahrs_cfg_t *cfg)` — initializes quaternion to identity `[1,0,0,0]`
-- [ ] `esp_err_t ahrs_update(ahrs_state_t *state, const ahrs_cfg_t *cfg, const imu_data_t *imu)` — one Madgwick filter iteration using accel + gyro
+- [ ] `esp_err_t ahrs_update(ahrs_state_t *state, const ahrs_cfg_t *cfg, const data_imu_t *imu)` — one Madgwick filter iteration using accel + gyro
 - [ ] `esp_err_t ahrs_reset(ahrs_state_t *state)` — resets quaternion to identity
 - [ ] Quaternion is normalized after each update to prevent drift
 - [ ] Rotation matrix `r[3][3]` updated from quaternion after each iteration
@@ -1591,7 +1657,7 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 **Description**: Implement the function that rotates body-frame accelerometer readings to NED (North-East-Down) frame using the AHRS quaternion, then extracts the vertical (Down) component with gravity removed.
 
 **Acceptance Criteria**:
-- [ ] `esp_err_t ahrs_get_vertical_accel(const ahrs_state_t *state, const imu_data_t *imu, float *vertical_accel_ms2)` implemented
+- [ ] `esp_err_t ahrs_get_vertical_accel(const ahrs_state_t *state, const data_imu_t *imu, float *vertical_accel_ms2)` implemented
 - [ ] Uses rotation matrix row 3 (Down axis) to project body-frame accel to vertical: $a_z^{NED} = R_{20} \cdot a_x + R_{21} \cdot a_y + R_{22} \cdot a_z$
 - [ ] Gravity compensation: $a_{vertical} = a_z^{NED} + g$ (NED convention: Down is positive, gravity adds +9.81 to cancel the accelerometer's -9.81 reading at rest)
 - [ ] Sign convention: positive = upward acceleration (climbing), negative = downward (sinking)

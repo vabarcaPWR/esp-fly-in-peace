@@ -453,10 +453,10 @@ typedef struct imu_data_s
     float   gyro_y;            // Y-axis angular rate in rad/s
     float   gyro_z;            // Z-axis angular rate in rad/s
     int64_t timestamp_us;      // Microsecond timestamp (esp_timer_get_time)
-} imu_data_t;
+} data_imu_t;
 
 esp_err_t   imu_hal_init(void);
-esp_err_t   imu_hal_read(imu_data_t *out);
+esp_err_t   imu_hal_read(data_imu_t *out);
 esp_err_t   imu_hal_deinit(void);
 const char *imu_hal_get_name(void);
 ```
@@ -492,8 +492,8 @@ typedef struct ahrs_state_s
 } ahrs_state_t;
 
 esp_err_t ahrs_init(ahrs_state_t *state, const ahrs_cfg_t *cfg);
-esp_err_t ahrs_update(ahrs_state_t *state, const ahrs_cfg_t *cfg, const imu_data_t *imu);
-esp_err_t ahrs_get_vertical_accel(const ahrs_state_t *state, const imu_data_t *imu,
+esp_err_t ahrs_update(ahrs_state_t *state, const ahrs_cfg_t *cfg, const data_imu_t *imu);
+esp_err_t ahrs_get_vertical_accel(const ahrs_state_t *state, const data_imu_t *imu,
                                    float *vertical_accel_ms2);
 esp_err_t ahrs_reset(ahrs_state_t *state);
 ```
