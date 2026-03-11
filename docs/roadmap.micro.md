@@ -38,10 +38,10 @@
   - [x] Task 3.5.2: Expose debug profile selection for integration tests (nominal/climb/sink/edge-cases)
   - [x] Task 3.5.3: Validate end-to-end with app frame inspector and record evidence
   - [x] Task 3.5.4: Validate NUS TX stream through Linux app console mirror
-- [x] **Phase 4: LED Indicator**
-  - [x] Task 4.1: WS2812 driver via RMT peripheral
-  - [x] Task 4.2: LED state machine (patterns per `led_state_e`)
-  - [x] Task 4.3: Integration with BLE connection state
+- [ ] **Phase 4: LED Indicator**
+  - [ ] Task 4.1: Status LED driver (single color)
+  - [ ] Task 4.2: LED state machine (patterns per `led_state_e`)
+  - [ ] Task 4.3: Integration with BLE connection state
 - [x] **Phase 5: Sensor HAL (Compile-Time Abstraction)**
   - [x] Task 5.1: Kconfig sensor selection (`choice SENSOR_DRIVER`)
   - [x] Task 5.2: `sensor` public API and compile-time dispatch
@@ -194,7 +194,7 @@ For every module/component implemented in those phases:
 **Files to create**:
 - `micro/test/project.yml`
 - `micro/test/support/.gitkeep`
-- `micro/test/test_sample.c` (trivial, can be deleted after verification)
+- `micro/test/test/test_sample.c` (trivial, can be deleted after verification)
 
 **Notes**: Ceedling must mock ESP-IDF headers. Create a `support/` directory with mock headers for `esp_err.h`, `esp_log.h` that provide the type definitions without ESP-IDF SDK. This allows testing pure business logic on the host.
 
@@ -444,7 +444,7 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 **Description**: Write comprehensive unit tests for LK8EX1 formatting and checksum.
 
 **Acceptance Criteria**:
-- [x] Test file `micro/test/test_lk8ex1.c` exists
+- [x] Test file `micro/test/test/test_lk8ex1.c` exists
 - [x] Test: format with typical values produces correct sentence (e.g., `$LK8EX1,101325,99999,50,23.5,999*XX\r\n`)
 - [x] Test: format with `altitude_m = 99999` (no GPS) works correctly
 - [x] Test: format with `battery_mv = 999` (no battery) works correctly
@@ -463,7 +463,7 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 - [ ] Full Ceedling rerun is currently blocked on this workstation by pre-existing config issue (`:paths -> :support -> support/mocks` missing).
 
 **Files to create**:
-- `micro/test/test_lk8ex1.c`
+- `micro/test/test/test_lk8ex1.c`
 
 ---
 
@@ -681,9 +681,13 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 
 ## Phase 4: LED Indicator
 
-**Objective**: Drive the onboard WS2812 RGB LED to indicate device state using the state machine defined in the architecture.  
+**Objective**: Drive the onboard status LED of the ESP32-C3 Super Mini to indicate device state using a single-color blink state machine.  
 **Estimated Duration**: 1–2 days  
 **Dependencies**: Phase 3 (BLE state callbacks for integration)  
+
+**Status Update (2026-03-11)**:
+- This phase is reopened and marked as pending due to hardware-policy change.
+- Previous closure evidence is deprecated and must be regenerated for status-LED-only behavior.
 
 ---
 
@@ -891,28 +895,29 @@ bluetoothctl --timeout 10 scan on || true
 
 ---
 
-### Task 4.1: WS2812 driver via RMT peripheral
+### Task 4.1: Status LED driver (single color)
 
-**Description**: Create the `led_indicator` component that drives the WS2812 RGB LED using the ESP32-C3's RMT peripheral.
+**Description**: Create the `led_indicator` component that drives the onboard status LED of the ESP32-C3 Super Mini.
 
 **Acceptance Criteria**:
-- [x] Component `led_indicator` created in `micro/components/led_indicator/`
-- [x] `esp_err_t led_indicator_init(void)` — configures RMT channel on GPIO 2, creates LED task (Priority 1, 2048 bytes)
-- [x] Internal functions to set RGB color and turn off LED via RMT
-- [x] Uses ESP-IDF `led_strip` component or direct RMT encoding for WS2812 timing
-- [x] GPIO 2 (WS2812 data pin on ESP32-C3 Super Mini)
+- [ ] Component `led_indicator` created in `micro/components/led_indicator/`
+- [ ] `esp_err_t led_indicator_init(void)` — configures status LED GPIO and creates LED task (Priority 1, 2048 bytes)
+- [ ] Internal functions to turn status LED on/off
+- [ ] Uses ESP-IDF GPIO driver for single-color LED control
+- [ ] Uses the onboard status LED pin of ESP32-C3 Super Mini
 
 **Validation**:
-- Flash firmware, LED lights up with a test color
+- Flash firmware, status LED turns on in boot state and follows blink patterns per state
 
 **Status Note (2026-02-24 — implementation + build validation)**:
+_Historical note only. This evidence does not close the reopened milestone._
 - New component added: `micro/components/led_indicator/`.
 - Public API implemented: `led_indicator_init`, `led_indicator_deinit`, `led_indicator_set_state`, `led_indicator_get_state`.
 - Internal split applied per project rule:
   - `led_indicator_conductor.c`
   - `led_indicator_model.c`
   - `led_indicator_hardware.c`
-- WS2812 hardware backend implemented with `espressif/led_strip` over RMT on GPIO 2.
+- Status LED hardware backend implemented with GPIO on ESP32-C3 Super Mini.
 - Build validation:
   - `./scripts/micro/build.sh` ✅
 
@@ -929,30 +934,31 @@ bluetoothctl --timeout 10 scan on || true
 **Description**: Implement the LED state machine per architecture §8.3 with all defined states and patterns.
 
 **Acceptance Criteria**:
-- [x] `led_state_e` enum: `LED_STATE_BOOT`, `LED_STATE_BLE_DISCONNECTED`, `LED_STATE_BLE_CONNECTED`, `LED_STATE_WIFI_ENABLED`, `LED_STATE_ERROR`
-- [x] `esp_err_t led_indicator_set_state(led_state_e state)` — thread-safe (queue-based, depth 1, overwrite)
-- [x] `led_state_e led_indicator_get_state(void)` — returns current state
-- [x] Pattern definitions per architecture §8.3:
-  - `BOOT`: Blue solid (on during initialization)
-  - `BLE_DISCONNECTED`: Red blink (100 ms ON / 1900 ms OFF)
-  - `BLE_CONNECTED`: Green blink (100 ms ON / 4900 ms OFF)
-  - `WIFI_ENABLED`: Blue blink (stub for future)
-  - `ERROR`: Red fast blink (100 ms ON / 100 ms OFF)
-- [x] LED task runs at 10 Hz (100 ms tick), evaluates on/off state within pattern cycle
-- [x] Default state on boot: `LED_STATE_BOOT` → transitions to `LED_STATE_BLE_DISCONNECTED` after init
+- [ ] `led_state_e` enum: `LED_STATE_BOOT`, `LED_STATE_BLE_DISCONNECTED`, `LED_STATE_BLE_CONNECTED`, `LED_STATE_WIFI_ENABLED`, `LED_STATE_ERROR`
+- [ ] `esp_err_t led_indicator_set_state(led_state_e state)` — thread-safe (queue-based, depth 1, overwrite)
+- [ ] `led_state_e led_indicator_get_state(void)` — returns current state
+- [ ] Pattern definitions per architecture §8.3:
+  - `BOOT` (bootloader/startup): LED always ON
+  - `BLE_DISCONNECTED`: LED blink (100 ms ON / 1900 ms OFF)
+  - `BLE_CONNECTED`: LED blink (100 ms ON / 4900 ms OFF)
+  - `WIFI_ENABLED`: LED blink (reserved for future)
+  - `ERROR`: LED fast blink (100 ms ON / 100 ms OFF)
+- [ ] LED task runs at 10 Hz (100 ms tick), evaluates on/off state within pattern cycle
+- [ ] Default state on boot: `LED_STATE_BOOT` → transitions to `LED_STATE_BLE_DISCONNECTED` after init
 
 **Validation**:
-- Boot → blue solid → red blink after init completes
+- Boot → LED always ON → 100/1900 blink after init completes
 - Verify all patterns with visual inspection
 
 **Status Note (2026-02-24 — implementation + host validation)**:
+_Historical note only. This evidence does not close the reopened milestone._
 - State machine implemented in `led_indicator_model.c` and consumed by a dedicated LED task (`10 Hz`) in `led_indicator_conductor.c`.
 - Queue-based state updates implemented with depth `1` and `xQueueOverwrite` semantics.
 - Pattern timing implemented exactly at 100 ms tick resolution:
-  - `BOOT`: solid blue
+  - `BOOT`: LED always ON
   - `BLE_DISCONNECTED`: 1 tick ON / 19 ticks OFF
   - `BLE_CONNECTED`: 1 tick ON / 49 ticks OFF
-  - `WIFI_ENABLED`: blue blink (stub)
+  - `WIFI_ENABLED`: blink (stub)
   - `ERROR`: 1 tick ON / 1 tick OFF
 
 ---
@@ -962,16 +968,17 @@ bluetoothctl --timeout 10 scan on || true
 **Description**: Register a BLE state callback to automatically change LED state on connect/disconnect.
 
 **Acceptance Criteria**:
-- [x] `ble_nus_register_state_callback()` used to hook BLE state changes
-- [x] BLE connect → `led_indicator_set_state(LED_STATE_BLE_CONNECTED)` (green)
-- [x] BLE disconnect → `led_indicator_set_state(LED_STATE_BLE_DISCONNECTED)` (red)
-- [x] `esp_err_t led_indicator_deinit(void)` cleans up task and RMT resources
-- [x] Transition is immediate and visible
+- [ ] `ble_nus_register_state_callback()` used to hook BLE state changes
+- [ ] BLE connect → `led_indicator_set_state(LED_STATE_BLE_CONNECTED)` (100 ms ON / 4900 ms OFF)
+- [ ] BLE disconnect → `led_indicator_set_state(LED_STATE_BLE_DISCONNECTED)` (100 ms ON / 1900 ms OFF)
+- [ ] `esp_err_t led_indicator_deinit(void)` cleans up LED task and hardware resources
+- [ ] Transition is immediate and visible
 
 **Validation**:
-- Connect/disconnect from phone, observe LED color changes
+- Connect/disconnect from phone, observe LED blink cadence changes
 
 **Status Note (2026-02-24 — integration + regression validation)**:
+_Historical note only. This evidence does not close the reopened milestone._
 - `main.c` now initializes `led_indicator` before BLE module setup.
 - BLE state callback registered via `ble_nus_register_state_callback(...)` and mapped to LED states:
   - connected → `LED_STATE_BLE_CONNECTED`
@@ -1035,7 +1042,7 @@ bluetoothctl --timeout 10 scan on || true
   - `const char *sensor_get_name(void)` — returns `"MS5611"` or `"BMP390"`
 - [x] `sensor.c` uses `#if defined(CONFIG_SENSOR_MS5611)` / `#elif defined(CONFIG_SENSOR_BMP390)` dispatch
 - [x] `#else #error` if no sensor selected
-- [x] CMakeLists.txt conditionally adds `REQUIRES sensor_ms5611` or `sensor_bmp390` per architecture
+- [x] `sensors/CMakeLists.txt` registers driver sources from `micro/components/sensors/src/<driver>/` per selected sensor architecture
 - [x] **NO function pointers, NO `void *ctx`** — compile-time dispatch only
 
 **Validation**:
@@ -1094,7 +1101,7 @@ bluetoothctl --timeout 10 scan on || true
 - Convención de nombres por rol obligatoria: `*_conductor.c`, `*_model.c`, `*_hardware.c` (si aplica al módulo).
 - Repetir la validación de la fase después de cada refactorización.
 
-**Architecture Reference**: `firmware-architecture.md` §4.2 `sensor_ms5611`
+**Architecture Reference**: `firmware-architecture.md` §4.2 `ms5611`
 
 ---
 
@@ -1182,7 +1189,7 @@ bluetoothctl --timeout 10 scan on || true
 **Description**: Write unit tests for the MS5611 compensation math using known test vectors.
 
 **Acceptance Criteria**:
-- [x] Test file `micro/test/test_sensor_ms5611.c` exists
+- [x] Test file `micro/test/test/test_sensor_ms5611.c` exists
 - [x] Test: datasheet reference vector produces expected P and T values
 - [x] Test: second-order compensation activates for T < 20°C
 - [x] Test: second-order compensation activates for T < -15°C
@@ -1193,7 +1200,7 @@ bluetoothctl --timeout 10 scan on || true
 - Run `./scripts/micro/test.sh` — all tests green
 
 **Files to create**:
-- `micro/test/test_sensor_ms5611.c`
+- `micro/test/test/test_sensor_ms5611.c`
 
 **Notes**: Mock the I2C layer with CMock. The compensation math should be testable by providing known raw values.
 
@@ -1328,7 +1335,7 @@ bluetoothctl --timeout 10 scan on || true
 **Description**: Write unit tests for the BMP390 compensation math.
 
 **Acceptance Criteria**:
-- [ ] Test file `micro/test/test_sensor_bmp390.c` exists
+- [ ] Test file `micro/test/test/test_sensor_bmp390.c` exists
 - [ ] Test: known trimming coefficients + raw values produce expected P and T
 - [ ] Test: init with NULL parameters returns `ESP_ERR_INVALID_ARG`
 - [ ] Test: chip ID validation (correct ID vs wrong ID)
@@ -1338,7 +1345,7 @@ bluetoothctl --timeout 10 scan on || true
 - Run `./scripts/micro/test.sh` — all tests green
 
 **Files to create**:
-- `micro/test/test_sensor_bmp390.c`
+- `micro/test/test/test_sensor_bmp390.c`
 
 ---
 
@@ -1481,7 +1488,7 @@ The MPU6050 provides high-rate (100 Hz) accelerometer and gyroscope data for:
 **Description**: Write unit tests for the MPU6050 scaling and data conversion logic.
 
 **Acceptance Criteria**:
-- [ ] Test file `micro/test/test_imu_mpu6050.c` exists
+- [ ] Test file `micro/test/test/test_imu_mpu6050.c` exists
 - [ ] Test: accel raw `[0, 0, -8192]` at ±4g → `[0, 0, -9.81]` m/s² (gravity)
 - [ ] Test: gyro raw conversion at ±500 °/s → correct rad/s values
 - [ ] Test: init with NULL parameters returns `ESP_ERR_INVALID_ARG`
@@ -1492,7 +1499,7 @@ The MPU6050 provides high-rate (100 Hz) accelerometer and gyroscope data for:
 - Run `./scripts/micro/test.sh` — all tests green
 
 **Files to create**:
-- `micro/test/test_imu_mpu6050.c`
+- `micro/test/test/test_imu_mpu6050.c`
 
 **Notes**: Mock I2C layer with CMock. The scaling math should be testable by providing known raw values.
 
@@ -1718,7 +1725,7 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 **Description**: Write comprehensive unit tests for the Madgwick AHRS filter.
 
 **Acceptance Criteria**:
-- [ ] Test file `micro/test/test_ahrs.c` exists
+- [ ] Test file `micro/test/test/test_ahrs.c` exists
 - [ ] Test: init sets quaternion to identity `[1, 0, 0, 0]`
 - [ ] Test: stationary IMU (accel = `[0, 0, -9.81]`, gyro = `[0, 0, 0]`) → quaternion stays near identity
 - [ ] Test: vertical acceleration extraction at rest → ≈ 0 m/s²
@@ -1732,7 +1739,7 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 - Run `./scripts/micro/test.sh` — all tests green
 
 **Files to create**:
-- `micro/test/test_ahrs.c`
+- `micro/test/test/test_ahrs.c`
 
 ---
 
@@ -1741,7 +1748,7 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 **Description**: Write comprehensive unit tests for the 3-state EKF.
 
 **Acceptance Criteria**:
-- [ ] Test file `micro/test/test_ekf.c` exists
+- [ ] Test file `micro/test/test/test_ekf.c` exists
 - [ ] Test: constant pressure + zero vertical accel → altitude stable, vario ≈ 0
 - [ ] Test: altitude formula produces correct results for known pressures
 - [ ] Test: upward acceleration → positive vario, altitude increases
@@ -1759,7 +1766,7 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 - Run `./scripts/micro/test.sh` — all tests green
 
 **Files to create**:
-- `micro/test/test_ekf.c`
+- `micro/test/test/test_ekf.c`
 
 ---
 
@@ -2079,7 +2086,7 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 **Description**: Write unit tests for config validation logic.
 
 **Acceptance Criteria**:
-- [ ] Test file `micro/test/test_config_manager.c` exists
+- [ ] Test file `micro/test/test/test_config_manager.c` exists
 - [ ] Test: defaults are within valid ranges
 - [ ] Test: `sensor_rate_hz = 0` rejected
 - [ ] Test: `sensor_rate_hz = 101` rejected
@@ -2095,7 +2102,7 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 - Run `./scripts/micro/test.sh` — all tests green
 
 **Files to create**:
-- `micro/test/test_config_manager.c`
+- `micro/test/test/test_config_manager.c`
 
 ---
 
@@ -2112,6 +2119,42 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 - Repetir la validación de la fase después de cada refactorización.
 
 **Architecture Reference**: `firmware-architecture.md` §4.9 `power_manager`, §7.3 Timing Budget
+
+---
+
+### Recalculated Power Baseline (Status LED, non-RGB)
+
+Assumptions for planning:
+- Onboard status LED current when ON (`I_led_on`): **2.0 mA** (to be confirmed in Phase 11.4 measurements).
+- Values below represent LED contribution only (delta over core system current).
+
+| LED State | Pattern | Duty Cycle | Average LED Current |
+|-----------|---------|------------|---------------------|
+| `BOOT` | always ON | 100% | `2.00 mA` |
+| `BLE_DISCONNECTED` | 100 ms ON / 1900 ms OFF | 5% | `0.10 mA` |
+| `BLE_CONNECTED` | 100 ms ON / 4900 ms OFF | 2% | `0.04 mA` |
+| `ERROR` | 100 ms ON / 100 ms OFF | 50% | `1.00 mA` |
+
+Planning note:
+- Compared with previous WS2812-oriented assumptions, this configuration reduces average LED current and simplifies hardware control.
+
+### Battery Optimization Design (prepared)
+
+1. LED strategy:
+   - Keep status LED OFF outside active ON windows.
+   - Keep boot ON only during bootloader/startup, then immediately switch to cadence states.
+2. CPU/scheduler strategy:
+   - Enable light-sleep in idle gaps between sensor cycles.
+   - Keep tickless idle enabled and avoid unnecessary periodic wakeups.
+3. BLE strategy:
+   - Use 200–400 ms connection interval while preserving 8 Hz telemetry.
+   - Keep advertising duty low when disconnected.
+4. Sensor/I2C strategy:
+   - Keep I2C peripheral active only during read windows.
+   - Minimize retries/timeouts to reduce active time.
+5. Measurement strategy:
+   - Validate current by forced LED state (`BOOT`, disconnected, connected, error).
+   - Calculate battery life from measured current values, not estimates only.
 
 ---
 
@@ -2317,7 +2360,7 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 - [ ] No undocumented public symbols
 
 **Validation**:
-- Review all `include/*.h` files
+- Review all `inc/*.h` files
 
 ---
 
@@ -2345,7 +2388,7 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 **Acceptance Criteria**:
 - [ ] All `TODO` and `FIXME` comments resolved or tracked as issues
-- [ ] Code formatted with `.clang-format` (`./scripts/micro/format.sh`)
+- [ ] Code formatted with `.clang-format` (run `pe-code-tool format` on modified `micro/**/*.c` and `micro/**/*.h`)
 - [ ] No compiler warnings with `-Wall -Wextra -Werror`
 - [ ] No unused includes, variables, or functions
 - [ ] Consistent naming conventions across all components
