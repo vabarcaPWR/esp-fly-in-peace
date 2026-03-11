@@ -618,7 +618,6 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 - [x] TX notifications received correctly (full LK8EX1 sentences)
 - [x] RX writes received correctly in firmware callback (log output)
 - [x] Reconnection works after disconnect
-- [x] `esp_err_t ble_nus_deinit(void)` cleans up resources
 
 **Validation**:
 - Test with nRF Connect (mandatory)
@@ -650,8 +649,6 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
   - Disconnect from nRF Connect.
   - Verify firmware restarts advertising automatically.
   - Reconnect and re-enable notifications.
-5. Deinit smoke test (optional, code-level):
-  - Confirm `ble_nus_deinit()` returns `ESP_OK` if invoked during controlled shutdown.
 
 **Pass Criteria (mark Task 3.7 done only if all pass)**:
 - Device is discoverable as `FlyInPeace`.
@@ -891,17 +888,17 @@ bluetoothctl --timeout 10 scan on || true
 - Mantener nombres y límites de módulo claros para código autoexplicativo.
 - Repetir la validación de la fase después de cada refactorización.
 
-**Architecture Reference**: `firmware-architecture.md` §4.7 `led_indicator`, §8.3 LED State Machine
+**Architecture Reference**: `firmware-architecture.md` §4.7 `led`, §8.3 LED State Machine
 
 ---
 
 ### Task 4.1: Status LED driver (single color)
 
-**Description**: Create the `led_indicator` component that drives the onboard status LED of the ESP32-C3 Super Mini.
+**Description**: Create the `led` component that drives the onboard status LED of the ESP32-C3 Super Mini.
 
 **Acceptance Criteria**:
-- [ ] Component `led_indicator` created in `micro/components/led_indicator/`
-- [ ] `esp_err_t led_indicator_init(void)` — configures status LED GPIO and creates LED task (Priority 1, 2048 bytes)
+- [ ] Component `led` created in `micro/components/led/`
+- [ ] `esp_err_t led_init(void)` — configures status LED GPIO and creates LED task (Priority 1, 2048 bytes)
 - [ ] Internal functions to turn status LED on/off
 - [ ] Uses ESP-IDF GPIO driver for single-color LED control
 - [ ] Uses the onboard status LED pin of ESP32-C3 Super Mini
@@ -911,21 +908,21 @@ bluetoothctl --timeout 10 scan on || true
 
 **Status Note (2026-02-24 — implementation + build validation)**:
 _Historical note only. This evidence does not close the reopened milestone._
-- New component added: `micro/components/led_indicator/`.
-- Public API implemented: `led_indicator_init`, `led_indicator_deinit`, `led_indicator_set_state`, `led_indicator_get_state`.
+- New component added: `micro/components/led/`.
+- Public API implemented: `led_init`, `led_set_state`, `led_get_state`.
 - Internal split applied per project rule:
-  - `led_indicator_conductor.c`
-  - `led_indicator_model.c`
-  - `led_indicator_hardware.c`
+  - `led_conductor.c`
+  - `led_model.c`
+  - `led_hardware.c`
 - Status LED hardware backend implemented with GPIO on ESP32-C3 Super Mini.
 - Build validation:
   - `./scripts/micro/build.sh` ✅
 
 
 **Files to create**:
-- `micro/components/led_indicator/CMakeLists.txt`
-- `micro/components/led_indicator/inc/led_indicator.h`
-- `micro/components/led_indicator/src/led_indicator.c`
+- `micro/components/led/CMakeLists.txt`
+- `micro/components/led/inc/led.h`
+- `micro/components/led/src/led.c`
 
 ---
 
@@ -935,8 +932,8 @@ _Historical note only. This evidence does not close the reopened milestone._
 
 **Acceptance Criteria**:
 - [ ] `led_state_e` enum: `LED_STATE_BOOT`, `LED_STATE_BLE_DISCONNECTED`, `LED_STATE_BLE_CONNECTED`, `LED_STATE_WIFI_ENABLED`, `LED_STATE_ERROR`
-- [ ] `esp_err_t led_indicator_set_state(led_state_e state)` — thread-safe (queue-based, depth 1, overwrite)
-- [ ] `led_state_e led_indicator_get_state(void)` — returns current state
+- [ ] `esp_err_t led_set_state(led_state_e state)` — thread-safe (queue-based, depth 1, overwrite)
+- [ ] `led_state_e led_get_state(void)` — returns current state
 - [ ] Pattern definitions per architecture §8.3:
   - `BOOT` (bootloader/startup): LED always ON
   - `BLE_DISCONNECTED`: LED blink (100 ms ON / 1900 ms OFF)
@@ -952,7 +949,7 @@ _Historical note only. This evidence does not close the reopened milestone._
 
 **Status Note (2026-02-24 — implementation + host validation)**:
 _Historical note only. This evidence does not close the reopened milestone._
-- State machine implemented in `led_indicator_model.c` and consumed by a dedicated LED task (`10 Hz`) in `led_indicator_conductor.c`.
+- State machine implemented in `led_model.c` and consumed by a dedicated LED task (`10 Hz`) in `led_conductor.c`.
 - Queue-based state updates implemented with depth `1` and `xQueueOverwrite` semantics.
 - Pattern timing implemented exactly at 100 ms tick resolution:
   - `BOOT`: LED always ON
@@ -969,9 +966,8 @@ _Historical note only. This evidence does not close the reopened milestone._
 
 **Acceptance Criteria**:
 - [ ] `ble_nus_register_state_callback()` used to hook BLE state changes
-- [ ] BLE connect → `led_indicator_set_state(LED_STATE_BLE_CONNECTED)` (100 ms ON / 4900 ms OFF)
-- [ ] BLE disconnect → `led_indicator_set_state(LED_STATE_BLE_DISCONNECTED)` (100 ms ON / 1900 ms OFF)
-- [ ] `esp_err_t led_indicator_deinit(void)` cleans up LED task and hardware resources
+- [ ] BLE connect → `led_set_state(LED_STATE_BLE_CONNECTED)` (100 ms ON / 4900 ms OFF)
+- [ ] BLE disconnect → `led_set_state(LED_STATE_BLE_DISCONNECTED)` (100 ms ON / 1900 ms OFF)
 - [ ] Transition is immediate and visible
 
 **Validation**:
@@ -979,12 +975,12 @@ _Historical note only. This evidence does not close the reopened milestone._
 
 **Status Note (2026-02-24 — integration + regression validation)**:
 _Historical note only. This evidence does not close the reopened milestone._
-- `main.c` now initializes `led_indicator` before BLE module setup.
+- `main.c` now initializes `led` before BLE module setup.
 - BLE state callback registered via `ble_nus_register_state_callback(...)` and mapped to LED states:
   - connected → `LED_STATE_BLE_CONNECTED`
   - disconnected → `LED_STATE_BLE_DISCONNECTED`
 - Boot default transitions to `LED_STATE_BLE_DISCONNECTED` after module usage configuration.
-- Main target updated to require `led_indicator` component.
+- Main target updated to require `led` component.
 - Regression validation:
   - `./scripts/micro/build.sh` ✅
   - `./scripts/micro/test.sh` ✅
@@ -1038,7 +1034,6 @@ _Historical note only. This evidence does not close the reopened milestone._
 - [x] Public API per architecture contract:
   - `esp_err_t sensor_init(void)` — configures I2C, reads calibration
   - `esp_err_t sensor_read(sensor_data_t *out)` — full read cycle (trigger → wait → read → compensate)
-  - `esp_err_t sensor_deinit(void)` — releases I2C, powers down
   - `const char *sensor_get_name(void)` — returns `"MS5611"` or `"BMP390"`
 - [x] `sensor.c` uses `#if defined(CONFIG_SENSOR_MS5611)` / `#elif defined(CONFIG_SENSOR_BMP390)` dispatch
 - [x] `#else #error` if no sensor selected
@@ -1064,7 +1059,6 @@ _Historical note only. This evidence does not close the reopened milestone._
 - [x] I2C master bus configured in `sensor_init()` before calling driver init
 - [x] I2C port: `I2C_NUM_0`, SDA: GPIO 6, SCL: GPIO 7, Clock: 400 kHz (per architecture §11.2)
 - [x] Pull-ups: configured via GPIO config (external 4.7 kΩ recommended)
-- [x] I2C bus released in `sensor_deinit()`
 - [x] Uses ESP-IDF v5.x `i2c_master.h` API
 
 **Validation**:
@@ -1083,7 +1077,7 @@ _Historical note only. This evidence does not close the reopened milestone._
 - Kconfig exposes sensor selection plus I2C pin/frequency/address configuration under "Component config → Sensor driver".
 - `sdkconfig` confirms `CONFIG_SENSOR_MS5611=y` default, I2C on GPIO 6/7 at 400 kHz, address 0x77.
 - `sensor.c` uses ESP-IDF v5.x `i2c_master.h` API (`i2c_new_master_bus`/`i2c_del_master_bus`), internal pull-ups enabled.
-- Driver init/read/deinit stubs return `ESP_ERR_NOT_SUPPORTED` for `sensor_read()` — will be wired to real driver in Phase 6/7.
+- Driver init/read stubs return `ESP_ERR_NOT_SUPPORTED` for `sensor_read()` — will be wired to real driver in Phase 6/7.
 - Build succeeds with zero warnings. `.clang-format` applied.
 
 ---
@@ -1174,7 +1168,6 @@ _Historical note only. This evidence does not close the reopened milestone._
 - [x] Output temperature in milli-Celsius → `out->temperature_mc` (`int32_t`, e.g., 23500 = 23.5°C)
 - [x] Uses 64-bit intermediate calculations to avoid overflow
 - [x] Pure computation (no I2C calls) — separable for unit testing
-- [x] `sensor_ms5611_deinit(sensor_ms5611_t *self)` releases resources
 
 **Validation**:
 - Datasheet test vector: C1=40127, C2=36924, C3=23317, C4=23282, C5=33464, C6=28312, D1=9085466, D2=8569150 → TEMP=2007, P=100009
@@ -1320,7 +1313,6 @@ _Historical note only. This evidence does not close the reopened milestone._
 - [ ] Output temperature in milli-Celsius → `out->temperature_mc` (`int32_t`)
 - [ ] Uses `float` arithmetic (ESP32-C3 has no FPU; `float` is faster than `double` in software)
 - [ ] Pure computation — separable for unit testing
-- [ ] `sensor_bmp390_deinit(sensor_bmp390_t *self)` releases resources
 
 **Validation**:
 - Compare output with Bosch reference implementation / BMP3 API
@@ -1428,7 +1420,6 @@ The MPU6050 provides high-rate (100 Hz) accelerometer and gyroscope data for:
 - [ ] Public API:
   - `esp_err_t imu_hal_init(void)` — configures IMU, reads WHO_AM_I
   - `esp_err_t imu_hal_read(imu_data_t *out)` — reads accel + gyro (non-blocking, ~0.6 ms at 400 kHz I2C)
-  - `esp_err_t imu_hal_deinit(void)` — releases I2C device, puts sensor in sleep
   - `const char *imu_hal_get_name(void)` — returns `"MPU6050"` or `"NONE"`
 - [ ] `imu_hal.c` uses `#if defined(CONFIG_IMU_MPU6050)` dispatch
 - [ ] `CONFIG_IMU_NONE` compiles stub that returns `ESP_ERR_NOT_SUPPORTED` — allows baro-only operation without code changes
@@ -1462,7 +1453,6 @@ The MPU6050 provides high-rate (100 Hz) accelerometer and gyroscope data for:
   - Burst read of 14 bytes (accel XYZ + temp + gyro XYZ) starting at register `0x3B`
   - Converts raw 16-bit values to physical units using scaling factors
   - Populates `out->timestamp_us` with `esp_timer_get_time()`
-- [ ] `esp_err_t imu_mpu6050_deinit(imu_mpu6050_t *self)` — puts sensor in sleep mode, releases I2C device
 - [ ] Handles I2C errors (retry once, then return error)
 - [ ] Uses ESP-IDF I2C driver directly via bus handle from `sensor_get_i2c_bus_handle()`
 
@@ -1930,14 +1920,14 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 **Acceptance Criteria**:
 - [ ] Temporary simulation code in `main.c` removed
 - [ ] `app_main()` orchestrates initialization in correct order:
-  1. `led_indicator_init()` → `LED_STATE_BOOT`
+  1. `led_init()` → `LED_STATE_BOOT`
   2. `sensor_init()`
   3. `imu_hal_init()` (when `CONFIG_IMU_MPU6050=y`)
   4. `ahrs_init()` + `ekf_init()`
   5. `ble_nus_init()`
   6. Register BLE state callback → LED
   7. Create `baro_task`, `fusion_task`, `ble_sender_task`
-  8. `led_indicator_set_state(LED_STATE_BLE_DISCONNECTED)`
+  8. `led_set_state(LED_STATE_BLE_DISCONNECTED)`
 - [ ] All tasks running with correct priorities
 
 **Validation**:
