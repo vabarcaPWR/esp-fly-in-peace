@@ -181,7 +181,7 @@ void app_main(void)
     application_threads_reset(&threads);
 
     bool ret = startup_step_succeeded("initialize_modules", initialize_modules());
-    ret? ret = startup_step_succeeded("configure_modules_usage", configure_modules_usage()): ret; 
-    ret? ret = startup_step_succeeded("create_threads", create_threads(&threads)): ret; 
-    ret? ret = startup_step_succeeded("launch_threads", launch_threads(&threads)): ret;
+    ret ? ret = startup_step_succeeded("configure_modules_usage", configure_modules_usage()) : ret;
+    ret ? ret = startup_step_succeeded("create_threads", create_threads(&threads)) : ret;
+    ret ? ret = startup_step_succeeded("launch_threads", launch_threads(&threads)) : ret;
 }

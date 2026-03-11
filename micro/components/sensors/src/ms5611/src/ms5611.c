@@ -203,7 +203,7 @@ static esp_err_t ms5611_read_calibration_prom(void)
     bool all_zero = true;
     for (uint8_t i = 1; i <= 6U; i++)
     {
-        if (ms5611_context.prom[i] != 0U)
+        if (ms5611_context.prom[i])
         {
             all_zero = false;
             break;

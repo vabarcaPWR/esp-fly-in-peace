@@ -83,7 +83,7 @@ static void lk8ex1_simulation_build_edge_data(uint32_t frame_index, lk8ex1_data_
 {
     uint32_t sample = frame_index % 6U;
 
-    if (sample == 0U)
+    if (!sample)
     {
         data->pressure_pa = 100840;
         data->altitude_m = 99999;
@@ -142,7 +142,7 @@ static void lk8ex1_simulation_build_edge_data(uint32_t frame_index, lk8ex1_data_
 
 bool lk8ex1_simulation_parse_profile_command(const uint8_t *data, uint16_t len, lk8ex1_sim_profile_e *profile)
 {
-    if (!data || !profile || (len == 0U))
+    if (!data || !profile || !len)
     {
         return false;
     }
@@ -220,7 +220,7 @@ static bool lk8ex1_simulation_corrupt_sentence_checksum(char *sentence)
 
 static bool lk8ex1_simulation_build_malformed_shape_sentence(char *sentence, size_t sentence_size)
 {
-    if (!sentence || (sentence_size == 0U))
+    if (!sentence || !sentence_size)
     {
         return false;
     }

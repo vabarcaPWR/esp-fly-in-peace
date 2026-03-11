@@ -213,7 +213,7 @@ static int ble_nus_hardware_gap_event_cb(struct ble_gap_event *event, void *arg)
     case BLE_GAP_EVENT_SUBSCRIBE: {
         uint16_t tx_value_handle = ble_nus_model_get_tx_value_handle();
         bool notify_enabled = event->subscribe.cur_notify != 0U;
-        if (event->subscribe.attr_handle == tx_value_handle || notify_enabled || event->subscribe.prev_notify != 0U)
+        if (event->subscribe.attr_handle == tx_value_handle || notify_enabled || event->subscribe.prev_notify)
         {
             if (notify_enabled && !tx_value_handle && event->subscribe.attr_handle)
             {
