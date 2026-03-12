@@ -35,6 +35,10 @@ This skill ensures all code development follows test principles with comprehensi
 #include "unity.h"
 #include "<component>.h"
 
+/* Optional: Include test-specific headers or mocks here */
+#include "mock_<component_dependency>.h"
+
+/* Optional: Include source if required. Must be avoided if possible */
 TEST_SOURCE_FILE("../components/<component>/src/<component>.c")
 
 void setUp(void)
@@ -50,7 +54,7 @@ void test_a(void)
 
     /*Act*/
 
-    /*Assert*/
+    /*Assert - Only one assert*/
 }
 
 void test_b(void)
@@ -59,7 +63,7 @@ void test_b(void)
 
     /*Act*/
 
-    /*Assert*/
+    /*Assert - Only one assert*/
 }
 ``` 
 
@@ -114,18 +118,24 @@ ceedling test:<file_name>
 pe-code-tool format <file_name>
 ```
 
-## Best Practices
+## IA instructions
 
-1. **One Assert Per Test** - Focus on single behavior
+This points must be followed when writing ceedling tests. Always ask for clarification if you are not sure about the test structure, organization, or coverage requirements.
+
+1. **Always One Assert Per Test** - Focus on single behavior
 2. **Descriptive Test Names** - this_happend_when_condition
 3. **Arrange-Act-Assert** - Clear test structure
-4. **Mock External Dependencies** - Isolate unit tests by using ceedling mock feature
+4. **Mock External Dependencies** - Isolate unit tests by using ceedling mock features (https://github.com/ThrowTheSwitch/CMock/blob/master/docs/CMock_Summary.md)
 5. **Use always stubs instead mocks** - stubs are more maintainable and less brittle than mocks. 
-6. **Test Edge Cases** - Null, undefined, empty, large
-7. **Test Error Paths** - Not just happy paths
-8. **Keep Tests Fast** - Unit tests < 50ms each
-9. **Clean Up After Tests** - No side effects
-10. **Review Coverage Reports** - Identify gaps
+6. **Use cmock** - Only use cmock and stubs from cmock (https://github.com/ThrowTheSwitch/CMock/blob/master/docs/CMock_Summary.md). Do not write custom mocks or stubs.
+
+## Best Practices
+
+1. **Test Edge Cases** - Null, undefined, empty, large
+2. **Test Error Paths** - Not just happy paths
+3. **Keep Tests Fast** - Unit tests < 50ms each
+4. **Clean Up After Tests** - No side effects
+5. **Review Coverage Reports** - Identify gaps
 
 ## Success Metrics
 
