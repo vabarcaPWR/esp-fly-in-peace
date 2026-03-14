@@ -1,6 +1,6 @@
 # Firmware Architecture — ESP Fly-in-Peace
 
-> Last updated: 2025-07-15  
+> Last updated: 2026-03-14  
 > Phase 1 — Software Architecture Design (updated for Phase 7.5/8 — IMU + AHRS + EKF)
 
 ---
@@ -225,11 +225,14 @@ selected driver is compiled into the binary.
 
 ```kconfig
 # sensors/Kconfig
+menu "Sensor driver"
+
 choice SENSOR_DRIVER
     prompt "Pressure sensor driver"
     default SENSOR_MS5611
     help
         Select the barometric pressure sensor connected to the I2C bus.
+        Only one sensor driver is compiled into the binary.
 
     config SENSOR_MS5611
         bool "MS5611"
@@ -245,6 +248,32 @@ choice SENSOR_DRIVER
             I2C address: 0x77 (SDO low) or 0x76 (SDO high).
             Resolution: 24-bit, accuracy ±0.5 hPa. Lower noise than MS5611.
 endchoice
+
+config SENSOR_I2C_SDA_GPIO
+    int "I2C SDA GPIO number"
+    default 6
+
+config SENSOR_I2C_SCL_GPIO
+    int "I2C SCL GPIO number"
+    default 7
+
+config SENSOR_I2C_FREQ_HZ
+    int "I2C clock frequency (Hz)"
+    default 400000
+
+config SENSOR_I2C_ADDR
+    hex "Sensor I2C address"
+    default 0x77
+
+config SENSOR_I2C_INTERNAL_PULLUP
+    bool "Enable I2C internal pull-ups"
+    default n
+
+config SENSOR_I2C_ALLOW_PD
+    bool "Allow I2C power domain shutdown in sleep"
+    default y
+
+endmenu
 ```
 
 #### Public API (sensor.h)
@@ -337,6 +366,22 @@ idf_component_register(
 - `sensor_read()` populates `sensor_data_t` with compensated values. On error, `out` is not modified.
 - Only the selected driver is compiled. No unused code in the binary.
 - **Adding a new sensor**: create `sensor_<name>/`, add a `config SENSOR_<NAME>` entry to the Kconfig `choice`, and add the `#elif` branch in `sensor.c`.
+
+#### Default configuration profile (`micro/sdkconfig.defaults`)
+
+| Key | Default |
+|-----|---------|
+| `CONFIG_BT_ENABLED` | `y` |
+| `CONFIG_BT_NIMBLE_ENABLED` | `y` |
+| `CONFIG_BT_NIMBLE_50_FEATURE_SUPPORT` | `n` |
+| `CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160` | `y` |
+| `CONFIG_FREERTOS_HZ` | `1000` |
+| `CONFIG_ESPTOOLPY_FLASHSIZE_4MB` | `y` |
+| `CONFIG_SENSOR_I2C_SDA_GPIO` | `6` |
+| `CONFIG_SENSOR_I2C_SCL_GPIO` | `7` |
+| `CONFIG_LOG_DEFAULT_LEVEL` | `3` (INFO) |
+| `CONFIG_PM_ENABLE` | `y` |
+| `CONFIG_ESP_TASK_WDT_TIMEOUT_S` | `10` |
 
 ---
 
@@ -1207,28 +1252,28 @@ stateDiagram-v2
 
 | GPIO | Function | Peripheral | Notes |
 |------|----------|-----------|-------|
-| GPIO 8 | I2C SDA | I2C_NUM_0 | Sensor + IMU data line (4.7 kΩ pull-up) |
-| GPIO 9 | I2C SCL | I2C_NUM_0 | Sensor + IMU clock line (4.7 kΩ pull-up) |
-| GPIO 2 | WS2812 data | RMT CH0 | External RGB LED data input (DIN) |
+| GPIO 6 | I2C SDA | I2C_NUM_0 | Sensor data line (4.7 kΩ pull-up recommended) |
+| GPIO 7 | I2C SCL | I2C_NUM_0 | Sensor clock line (4.7 kΩ pull-up recommended) |
+| GPIO 8 | LED output | GPIO | Onboard single LED (`led_single`) |
 | GPIO 18 | USB D- | USB-CDC | Serial monitor / flash |
 | GPIO 19 | USB D+ | USB-CDC | Serial monitor / flash |
 
-For an external WS2812 RGB LED on the Super Mini, connect DIN to GPIO 2, VCC to 3V3, and GND to GND.
+The current firmware LED implementation uses a single digital LED driver on GPIO 8.
 
 ### 11.2 I2C Configuration
 
 | Parameter | Value |
 |-----------|-------|
 | Port | I2C_NUM_0 |
-| SDA | GPIO 8 |
-| SCL | GPIO 9 |
+| SDA | GPIO 6 (`CONFIG_SENSOR_I2C_SDA_GPIO`) |
+| SCL | GPIO 7 (`CONFIG_SENSOR_I2C_SCL_GPIO`) |
 | Clock speed | 400 kHz (Fast Mode) |
-| Barometer address | 0x77 (MS5611: CSB=GND; BMP390: SDO=GND) |
-| IMU address | 0x68 (MPU6050: AD0=GND) |
+| Sensor address | 0x77 by default (`CONFIG_SENSOR_I2C_ADDR`) |
 | Pull-ups | External 4.7 kΩ recommended |
 
-> Both barometer and MPU6050 share the same I2C bus. The `sensor` initializes the bus;
-> `imu_hal` uses `sensor_get_i2c_bus_handle()` to add the IMU device without reinitializing the bus.
+Additional I2C behavior toggles:
+- `CONFIG_SENSOR_I2C_INTERNAL_PULLUP` (default `n`)
+- `CONFIG_SENSOR_I2C_ALLOW_PD` (default `y`)
 
 ### 11.3 Sensor Wiring (Super Mini → Sensor Module)
 
@@ -1242,8 +1287,8 @@ ESP32-C3 Super Mini          MS5611 Module         MPU6050 Module
 ┌──────────────────┐         ┌─────────────┐       ┌─────────────┐
 │           3V3 ───┼────────►│ VCC         │       │ VCC         │
 │           GND ───┼────────►│ GND         │       │ GND         │
-│        GPIO 8 ───┼────────►│ SDA         │───────│ SDA         │
-│        GPIO 9 ───┼────────►│ SCL         │───────│ SCL         │
+│        GPIO 6 ───┼────────►│ SDA         │───────│ SDA         │
+│        GPIO 7 ───┼────────►│ SCL         │───────│ SCL         │
 │                  │    CSB──┤►GND (0x77)  │       │ AD0──►GND   │
 │                  │    PS ──┤►VCC (I2C)   │       │ (0x68)      │
 └──────────────────┘         └─────────────┘       └─────────────┘
@@ -1255,8 +1300,8 @@ ESP32-C3 Super Mini          BMP390 Module         MPU6050 Module
 ┌──────────────────┐         ┌─────────────┐       ┌─────────────┐
 │           3V3 ───┼────────►│ VCC         │       │ VCC         │
 │           GND ───┼────────►│ GND         │       │ GND         │
-│        GPIO 8 ───┼────────►│ SDA         │───────│ SDA         │
-│        GPIO 9 ───┼────────►│ SCL         │───────│ SCL         │
+│        GPIO 6 ───┼────────►│ SDA         │───────│ SDA         │
+│        GPIO 7 ───┼────────►│ SCL         │───────│ SCL         │
 │                  │    SDO──┤►GND (0x77)  │       │ AD0──►GND   │
 └──────────────────┘         └─────────────┘       └─────────────┘
 ```
@@ -1267,15 +1312,16 @@ To switch sensors or enable/disable IMU, run:
 ```bash
 cd micro/
 idf.py menuconfig
-# Navigate to: Component config → Sensor driver → Pressure sensor driver
-# Select MS5611 or BMP390
-# Navigate to: Component config → IMU driver
-# Select MPU6050 or None (baro-only)
+# Navigate to: Component config → Sensor driver
+# - Pressure sensor driver (MS5611 or BMP390)
+# - I2C SDA/SCL GPIO
+# - I2C frequency and address
+# - Internal pull-up and allow_pd
 idf.py build
 ```
 
-No application code changes are needed. The `sensor` and `imu_hal` layers dispatch
-to the correct drivers at compile time.
+No application code changes are needed for sensor driver swaps. The `sensor` layer
+dispatches to the selected driver at compile time.
 
 ---
 
