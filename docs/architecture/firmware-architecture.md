@@ -50,6 +50,11 @@ vertical speed (vario) with sub-100 ms response. The data is formatted as LK8EX1
 sentences and transmitted at 8 Hz over BLE NUS notifications. When no IMU is present
 (`CONFIG_IMU_NONE`), the system degrades to baro-only EKF operation.
 
+The architecture also supports using a combined GY-86 module as sensor hardware
+because it integrates MS5611 (barometer) and MPU6050 (accel + gyro) on the same
+I2C bus. The onboard HMC5883L magnetometer can share the bus but is optional and
+is not part of the current MVP flight pipeline.
+
 Three external actors interact with the device:
 - **XCTrack** — receives LK8EX1 via BLE NUS TX (notify). Read-only.
 - **Mobile App** — receives LK8EX1 via BLE NUS TX, reads/writes config via Config Service GATT.
@@ -1271,6 +1276,11 @@ The current firmware LED implementation uses a single digital LED driver on GPIO
 | Sensor address | 0x77 by default (`CONFIG_SENSOR_I2C_ADDR`) |
 | Pull-ups | External 4.7 kΩ recommended |
 
+Typical GY-86 address map on this shared bus:
+- MS5611 (barometer): `0x77` or `0x76` (board strap dependent)
+- MPU6050 (IMU): `0x68` (AD0=GND) or `0x69` (AD0=VCC)
+- HMC5883L (magnetometer): `0x1E`
+
 Additional I2C behavior toggles:
 - `CONFIG_SENSOR_I2C_INTERNAL_PULLUP` (default `n`)
 - `CONFIG_SENSOR_I2C_ALLOW_PD` (default `y`)
@@ -1306,6 +1316,23 @@ ESP32-C3 Super Mini          BMP390 Module         MPU6050 Module
 └──────────────────┘         └─────────────┘       └─────────────┘
 ```
 
+**GY-86 Wiring (integrated MS5611 + MPU6050 + HMC5883L):**
+```
+ESP32-C3 Super Mini          GY-86 Module
+┌──────────────────┐         ┌─────────────┐
+│           3V3 ───┼────────►│ VCC         │
+│           GND ───┼────────►│ GND         │
+│        GPIO 6 ───┼────────►│ SDA         │
+│        GPIO 7 ───┼────────►│ SCL         │
+└──────────────────┘         └─────────────┘
+```
+
+GY-86 integration notes:
+- Recommended supply with ESP32-C3: `3V3`.
+- The board may accept 3V to 5V input, but keep I2C logic in the 3.3 V domain when interfacing ESP32-C3.
+- For current firmware pipeline, use MS5611 + MPU6050 data paths.
+- HMC5883L remains available for a future heading-capable fusion extension.
+
 ### 11.4 Sensor Selection (Build-Time)
 
 To switch sensors or enable/disable IMU, run:
@@ -1319,6 +1346,11 @@ idf.py menuconfig
 # - Internal pull-up and allow_pd
 idf.py build
 ```
+
+For GY-86 specifically:
+- Select pressure sensor driver `MS5611`.
+- Keep I2C address aligned with module strap (`0x77` is common).
+- If IMU selection is enabled in your active phase, select `MPU6050`.
 
 No application code changes are needed for sensor driver swaps. The `sensor` layer
 dispatches to the selected driver at compile time.
