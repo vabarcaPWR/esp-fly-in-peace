@@ -18,6 +18,13 @@ extern "C"
 
     typedef struct data_imu_s
     {
+        float accel_x;
+        float accel_y;
+        float accel_z;
+        float gyro_x;
+        float gyro_y;
+        float gyro_z;
+        int64_t timestamp_us;
     } data_imu_t;
 
     typedef struct sensor_baro_s

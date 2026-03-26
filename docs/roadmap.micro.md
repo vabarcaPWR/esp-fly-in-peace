@@ -61,10 +61,10 @@
   - [ ] Task 7.4: Ceedling unit tests for compensation
   - [ ] Task 7.5: Integration test on hardware
 - [ ] **Phase 7.5: MPU6050 IMU Backend (Sensor Factory Contract)**
-  - [ ] Task 7.5.1: Extend shared IMU contract in `sensor.h`
-  - [ ] Task 7.5.2: Register MPU6050 backend in `sensor` factory and build system
-  - [ ] Task 7.5.3: MPU6050 driver implementation (init + read)
-  - [ ] Task 7.5.4: Ceedling unit tests for MPU6050 backend/factory behavior
+  - [x] Task 7.5.1: Extend shared IMU contract in `sensor.h`
+  - [x] Task 7.5.2: Register MPU6050 backend in `sensor` factory and build system
+  - [x] Task 7.5.3: MPU6050 driver implementation (init + read)
+  - [x] Task 7.5.4: Ceedling unit tests for MPU6050 backend/factory behavior
   - [ ] Task 7.5.5: Hardware integration with barometric read loop coexistence
 - [ ] **Phase 8: Sensor Fusion (AHRS + EKF)**
   - [ ] Task 8.1: AHRS — Madgwick quaternion filter
@@ -1476,10 +1476,10 @@ The MPU6050 path provides IMU samples for upcoming fusion work while preserving 
 **Description**: Define concrete IMU output fields in `data_imu_t` so MPU6050 data can flow through existing `sensor_imu_t` contract.
 
 **Acceptance Criteria**:
-- [ ] `data_imu_t` in `micro/components/sensors/inc/sensor.h` defines accelerometer, gyroscope, and `timestamp_us` fields
-- [ ] Field units are documented in comments (e.g., m/s² and rad/s or clearly defined alternative)
-- [ ] `sensor_imu_t` function signatures remain unchanged (`init/read/get_name`) to preserve factory pattern
-- [ ] Header remains C/C++ compatible (`extern "C"` intact)
+- [x] `data_imu_t` in `micro/components/sensors/inc/sensor.h` defines accelerometer, gyroscope, and `timestamp_us` fields
+- [x] Field units are documented in comments (e.g., m/s² and rad/s or clearly defined alternative)
+- [x] `sensor_imu_t` function signatures remain unchanged (`init/read/get_name`) to preserve factory pattern
+- [x] Header remains C/C++ compatible (`extern "C"` intact)
 
 **Validation**:
 - `idf.py build` succeeds after updating `sensor.h`
@@ -1491,6 +1491,11 @@ The MPU6050 path provides IMU samples for upcoming fusion work while preserving 
 **Notes**:
 - Keep backward compatibility for code paths that only include barometric data.
 
+**Status Note (2026-03-26 — contract fields defined)**:
+- `data_imu_t` now contains `float accel_x/y/z` (m/s²), `float gyro_x/y/z` (rad/s), `int64_t timestamp_us`.
+- `sensor_imu_t` function signatures unchanged; header remains C/C++ compatible.
+- Build succeeds with updated contract.
+
 ---
 
 ### Task 7.5.2: Register MPU6050 backend in `sensor` factory and build system
@@ -1498,11 +1503,11 @@ The MPU6050 path provides IMU samples for upcoming fusion work while preserving 
 **Description**: Wire MPU6050 backend into existing `get_imu_sensor()` dispatch and component build registration.
 
 **Acceptance Criteria**:
-- [ ] `micro/components/sensors/src/sensor.c` includes `mpu6050.h`
-- [ ] `get_imu_sensor("MPU6050")` returns MPU6050 backend
-- [ ] `get_imu_sensor(NULL)` and unknown names return `NULL`
-- [ ] `micro/components/sensors/CMakeLists.txt` includes MPU6050 source/include paths so link succeeds
-- [ ] Existing barometric factory behavior remains unchanged
+- [x] `micro/components/sensors/src/sensor.c` includes `mpu6050.h`
+- [x] `get_imu_sensor("MPU6050")` returns MPU6050 backend
+- [x] `get_imu_sensor(NULL)` and unknown names return `NULL`
+- [x] `micro/components/sensors/CMakeLists.txt` includes MPU6050 source/include paths so link succeeds
+- [x] Existing barometric factory behavior remains unchanged
 
 **Validation**:
 - `idf.py build` succeeds without undefined references
@@ -1512,6 +1517,11 @@ The MPU6050 path provides IMU samples for upcoming fusion work while preserving 
 - `micro/components/sensors/src/sensor.c`
 - `micro/components/sensors/CMakeLists.txt`
 
+**Status Note (2026-03-26 — factory dispatch complete)**:
+- `sensor.c` includes `mpu6050.h` and dispatches `"MPU6050"` → `get_mpu6050_sensor()`.
+- `CMakeLists.txt` includes MPU6050 source and include paths.
+- Factory NULL/unknown behavior preserved; existing baro dispatch unaffected.
+
 ---
 
 ### Task 7.5.3: MPU6050 driver implementation (init + read)
@@ -1519,12 +1529,12 @@ The MPU6050 path provides IMU samples for upcoming fusion work while preserving 
 **Description**: Implement backend logic in `micro/components/sensors/src/mpu6050/src/mpu6050.c` following `sensor_imu_t` lifecycle.
 
 **Acceptance Criteria**:
-- [ ] `get_mpu6050_sensor()` returns static `sensor_imu_t` with non-NULL `init/read/get_name`
-- [ ] `mpu6050_init()` validates device identity (WHO_AM_I) and configures basic operating mode
-- [ ] `mpu6050_read(data_imu_t *out)` returns `ESP_ERR_INVALID_ARG` for NULL output
-- [ ] `mpu6050_read(data_imu_t *out)` returns `ESP_ERR_INVALID_STATE` if called before successful init
-- [ ] `mpu6050_read()` populates all `data_imu_t` fields and `timestamp_us`
-- [ ] Uses ESP-IDF I2C APIs directly and propagates transport errors
+- [x] `get_mpu6050_sensor()` returns static `sensor_imu_t` with non-NULL `init/read/get_name`
+- [x] `mpu6050_init()` validates device identity (WHO_AM_I) and configures basic operating mode
+- [x] `mpu6050_read(data_imu_t *out)` returns `ESP_ERR_INVALID_ARG` for NULL output
+- [x] `mpu6050_read(data_imu_t *out)` returns `ESP_ERR_INVALID_STATE` if called before successful init
+- [x] `mpu6050_read()` populates all `data_imu_t` fields and `timestamp_us`
+- [x] Uses ESP-IDF I2C APIs directly and propagates transport errors
 
 **Validation**:
 - Hardware run confirms coherent IMU samples at target read rate with expected resting values
@@ -1539,6 +1549,13 @@ The MPU6050 path provides IMU samples for upcoming fusion work while preserving 
 - Full-scale ranges: accel ±2g/±4g/±8g/±16g, gyro ±250/±500/±1000/±2000 °/s.
 - Wiring baseline: same I2C bus as barometer. MPU6050 VCC=3.3V, GND, SDA=GPIO6, SCL=GPIO7, AD0=GND (addr 0x68).
 
+**Status Note (2026-03-26 — driver implementation complete)**:
+- Full driver implemented with `#ifdef TEST` deterministic stub path (accel=[0,0,−9.81], gyro=[0,0,0], timestamp=0) and real I2C path.
+- Real path: WHO_AM_I validation (0x75→0x68), PWR_MGMT_1 wake, SMPLRT_DIV, CONFIG, GYRO_CONFIG, ACCEL_CONFIG, burst read 14 bytes from 0x3B.
+- Accel scale: ±2g (9.80665/16384 m/s²/LSB). Gyro scale: ±250°/s ((1/131)×(π/180) rad/s/LSB).
+- Init-state guard and NULL pointer guard implemented.
+- `./scripts/micro/build.sh` ✅
+
 ---
 
 ### Task 7.5.4: Ceedling unit tests for MPU6050
@@ -1546,13 +1563,13 @@ The MPU6050 path provides IMU samples for upcoming fusion work while preserving 
 **Description**: Add host tests for MPU6050 backend contract behavior and deterministic conversion path.
 
 **Acceptance Criteria**:
-- [ ] Test file `micro/test/test/test_sensor_mpu6050.c` exists
-- [ ] Test: `get_imu_sensor("MPU6050")` returns non-NULL backend with valid function pointers
-- [ ] Test: `get_imu_sensor(NULL)` and unknown names return `NULL`
-- [ ] Test: `read(NULL)` returns `ESP_ERR_INVALID_ARG`
-- [ ] Test: read-before-init returns `ESP_ERR_INVALID_STATE`
-- [ ] Test: deterministic TEST-path read fills all IMU output fields
-- [ ] All tests pass in `ceedling test:all`
+- [x] Test file `micro/test/test/test_sensor_mpu6050.c` exists
+- [x] Test: `get_imu_sensor("MPU6050")` returns non-NULL backend with valid function pointers
+- [x] Test: `get_imu_sensor(NULL)` and unknown names return `NULL`
+- [x] Test: `read(NULL)` returns `ESP_ERR_INVALID_ARG`
+- [x] Test: read-before-init returns `ESP_ERR_INVALID_STATE`
+- [x] Test: deterministic TEST-path read fills all IMU output fields
+- [x] All tests pass in `ceedling test:all`
 
 **Validation**:
 - Run `./scripts/micro/test.sh` — all tests green
@@ -1561,6 +1578,11 @@ The MPU6050 path provides IMU samples for upcoming fusion work while preserving 
 - `micro/test/test/test_sensor_mpu6050.c`
 
 **Notes**: Reuse the current Ceedling style from `test_sensor_ms5611.c` (`TEST_SOURCE_FILE(...)` for factory + driver source files).
+
+**Status Note (2026-03-26 — 12 MPU6050 tests added, full suite green)**:
+- `test_sensor_mpu6050.c` created with 12 tests covering: factory dispatch (MPU6050, NULL, unknown), get_name, read(NULL), read-before-init, init success, read-after-init, accel/gyro field values within tolerance, timestamp, and baro factory coexistence.
+- `./scripts/micro/test.sh` → 53/53 PASS (12 new MPU6050 + 41 existing).
+- `./scripts/micro/build.sh` → Build succeeded.
 
 ---
 
