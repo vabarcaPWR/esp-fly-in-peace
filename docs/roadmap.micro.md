@@ -895,6 +895,11 @@ bluetoothctl --timeout 10 scan on || true
 **Design Rule (Factory Pattern for LED)**:
 - The `led` module must follow a factory pattern aligned with the existing sensor strategy (`get_baro_sensor()` / `get_imu_sensor()`): static registration of LED backends and runtime selection via `get_led(const char *led_name)`.
 - Public driver contract is represented by `led_t` (function-pointer table). The selected backend exposes operations through this contract.
+- Contract shape must remain explicit and stable, mirroring sensor contracts:
+  - `init(void)`
+  - `set_state(led_state_e state)`
+  - `get_state(void)`
+  - `get_name(void)`
 - First backend target is `single` (onboard status LED). Future backend `ws2811` (`ws8211` naming variant) must plug into the same contract without changing application-level call sites.
 - Source of truth for current implementation: `micro/components/leds/inc/led.h` and `micro/components/leds/src/led.c`.
 
@@ -905,12 +910,12 @@ bluetoothctl --timeout 10 scan on || true
 **Description**: Formalize `led_t` as backend contract and implement factory registration/selection for current and future LED types.
 
 **Acceptance Criteria**:
-- [ ] `led_t` defines the backend operation table currently implemented in `components/leds` (`init`, `get_name`)
+- [ ] `led_t` defines the backend operation table used by app-level code (`init`, `set_state`, `get_state`, `get_name`)
 - [ ] `get_led(const char *led_name)` resolves a backend from a static registry and returns `NULL` for unknown names
 - [ ] A `single` backend is registered in the factory and exposed by name
-- [ ] Factory logic is backend-agnostic (no `single`-specific branching in app-level code)
+- [ ] Factory logic is backend-agnostic (no backend-specific branching in app-level code)
 - [ ] Selection and fallback behavior are documented in component API notes
-- [ ] Contract extension path is defined so Task 4.2 can add state-machine operations to `led_t` without breaking factory selection
+- [ ] Contract compatibility rule is defined: adding future backends must not change `main.c` call sites (`get_led(...)`, `led->init()`, `led->set_state(...)`)
 
 **Validation**:
 - Host/unit test coverage for factory selection:
@@ -940,6 +945,7 @@ bluetoothctl --timeout 10 scan on || true
 - [ ] Uses ESP-IDF GPIO driver for single-color LED control
 - [ ] Uses the onboard status LED pin of ESP32-C3 Super Mini
 - [ ] LED GPIO does not collide with active sensor I2C pins
+- [ ] Backend state ownership is local to LED backend (same encapsulation principle used by sensor backends)
 
 **Validation**:
 - Select `single` backend via factory, flash firmware, and verify boot + runtime patterns
@@ -956,9 +962,13 @@ _Historical note only. This evidence does not close the reopened milestone._
 
 
 **Files to create**:
-- `micro/components/leds/src/single/CMakeLists.txt`
-- `micro/components/leds/src/single/inc/single.h`
-- `micro/components/leds/src/single/src/single.c`
+- `micro/components/leds/src/led_single/led_single.h`
+- `micro/components/leds/src/led_single/led_single.c`
+
+**Files to modify**:
+- `micro/components/leds/src/led.c` (factory registration by backend name)
+- `micro/components/leds/inc/led.h` (shared LED contract used by factory/app)
+- `micro/components/leds/CMakeLists.txt` (backend source registration)
 
 ---
 
@@ -968,8 +978,8 @@ _Historical note only. This evidence does not close the reopened milestone._
 
 **Acceptance Criteria**:
 - [ ] `led_state_e` enum: `LED_STATE_BOOT`, `LED_STATE_BLE_DISCONNECTED`, `LED_STATE_BLE_CONNECTED`, `LED_STATE_WIFI_ENABLED`, `LED_STATE_ERROR`
-- [ ] `esp_err_t led_set_state(led_state_e state)` — thread-safe (queue-based, depth 1, overwrite)
-- [ ] `led_state_e led_get_state(void)` — returns current state
+- [ ] Active backend implements `set_state(led_state_e state)` as thread-safe (queue-based, depth 1, overwrite)
+- [ ] Active backend implements `get_state(void)` and returns current state
 - [ ] Pattern definitions per architecture §8.3:
   - `BOOT` (bootloader/startup): LED always ON
   - `BLE_DISCONNECTED`: LED blink (15 ms ON / 950 ms OFF)
@@ -982,6 +992,7 @@ _Historical note only. This evidence does not close the reopened milestone._
 **Validation**:
 - Boot → LED always ON → 15/950 blink after init completes
 - Verify all patterns with visual inspection
+- Through factory contract, `get_led("single")->set_state(...)` updates pattern without any backend-specific conditionals in `main.c`
 
 **Status Note (2026-02-24 — implementation + host validation)**:
 _Historical note only. This evidence does not close the reopened milestone._
@@ -1002,9 +1013,10 @@ _Historical note only. This evidence does not close the reopened milestone._
 
 **Acceptance Criteria**:
 - [ ] `ble_nus_register_state_callback()` used to hook BLE state changes
-- [ ] BLE connect → active backend `set_state(LED_STATE_BLE_CONNECTED)` (15 ms ON / 3950 ms OFF)
-- [ ] BLE disconnect → active backend `set_state(LED_STATE_BLE_DISCONNECTED)` (15 ms ON / 950 ms OFF)
+- [ ] BLE connect → active LED backend `set_state(LED_STATE_BLE_CONNECTED)` (15 ms ON / 3950 ms OFF)
+- [ ] BLE disconnect → active LED backend `set_state(LED_STATE_BLE_DISCONNECTED)` (15 ms ON / 950 ms OFF)
 - [ ] Transition is immediate and visible
+- [ ] Integration remains compatible with sensor startup flow (`initialize_modules` then task creation), i.e. LED integration does not require sensor API changes
 
 **Validation**:
 - Connect/disconnect from phone, observe LED blink cadence changes
