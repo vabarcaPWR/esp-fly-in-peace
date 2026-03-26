@@ -4,40 +4,12 @@
 #include <stddef.h>
 #include <stdint.h>
 
-static bool mpu6050_initialized = false;
-
-#ifdef TEST
-
-static esp_err_t mpu6050_init(void)
-{
-    mpu6050_initialized = true;
-    return ESP_OK;
-}
-
-static esp_err_t mpu6050_read(data_imu_t *out)
-{
-    if (!out)
-        return ESP_ERR_INVALID_ARG;
-
-    if (!mpu6050_initialized)
-        return ESP_ERR_INVALID_STATE;
-
-    out->accel_x = 0.0f;
-    out->accel_y = 0.0f;
-    out->accel_z = -9.80665f;
-    out->gyro_x = 0.0f;
-    out->gyro_y = 0.0f;
-    out->gyro_z = 0.0f;
-    out->timestamp_us = 0;
-    return ESP_OK;
-}
-
-#else
-
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+
+static bool mpu6050_initialized = false;
 
 #if __has_include("driver/i2c_master.h")
 #include "driver/i2c_master.h"
@@ -220,8 +192,6 @@ static esp_err_t mpu6050_read(data_imu_t *out)
     out->timestamp_us = esp_timer_get_time();
     return ESP_OK;
 }
-
-#endif
 
 #endif
 

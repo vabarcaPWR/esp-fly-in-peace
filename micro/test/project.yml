@@ -28,6 +28,7 @@
     - ../components/sensors/src
     - ../components/sensors/src/*/src
     - ../main
+    - fakes
   :include:
     - ../components/*/inc
     - ../components/*/src

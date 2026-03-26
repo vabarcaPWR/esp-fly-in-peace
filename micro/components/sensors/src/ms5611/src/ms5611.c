@@ -4,28 +4,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#ifdef TEST
-
-esp_err_t ms5611_init(void)
-{
-    return ESP_OK;
-}
-
-esp_err_t ms5611_read(data_baro_t *out)
-{
-    if (!out)
-    {
-        return ESP_ERR_INVALID_ARG;
-    }
-
-    out->pressure_pa = 101325;
-    out->temperature_mc = 25000;
-    out->timestamp_us = 0;
-    return ESP_OK;
-}
-
-#else
-
 #include "esp_err.h"
 #include "esp_log.h"
 #include "esp_timer.h"
@@ -380,8 +358,6 @@ esp_err_t ms5611_read(data_baro_t *out)
 
     return ESP_ERR_INVALID_STATE;
 }
-
-#endif
 
 #endif
 
