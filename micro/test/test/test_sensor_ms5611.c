@@ -3,6 +3,7 @@
 
 TEST_SOURCE_FILE("../components/sensors/src/ms5611/src/ms5611.c")
 TEST_SOURCE_FILE("../components/sensors/src/sensor.c")
+TEST_SOURCE_FILE("../components/sensors/src/mpu6050/src/mpu6050.c")
 
 void setUp(void) {}
 void tearDown(void) {}
