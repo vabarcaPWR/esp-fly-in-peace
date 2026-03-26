@@ -19,5 +19,8 @@ const sensor_imu_t *get_imu_sensor(const char *sensor_name)
     if (!sensor_name)
         return NULL;
 
+    if (!strcmp(sensor_name, "MPU6050"))
+        return get_mpu6050_sensor();
+
     return NULL;
 }

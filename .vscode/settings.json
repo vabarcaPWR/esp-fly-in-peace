@@ -1,3 +1,4 @@
 {
-    "idf.currentSetup": "/home/vabarca/.espressif/v5.5.2/esp-idf"
+    "idf.currentSetup": "/home/vabarca/.espressif/v5.5.2/esp-idf",
+    "cmake.sourceDirectory": "/home/vabarca/data/git/personal/esp-fly-in-peace/micro"
 }

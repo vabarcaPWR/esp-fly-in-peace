@@ -60,12 +60,12 @@
   - [ ] Task 7.3: BMP390 compensation math
   - [ ] Task 7.4: Ceedling unit tests for compensation
   - [ ] Task 7.5: Integration test on hardware
-- [ ] **Phase 7.5: IMU HAL (MPU6050)**
-  - [ ] Task 7.5.1: Kconfig IMU selection and I2C configuration
-  - [ ] Task 7.5.2: imu_hal public API and factory dispatch
-  - [ ] Task 7.5.3: MPU6050 I2C driver (init, accel+gyro read, self-test)
-  - [ ] Task 7.5.4: Ceedling unit tests for MPU6050
-  - [ ] Task 7.5.5: Integration test on hardware
+- [ ] **Phase 7.5: MPU6050 IMU Backend (Sensor Factory Contract)**
+  - [ ] Task 7.5.1: Extend shared IMU contract in `sensor.h`
+  - [ ] Task 7.5.2: Register MPU6050 backend in `sensor` factory and build system
+  - [ ] Task 7.5.3: MPU6050 driver implementation (init + read)
+  - [ ] Task 7.5.4: Ceedling unit tests for MPU6050 backend/factory behavior
+  - [ ] Task 7.5.5: Hardware integration with barometric read loop coexistence
 - [ ] **Phase 8: Sensor Fusion (AHRS + EKF)**
   - [ ] Task 8.1: AHRS — Madgwick quaternion filter
   - [ ] Task 8.2: Body-to-NED rotation and vertical acceleration extraction
@@ -1281,9 +1281,9 @@ _Historical note only. This evidence does not close the reopened milestone._
 
 ## Phase 7: BMP390 Sensor Driver
 
-**Objective**: Implement a fully functional BMP390 barometric pressure sensor driver with NVM trimming, compensation, and IIR filter support.  
+**Objective**: Implement BMP390 as a new backend inside the existing `sensor` factory architecture (`sensor_baro_t` contract with runtime dispatch by name).  
 **Estimated Duration**: 3–4 days  
-**Dependencies**: Phase 5 (sensor + I2C init)  
+**Dependencies**: Phase 5 complete (factory contract and dispatch), Phase 6 complete (MS5611 baseline and test pattern)
 
 > **Module architecture rule (effective for new sensors):**
 > Implement sensor drivers under `micro/components/sensors/src/<sensor_name>/`,
@@ -1297,107 +1297,112 @@ _Historical note only. This evidence does not close the reopened milestone._
 - Convención de nombres por rol obligatoria: `*_conductor.c`, `*_model.c`, `*_hardware.c` (si aplica al módulo).
 - Repetir la validación de la fase después de cada refactorización.
 
-**Architecture Reference**: `firmware-architecture.md` §2.2 Sensor Factory Pattern
+**Architecture Reference**: `firmware-architecture.md` §2.2 Sensor Factory Pattern (adapt to current code reality in `sensor.h`/`sensor.c`)
 
-**Sensor Factory pattern**
-- Sensor API implemented as `sensor_baro_t`/`sensor_imu_t` contracts in `sensor.h`.
-- Add required backend operations while keeping factory selector behavior stable.
+**Current implementation baseline (must remain compatible)**
+- `sensor_baro_t` contract: `init()`, `read(data_baro_t *out)`, `get_name()`.
+- Factory entry point: `const sensor_baro_t *get_baro_sensor(const char *sensor_name)`.
+- Current backend naming in factory is lowercase for baro (`"ms5611"`). Keep naming deterministic and explicit.
+- No extra top-level component for BMP390; integrate under existing `sensors` component.
 - Files:
-  - `micro/components/sensors/src/sensor.c` (factory)
-  - `micro/components/sensors/inc/sensor.h` (factory API)
-  - `micro/components/sensors/CMakeLists.txt` (sensor component + factory)
+  - `micro/components/sensors/src/sensor.c` (factory dispatch)
+  - `micro/components/sensors/inc/sensor.h` (shared contract)
+  - `micro/components/sensors/CMakeLists.txt` (source registration)
+
+**Technical Risks (Phase 7)**
+- I2C initialization ownership is currently backend-local (MS5611 creates bus/device handles internally). A second backend must not break this behavior.
+- Address conflict risk (`0x76`/`0x77`) if Kconfig address and wiring do not match.
+- Factory regression risk when adding BMP390 branch (must preserve existing `"ms5611"` behavior and unknown/NULL handling).
 
 ---
 
 ### Task 7.1: BMP390 trimming coefficients read
 
-**Description**: Implement reading the 11 NVM trimming coefficients from the BMP390 and validate the chip ID.
+**Description**: Add BMP390 backend scaffold and implement initialization path that validates device identity and reads calibration/trimming data.
 
 **Acceptance Criteria**:
-- [ ] Driver folder `bmp390` created in `micro/components/sensors/src/bmp390/`
-- [ ] `sensor_bmp390_t` and `sensor_bmp390_cfg_t` structs per architecture §4.3
-- [ ] `sensor_bmp390_init(sensor_bmp390_t *self, const sensor_bmp390_cfg_t *cfg)` implemented
-- [ ] Reads and validates chip ID register (expected: `0x60`)
-- [ ] Returns `ESP_ERR_NOT_FOUND` if chip ID doesn't match
-- [ ] Reads 11 trimming coefficients from NVM (par_t1..par_t3, par_p1..par_p11)
-- [ ] Converts raw NVM bytes to `float` coefficients per Bosch datasheet
-- [ ] Configures OSR, ODR, and IIR filter settings per `sensor_bmp390_cfg_t`
-- [ ] Handles I2C errors (retry once, then return error)
-- [ ] Logs sensor info at INFO level on successful init
-- [ ] Uses ESP-IDF I2C driver directly (no wrapper)
+- [ ] Files created under `micro/components/sensors/src/bmp390/`:
+  - [ ] `inc/bmp390.h`
+  - [ ] `src/bmp390.c`
+- [ ] `bmp390.h` exposes `const sensor_baro_t *get_bmp390_sensor(void);`
+- [ ] Driver implements `bmp390_init(void)`, `bmp390_read(data_baro_t *out)`, `bmp390_get_name(void)` and binds them through a static `sensor_baro_t`
+- [ ] `bmp390_init()` validates chip ID (`0x60`) and returns error on mismatch
+- [ ] `bmp390_init()` reads calibration data required for compensation and stores it in backend-local context
+- [ ] Error handling follows existing contract style (`ESP_ERR_INVALID_ARG`, `ESP_ERR_INVALID_STATE`, transport errors propagated)
+- [ ] Uses ESP-IDF I2C APIs directly (no additional wrapper component)
 
 **Validation**:
-- Flash to ESP32-C3 Super Mini with BMP390 connected, verify chip ID and coefficients in log output
+- `idf.py build` succeeds with BMP390 files added
+- On target hardware, init log confirms chip ID validation and calibration load success
 
-**Files to create**:
-- `micro/components/sensors/src/bmp390/CMakeLists.txt`
-- `micro/components/sensors/src/bmp390/inc/bmp390.h`
-- `micro/components/sensors/src/bmp390/src/bmp390_conductor.c`
-- `micro/components/sensors/src/bmp390/src/bmp390_model.c`
-- `micro/components/sensors/src/bmp390/src/bmp390_hardware.c`
-- `micro/components/sensors/src/sensor.c` (factory registration in `get_baro_sensor()`)
+**Files to create/modify**:
+- `micro/components/sensors/src/bmp390/inc/bmp390.h` (create)
+- `micro/components/sensors/src/bmp390/src/bmp390.c` (create)
+- `micro/components/sensors/src/sensor.c` (modify: factory registration in `get_baro_sensor()`)
+- `micro/components/sensors/CMakeLists.txt` (modify: include BMP390 source/include paths)
 
 **Notes**:
 - BMP390 I2C address: `0x77` (SDO=GND) or `0x76` (SDO=VCC). Default: `0x77`.
 - Chip ID register: `0x00`, expected value: `0x60`.
-- NVM trimming data: registers `0x31`–`0x45` (21 bytes → 11 coefficients).
+- Keep backend naming explicit and stable in factory (recommended selector: `"bmp390"`).
 
 ---
 
 ### Task 7.2: BMP390 raw pressure & temperature read
 
-**Description**: Implement forced measurement mode and raw data read for pressure and temperature.
+**Description**: Implement runtime read flow for BMP390 (`read()` path) aligned to existing `sensor_baro_t` contract.
 
 **Acceptance Criteria**:
-- [ ] `sensor_bmp390_read(sensor_bmp390_t *self, sensor_data_t *out)` performs full read cycle
-- [ ] Sets forced mode in PWR_CTRL register (`0x1B`)
-- [ ] Waits for data ready (poll STATUS register `0x03`, bit 5+6)
-- [ ] Reads 24-bit raw pressure and 24-bit raw temperature from data registers
-- [ ] Configurable OSR_P and OSR_T per `sensor_bmp390_cfg_t` (1x, 2x, 4x, 8x, 16x, 32x)
-- [ ] Default: OSR_P = 8x, OSR_T = 1x
-- [ ] IIR filter coefficient configurable (default: 3)
-- [ ] Populates `out->timestamp_us` with `esp_timer_get_time()`
+- [ ] `bmp390_read(data_baro_t *out)` returns `ESP_ERR_INVALID_ARG` when `out == NULL`
+- [ ] `bmp390_read(data_baro_t *out)` returns `ESP_ERR_INVALID_STATE` when called before successful `bmp390_init()`
+- [ ] Read cycle performs raw pressure/temperature acquisition from BMP390 registers
+- [ ] Driver computes compensated output and writes:
+  - [ ] `out->pressure_pa` (Pa)
+  - [ ] `out->temperature_mc` (milli-°C)
+  - [ ] `out->timestamp_us` (`esp_timer_get_time()`)
+- [ ] I2C/measurement failures are propagated as non-`ESP_OK` and do not silently publish stale data
 
 **Validation**:
-- Flash to hardware, log raw pressure and temperature values
+- Hardware run at 10 Hz for 60 s: no crashes, no invalid-state/read-order errors after successful init
+- Logs show changing pressure/temperature values with valid timestamped samples
 
 **Files to modify**:
-- `micro/components/sensors/src/bmp390/src/bmp390_conductor.c`
+- `micro/components/sensors/src/bmp390/src/bmp390.c`
 
 **Notes**:
-- Conversion time depends on OSR: ~5 ms (1x) to ~40 ms (32x).
-- Data registers: pressure `0x04`–`0x06`, temperature `0x07`–`0x09`.
+- Keep `read()` behavior compatible with existing sensor task usage in `main.c` (`init()` once, then periodic `read()`).
 
 ---
 
 ### Task 7.3: BMP390 compensation math
 
-**Description**: Implement the compensation algorithm per Bosch BMP390 datasheet using float arithmetic.
+**Description**: Implement/complete BMP390 compensation math integrated in backend read flow while preserving `data_baro_t` output contract.
 
 **Acceptance Criteria**:
-- [ ] Full compensation algorithm using 11 trimming coefficients
-- [ ] Output pressure in Pascals → `out->pressure_pa` (`int32_t`)
-- [ ] Output temperature in milli-Celsius → `out->temperature_mc` (`int32_t`)
-- [ ] Uses `float` arithmetic (ESP32-C3 has no FPU; `float` is faster than `double` in software)
-- [ ] Pure computation — separable for unit testing
+- [ ] Compensation logic uses calibration values loaded during init
+- [ ] Pressure conversion result is stored in `int32_t pressure_pa` with range checks/saturation strategy documented in code comments
+- [ ] Temperature conversion result is stored in `int32_t temperature_mc`
+- [ ] Conversion path is deterministic for identical raw input and calibration coefficients
+- [ ] Math path is unit-testable (separable helper function(s) or deterministic TEST build path)
 
 **Validation**:
-- Compare output with Bosch reference implementation / BMP3 API
+- Compare at least one known input vector against expected BMP390 reference result (documented test case)
 
 **Files to modify**:
-- `micro/components/sensors/src/bmp390/src/bmp390_model.c`
+- `micro/components/sensors/src/bmp390/src/bmp390.c`
 
 ---
 
 ### Task 7.4: Ceedling unit tests for compensation
 
-**Description**: Write unit tests for the BMP390 compensation math.
+**Description**: Add host-side Ceedling tests for BMP390 backend contract and factory dispatch behavior.
 
 **Acceptance Criteria**:
 - [ ] Test file `micro/test/test/test_sensor_bmp390.c` exists
-- [ ] Test: known trimming coefficients + raw values produce expected P and T
-- [ ] Test: init with NULL parameters returns `ESP_ERR_INVALID_ARG`
-- [ ] Test: chip ID validation (correct ID vs wrong ID)
+- [ ] Test: `get_baro_sensor("bmp390")` returns a non-NULL backend with valid function pointers
+- [ ] Test: `get_baro_sensor(NULL)` and unknown names still return `NULL` (factory regression guard)
+- [ ] Test: `bmp390_read(NULL)` returns `ESP_ERR_INVALID_ARG`
+- [ ] Test: deterministic read path in TEST build returns valid `pressure_pa` / `temperature_mc` values
 - [ ] All tests pass in `ceedling test:all`
 
 **Validation**:
@@ -1410,36 +1415,33 @@ _Historical note only. This evidence does not close the reopened milestone._
 
 ### Task 7.5: Integration test on hardware
 
-**Description**: Run the BMP390 driver on actual hardware through `sensor` and verify readings.
+**Description**: Validate BMP390 end-to-end through current runtime flow (`get_baro_sensor()` → `init()` → periodic `read()` → log/pipeline handoff).
 
 **Acceptance Criteria**:
 - [ ] Pressure readings in range 30000–125000 Pa (300–1250 hPa)
 - [ ] Temperature readings reasonable (15000–35000 milli-°C indoors)
-- [ ] Readings stable (noise ≤ ±3 Pa at rest — BMP390 is more precise than MS5611)
+- [ ] Readings stable at rest (noise target defined and recorded during run)
 - [ ] 10 Hz read rate achieved without I2C errors
-- [ ] `sensor_get_name()` returns `"BMP390"`
-- [ ] Sensor selected via `idf.py menuconfig` → `CONFIG_SENSOR_BMP390=y`
+- [ ] `get_baro_sensor("bmp390")->get_name()` returns `"BMP390"`
+- [ ] Existing MS5611 path remains functional (`get_baro_sensor("ms5611")` still works when selected in test code)
 
 **Validation**:
-- Flash firmware with `CONFIG_SENSOR_BMP390=y`, observe readings in serial monitor
-- Compare with MS5611 readings (if both sensors available)
+- Run firmware with temporary sensor selector set to `"bmp390"` in `main.c`, observe logs for 60 s
+- Repeat with `"ms5611"` to confirm no factory regression
 
 **Files to modify**:
-- `micro/main/main.c` (same test loop as Phase 6, but with BMP390 selected)
+- `micro/main/main.c` (temporary selector switch for validation)
 
 ---
 
-## Phase 7.5: IMU HAL (MPU6050)
+## Phase 7.5: MPU6050 IMU Backend (Sensor Factory Contract)
 
-**Objective**: Create an IMU hardware abstraction layer with compile-time driver selection (same pattern as `sensor`) and implement the MPU6050 driver for 3-axis accelerometer + 3-axis gyroscope. The MPU6050 shares the I2C bus with the barometric sensor (I2C_NUM_0, address 0x68).  
+**Objective**: Implement MPU6050 inside the existing `sensors` component using the current `sensor_imu_t` factory contract (`get_imu_sensor()`), then validate coexistence with barometric reads.  
 **Estimated Duration**: 3–4 days  
-**Dependencies**: Phase 5 (sensor + I2C bus initialization)  
+**Dependencies**: Phase 5 complete (shared contracts), Phase 6 complete (working barometric loop), Phase 7.2 complete for combined test with BMP390 (optional but recommended)
 
 **Design Rationale**:
-The MPU6050 provides high-rate (100 Hz) accelerometer and gyroscope data for:
-1. **Earlier vario response**: Detects vertical acceleration ~200 ms before the barometer registers a pressure change (thermal entry/exit).
-2. **Tilt compensation**: When the wing is banked in a turn, the accelerometer Z-axis no longer points vertical. The gyroscope enables orientation tracking (AHRS) to extract the true vertical component.
-3. **Total Energy compensation** (future): Distinguishes real atmospheric lift/sink from kinetic↔potential energy trades during speed changes.
+The MPU6050 path provides IMU samples for upcoming fusion work while preserving the current staged flow (`init/read/log` now, publish/fusion in later phases).
 
 **Refactorización (obligatoria)**:
 - Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
@@ -1450,137 +1452,126 @@ The MPU6050 provides high-rate (100 Hz) accelerometer and gyroscope data for:
 
 ---
 
-### Task 7.5.1: Kconfig IMU selection and I2C configuration
+**Technical Risks (Phase 7.5)**
+- `micro/components/sensors/src/mpu6050/src/mpu6050.c` is currently empty; factory entry exists but backend behavior is undefined.
+- `data_imu_t` is currently empty in `sensor.h`; fusion tasks cannot consume IMU values until contract fields are defined.
+- I2C bus-sharing risk between barometric and IMU backends if both attempt conflicting bus initialization sequences.
 
-**Description**: Create the Kconfig menu for compile-time IMU driver selection, following the same pattern as `sensor`.
+---
+
+### Task 7.5.1: Extend shared IMU contract in `sensor.h`
+
+**Description**: Define concrete IMU output fields in `data_imu_t` so MPU6050 data can flow through existing `sensor_imu_t` contract.
 
 **Acceptance Criteria**:
-- [ ] Component `imu_hal` created in `micro/components/imu_hal/`
-- [ ] `imu_hal/Kconfig` with `choice IMU_DRIVER` block
-- [ ] Options: `CONFIG_IMU_MPU6050` (default), `CONFIG_IMU_NONE` (no IMU — baro-only fallback)
-- [ ] I2C address configurable via Kconfig (default: `0x68` — AD0 low on MPU6050)
-- [ ] Sample rate configurable (default: 100 Hz)
-- [ ] Accel full-scale range configurable (default: ±4g)
-- [ ] Gyro full-scale range configurable (default: ±500 °/s)
-- [ ] Selection visible in `idf.py menuconfig` under "Component config → IMU driver"
+- [ ] `data_imu_t` in `micro/components/sensors/inc/sensor.h` defines accelerometer, gyroscope, and `timestamp_us` fields
+- [ ] Field units are documented in comments (e.g., m/s² and rad/s or clearly defined alternative)
+- [ ] `sensor_imu_t` function signatures remain unchanged (`init/read/get_name`) to preserve factory pattern
+- [ ] Header remains C/C++ compatible (`extern "C"` intact)
 
 **Validation**:
-- `idf.py menuconfig` shows the IMU selection menu
-- `sdkconfig` contains `CONFIG_IMU_MPU6050=y` by default
+- `idf.py build` succeeds after updating `sensor.h`
+- MPU6050 backend compiles against the updated `data_imu_t`
 
-**Files to create**:
-- `micro/components/imu_hal/Kconfig`
-- `micro/components/imu_hal/CMakeLists.txt`
+**Files to modify**:
+- `micro/components/sensors/inc/sensor.h`
 
 **Notes**:
-- MPU6050 I2C address: `0x68` (AD0=GND) or `0x69` (AD0=VCC). Default: `0x68`.
-- The IMU shares I2C_NUM_0 with the barometric sensor. The bus is already initialized in `sensor_init()` — the IMU driver uses `sensor_get_i2c_bus_handle()` to add its device handle.
+- Keep backward compatibility for code paths that only include barometric data.
 
 ---
 
-### Task 7.5.2: imu_hal public API and factory dispatch
+### Task 7.5.2: Register MPU6050 backend in `sensor` factory and build system
 
-**Description**: Implement the `imu_hal` public API with factory dispatch, following the same pattern as `sensor`.
+**Description**: Wire MPU6050 backend into existing `get_imu_sensor()` dispatch and component build registration.
 
 **Acceptance Criteria**:
-- [ ] `data_imu_t` struct: `accel_x`, `accel_y`, `accel_z` (float, m/s²), `gyro_x`, `gyro_y`, `gyro_z` (float, rad/s), `timestamp_us` (int64)
-- [ ] Public API:
-  - `esp_err_t imu_hal_init(void)` — configures IMU, reads WHO_AM_I
-  - `esp_err_t imu_hal_read(data_imu_t *out)` — reads accel + gyro (non-blocking, ~0.6 ms at 400 kHz I2C)
-  - `const char *imu_hal_get_name(void)` — returns `"MPU6050"` or `"NONE"`
-- [ ] `imu_hal` exposes factory selector compatible with `sensor_imu_t` contract
-- [ ] `CONFIG_IMU_NONE` can map to a stub backend that returns `ESP_ERR_NOT_SUPPORTED` — allows baro-only operation without code changes
-- [ ] Uses `sensor_get_i2c_bus_handle()` to share the I2C bus with the barometric sensor
-- [ ] Factory behavior remains deterministic and testable for valid/invalid backend names
+- [ ] `micro/components/sensors/src/sensor.c` includes `mpu6050.h`
+- [ ] `get_imu_sensor("MPU6050")` returns MPU6050 backend
+- [ ] `get_imu_sensor(NULL)` and unknown names return `NULL`
+- [ ] `micro/components/sensors/CMakeLists.txt` includes MPU6050 source/include paths so link succeeds
+- [ ] Existing barometric factory behavior remains unchanged
 
 **Validation**:
-- Build succeeds with `CONFIG_IMU_MPU6050=y`
-- Build succeeds with `CONFIG_IMU_NONE=y` (baro-only fallback)
+- `idf.py build` succeeds without undefined references
+- Factory smoke test from host unit tests passes for both baro and IMU selectors
 
-**Files to create**:
-- `micro/components/imu_hal/inc/imu_hal.h`
-- `micro/components/imu_hal/src/imu_hal.c`
+**Files to modify**:
+- `micro/components/sensors/src/sensor.c`
+- `micro/components/sensors/CMakeLists.txt`
 
 ---
 
-### Task 7.5.3: MPU6050 I2C driver (init, accel+gyro read, self-test)
+### Task 7.5.3: MPU6050 driver implementation (init + read)
 
-**Description**: Implement the MPU6050 I2C driver: initialization, accelerometer + gyroscope read, and basic self-test.
+**Description**: Implement backend logic in `micro/components/sensors/src/mpu6050/src/mpu6050.c` following `sensor_imu_t` lifecycle.
 
 **Acceptance Criteria**:
-- [ ] Component `imu_mpu6050` created in `micro/components/imu_mpu6050/`
-- [ ] `imu_mpu6050_cfg_t` struct: `i2c_addr`, `accel_fs` (full-scale), `gyro_fs`, `sample_rate_hz`, `dlpf_cfg` (digital low-pass filter)
-- [ ] `imu_mpu6050_t` struct: `cfg`, `accel_scale`, `gyro_scale`, I2C device handle
-- [ ] `esp_err_t imu_mpu6050_init(imu_mpu6050_t *self, const imu_mpu6050_cfg_t *cfg, i2c_master_bus_handle_t bus)`:
-  - Validates WHO_AM_I register (expected: `0x68` for MPU6050, `0x71` for MPU6500)
-  - Wakes sensor (PWR_MGMT_1: disable sleep, select PLL clock source)
-  - Configures sample rate divider, DLPF, accel/gyro full-scale ranges
-  - Computes scaling factors: accel (LSB → m/s²), gyro (LSB → rad/s)
-- [ ] `esp_err_t imu_mpu6050_read(imu_mpu6050_t *self, data_imu_t *out)`:
-  - Burst read of 14 bytes (accel XYZ + temp + gyro XYZ) starting at register `0x3B`
-  - Converts raw 16-bit values to physical units using scaling factors
-  - Populates `out->timestamp_us` with `esp_timer_get_time()`
-- [ ] Handles I2C errors (retry once, then return error)
-- [ ] Uses ESP-IDF I2C driver directly via bus handle from `sensor_get_i2c_bus_handle()`
+- [ ] `get_mpu6050_sensor()` returns static `sensor_imu_t` with non-NULL `init/read/get_name`
+- [ ] `mpu6050_init()` validates device identity (WHO_AM_I) and configures basic operating mode
+- [ ] `mpu6050_read(data_imu_t *out)` returns `ESP_ERR_INVALID_ARG` for NULL output
+- [ ] `mpu6050_read(data_imu_t *out)` returns `ESP_ERR_INVALID_STATE` if called before successful init
+- [ ] `mpu6050_read()` populates all `data_imu_t` fields and `timestamp_us`
+- [ ] Uses ESP-IDF I2C APIs directly and propagates transport errors
 
 **Validation**:
-- Flash to hardware with MPU6050 connected, verify WHO_AM_I and accel/gyro readings in log output
+- Hardware run confirms coherent IMU samples at target read rate with expected resting values
 
-**Files to create**:
-- `micro/components/imu_mpu6050/CMakeLists.txt`
-- `micro/components/imu_mpu6050/inc/imu_mpu6050.h`
-- `micro/components/imu_mpu6050/src/imu_mpu6050.c`
+**Files to modify**:
+- `micro/components/sensors/src/mpu6050/inc/mpu6050.h`
+- `micro/components/sensors/src/mpu6050/src/mpu6050.c`
 
 **Notes**:
 - MPU6050 registers: WHO_AM_I (`0x75`), PWR_MGMT_1 (`0x6B`), SMPLRT_DIV (`0x19`), CONFIG (`0x1A`), GYRO_CONFIG (`0x1B`), ACCEL_CONFIG (`0x1C`), ACCEL_XOUT_H (`0x3B`).
 - Burst read of 14 bytes starting at `0x3B`: accel (6) + temp (2) + gyro (6).
 - Full-scale ranges: accel ±2g/±4g/±8g/±16g, gyro ±250/±500/±1000/±2000 °/s.
-- Default DLPF: bandwidth 42 Hz (CONFIG register = 3, suitable for 100 Hz sample rate).
-- Wiring: same I2C bus as barometer. MPU6050 VCC=3.3V, GND, SDA=GPIO6, SCL=GPIO7, AD0=GND (addr 0x68).
+- Wiring baseline: same I2C bus as barometer. MPU6050 VCC=3.3V, GND, SDA=GPIO6, SCL=GPIO7, AD0=GND (addr 0x68).
 
 ---
 
 ### Task 7.5.4: Ceedling unit tests for MPU6050
 
-**Description**: Write unit tests for the MPU6050 scaling and data conversion logic.
+**Description**: Add host tests for MPU6050 backend contract behavior and deterministic conversion path.
 
 **Acceptance Criteria**:
-- [ ] Test file `micro/test/test/test_imu_mpu6050.c` exists
-- [ ] Test: accel raw `[0, 0, -8192]` at ±4g → `[0, 0, -9.81]` m/s² (gravity)
-- [ ] Test: gyro raw conversion at ±500 °/s → correct rad/s values
-- [ ] Test: init with NULL parameters returns `ESP_ERR_INVALID_ARG`
-- [ ] Test: scaling factors correct for all full-scale ranges (±2g, ±4g, ±8g, ±16g)
+- [ ] Test file `micro/test/test/test_sensor_mpu6050.c` exists
+- [ ] Test: `get_imu_sensor("MPU6050")` returns non-NULL backend with valid function pointers
+- [ ] Test: `get_imu_sensor(NULL)` and unknown names return `NULL`
+- [ ] Test: `read(NULL)` returns `ESP_ERR_INVALID_ARG`
+- [ ] Test: read-before-init returns `ESP_ERR_INVALID_STATE`
+- [ ] Test: deterministic TEST-path read fills all IMU output fields
 - [ ] All tests pass in `ceedling test:all`
 
 **Validation**:
 - Run `./scripts/micro/test.sh` — all tests green
 
 **Files to create**:
-- `micro/test/test/test_imu_mpu6050.c`
+- `micro/test/test/test_sensor_mpu6050.c`
 
-**Notes**: Mock I2C layer with CMock. The scaling math should be testable by providing known raw values.
+**Notes**: Reuse the current Ceedling style from `test_sensor_ms5611.c` (`TEST_SOURCE_FILE(...)` for factory + driver source files).
 
 ---
 
 ### Task 7.5.5: Integration test on hardware
 
-**Description**: Run the MPU6050 driver on actual hardware through `imu_hal` and verify readings.
+**Description**: Validate IMU and barometric backends in the same firmware run to confirm contract flow and practical publish readiness for later pipeline phases.
 
 **Acceptance Criteria**:
 - [ ] WHO_AM_I register returns expected value (`0x68` for MPU6050)
 - [ ] Accel readings at rest: ~`[0, 0, -9.81]` m/s² (±0.5 m/s² tolerance for MPU6050)
 - [ ] Gyro readings at rest: ~`[0, 0, 0]` rad/s (±0.05 rad/s tolerance)
-- [ ] 100 Hz read rate achieved without I2C errors or bus conflicts with barometric sensor
-- [ ] `imu_hal_get_name()` returns `"MPU6050"`
-- [ ] I2C bus shared successfully with barometric sensor (both sensors readable in same loop)
+- [ ] IMU periodic read loop runs at target rate without repeated I2C errors
+- [ ] `get_imu_sensor("MPU6050")->get_name()` returns `"MPU6050"`
+- [ ] Barometric and IMU backends can both be initialized/read in the same runtime (no bus deadlock/conflict)
+- [ ] Output samples are available in log format suitable for later Phase 8/9 ingestion (timestamped and unit-consistent)
 
 **Validation**:
-- Flash firmware, observe IMU readings via `imu_hal_read()` in serial monitor
-- Simultaneously read barometric sensor to confirm no I2C bus conflicts
+- Flash firmware, observe IMU readings via `sensor_imu_t.read()` in serial monitor
+- Simultaneously read barometric sensor via `sensor_baro_t.read()` to confirm no I2C bus conflicts
 - Tilt the board: accel X/Y change, verify readings are coherent
 
 **Files to modify**:
-- `micro/main/main.c` (temporary test loop: init both `sensor` + `imu_hal`, read both)
+- `micro/main/main.c` (temporary dual-sensor read loop for validation)
 
 ---
 
@@ -1588,7 +1579,7 @@ The MPU6050 provides high-rate (100 Hz) accelerometer and gyroscope data for:
 
 **Objective**: Implement a two-stage sensor fusion pipeline inspired by ArduPilot's vertical navigation architecture. Stage 1: an AHRS (Attitude and Heading Reference System) based on Madgwick's quaternion filter fuses MPU6050 accelerometer and gyroscope data to estimate orientation. Stage 2: a 3-state Extended Kalman Filter (EKF) fuses AHRS-corrected vertical acceleration with barometric altitude to predict altitude and vertical speed (vario) with faster response and tilt compensation.  
 **Estimated Duration**: 5–7 days  
-**Dependencies**: Phase 6 or 7 (barometric pressure data), Phase 7.5 (IMU HAL)  
+**Dependencies**: Phase 6 or 7 (barometric pressure data), Phase 7.5 (MPU6050 IMU backend in `sensors` component)  
 
 **Design Rationale (ArduPilot reference)**:
 ArduPilot's `NavEKF3` uses a 24-state EKF for full 3D navigation. For a variometer, we extract the vertical-only subset:
@@ -1602,7 +1593,7 @@ Reference: *Widnall & Sinha, "Optimizing the Gains of the Baro-Inertial Vertical
 **Architecture**:
 - Component `ahrs`: pure math, no ESP-IDF dependencies, fully host-testable via Ceedling.
 - Component `ekf`: pure math, no ESP-IDF dependencies, fully host-testable via Ceedling.
-- Both compatible with any barometric sensor (MS5611, BMP390) via `sensor` abstraction and any IMU via `imu_hal` abstraction.
+- Both compatible with any barometric sensor (MS5611, BMP390) via `sensor` abstraction and any IMU backend exposed through `sensor_imu_t`.
 
 **State model**:
 
