@@ -1,21 +1,22 @@
 #include <stdbool.h>
 
+#include "baro_task.h"
 #include "ble_nus.h"
+#include "ble_sender_task.h"
+#include "flight_data.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "fusion_task.h"
 #include "led.h"
-#include "lk8ex1_simulation_runtime.h"
 #include "sensor.h"
 #include <esp_log.h>
 
-#define SENSOR_READ_PERIOD_MS 100U
-#define SENSOR_READ_TASK_STACK_SIZE 3072U
-#define SENSOR_READ_TASK_PRIORITY 4U
-#define IMU_READ_PERIOD_MS 100U
-#define IMU_READ_TASK_STACK_SIZE 3072U
-#define IMU_READ_TASK_PRIORITY 4U
-#define LK8EX1_TX_TASK_STACK_SIZE 4096U
-#define LK8EX1_TX_TASK_PRIORITY 3U
+#define BARO_TASK_STACK_SIZE 4096U
+#define BARO_TASK_PRIORITY 5U
+#define FUSION_TASK_STACK_SIZE 4096U
+#define FUSION_TASK_PRIORITY 6U
+#define BLE_SENDER_TASK_STACK_SIZE 4096U
+#define BLE_SENDER_TASK_PRIORITY 3U
 
 #ifndef BLE_COMPAT_DEVICE_NAME
 #define BLE_COMPAT_DEVICE_NAME "FlyInPeace"
@@ -26,11 +27,16 @@ static const led_t *led = NULL;
 static const sensor_baro_t *baro_sensor = NULL;
 static const sensor_imu_t *imu_sensor = NULL;
 
+SemaphoreHandle_t g_flight_data_mutex = NULL;
+flight_data_t g_flight_data = {0};
+QueueHandle_t g_baro_queue = NULL;
+QueueHandle_t g_calibration_queue = NULL;
+
 typedef struct application_threads_s
 {
-    TaskHandle_t lk8ex1_sender_task;
-    TaskHandle_t baro_read_task;
-    TaskHandle_t imu_read_task;
+    TaskHandle_t baro_task;
+    TaskHandle_t fusion_task;
+    TaskHandle_t ble_sender_task;
 } application_threads_t;
 
 static bool startup_step_succeeded(const char *step_name, esp_err_t result)
@@ -47,60 +53,9 @@ static void application_threads_reset(application_threads_t *threads)
     if (!threads)
         return;
 
-    threads->lk8ex1_sender_task = NULL;
-    threads->baro_read_task = NULL;
-    threads->imu_read_task = NULL;
-}
-
-static void baro_read_task_fn(void *param)
-{
-    const sensor_baro_t *sensor = (const sensor_baro_t *)param;
-    if (!sensor)
-    {
-        vTaskDelete(NULL);
-        return;
-    }
-
-    TickType_t last_wake_tick = xTaskGetTickCount();
-    const char *sensor_name = sensor->get_name() ? sensor->get_name() : "unknown";
-
-    while (true)
-    {
-        data_baro_t data = {0};
-        esp_err_t ret = sensor->read(&data);
-        if (ret == ESP_OK)
-            ESP_LOGI(TAG, "[%s] P=%ld Pa  T=%ld m°C", sensor_name, (long)data.pressure_pa, (long)data.temperature_mc);
-        else
-            ESP_LOGW(TAG, "baro read error: 0x%x", ret);
-
-        vTaskDelayUntil(&last_wake_tick, pdMS_TO_TICKS(SENSOR_READ_PERIOD_MS));
-    }
-}
-
-static void imu_read_task_fn(void *param)
-{
-    const sensor_imu_t *sensor = (const sensor_imu_t *)param;
-    if (!sensor)
-    {
-        vTaskDelete(NULL);
-        return;
-    }
-
-    TickType_t last_wake_tick = xTaskGetTickCount();
-    const char *sensor_name = sensor->get_name() ? sensor->get_name() : "unknown";
-
-    while (true)
-    {
-        data_imu_t data = {0};
-        esp_err_t ret = sensor->read(&data);
-        if (ret == ESP_OK)
-            ESP_LOGI(TAG, "[%s] A=%.2f,%.2f,%.2f m/s2  G=%.3f,%.3f,%.3f rad/s", sensor_name, data.accel_x, data.accel_y,
-                     data.accel_z, data.gyro_x, data.gyro_y, data.gyro_z);
-        else
-            ESP_LOGW(TAG, "IMU read error: 0x%x", ret);
-
-        vTaskDelayUntil(&last_wake_tick, pdMS_TO_TICKS(IMU_READ_PERIOD_MS));
-    }
+    threads->baro_task = NULL;
+    threads->fusion_task = NULL;
+    threads->ble_sender_task = NULL;
 }
 
 static esp_err_t initialize_ble_nus_module(void)
@@ -164,6 +119,23 @@ static esp_err_t initialize_sensors(void)
     return ESP_OK;
 }
 
+static esp_err_t initialize_pipeline(void)
+{
+    g_flight_data_mutex = xSemaphoreCreateMutex();
+    if (!g_flight_data_mutex)
+        return ESP_ERR_NO_MEM;
+
+    g_baro_queue = xQueueCreate(1, sizeof(data_baro_t));
+    if (!g_baro_queue)
+        return ESP_ERR_NO_MEM;
+
+    g_calibration_queue = xQueueCreate(1, sizeof(calibration_request_t));
+    if (!g_calibration_queue)
+        return ESP_ERR_NO_MEM;
+
+    return ESP_OK;
+}
+
 static esp_err_t initialize_modules(void)
 {
     esp_err_t led_result = initialize_led_module();
@@ -182,12 +154,11 @@ static esp_err_t initialize_modules(void)
     if (ble_result != ESP_OK)
         return ble_result;
 
-    return lk8ex1_simulation_runtime_init();
+    return initialize_pipeline();
 }
 
 static esp_err_t configure_modules_usage(void)
 {
-    ble_nus_register_rx_callback(lk8ex1_simulation_ble_rx_callback);
     ble_nus_register_state_callback(ble_connection_led_state_handler);
     if (led && led->set_state)
         led->set_state(ble_nus_is_connected() ? LED_STATE_BLE_CONNECTED : LED_STATE_BLE_DISCONNECTED);
@@ -195,66 +166,46 @@ static esp_err_t configure_modules_usage(void)
     return ESP_OK;
 }
 
-static esp_err_t create_lk8ex1_sender_thread(application_threads_t *threads)
+static fusion_task_ctx_t fusion_ctx = {0};
+
+static esp_err_t create_baro_task(application_threads_t *threads)
 {
-    if (!threads)
-        return ESP_ERR_INVALID_ARG;
-
-    BaseType_t task_created = xTaskCreate(lk8ex1_simulation_sender_task, "lk8ex1_tx", LK8EX1_TX_TASK_STACK_SIZE, NULL,
-                                          LK8EX1_TX_TASK_PRIORITY, &threads->lk8ex1_sender_task);
-    if (task_created != pdPASS)
-        return ESP_FAIL;
-
-    return ESP_OK;
-}
-
-static esp_err_t create_baro_read_thread(application_threads_t *threads)
-{
-    if (!threads)
-        return ESP_ERR_INVALID_ARG;
-
-    if (!baro_sensor)
+    if (!threads || !baro_sensor)
         return ESP_OK;
 
-    BaseType_t task_created = xTaskCreate(baro_read_task_fn, "baro_read", SENSOR_READ_TASK_STACK_SIZE,
-                                          (void *)baro_sensor, SENSOR_READ_TASK_PRIORITY, &threads->baro_read_task);
-    if (task_created != pdPASS)
-        return ESP_FAIL;
-
-    return ESP_OK;
+    BaseType_t ok = xTaskCreate(baro_task_fn, "baro", BARO_TASK_STACK_SIZE, (void *)baro_sensor, BARO_TASK_PRIORITY,
+                                &threads->baro_task);
+    return ok == pdPASS ? ESP_OK : ESP_FAIL;
 }
 
-static esp_err_t create_imu_read_thread(application_threads_t *threads)
+static esp_err_t create_fusion_task(application_threads_t *threads)
 {
     if (!threads)
         return ESP_ERR_INVALID_ARG;
 
-    if (!imu_sensor)
-        return ESP_OK;
+    fusion_ctx.imu = imu_sensor;
 
-    BaseType_t task_created = xTaskCreate(imu_read_task_fn, "imu_read", IMU_READ_TASK_STACK_SIZE, (void *)imu_sensor,
-                                          IMU_READ_TASK_PRIORITY, &threads->imu_read_task);
-    if (task_created != pdPASS)
-        return ESP_FAIL;
+    BaseType_t ok = xTaskCreate(fusion_task_fn, "fusion", FUSION_TASK_STACK_SIZE, &fusion_ctx, FUSION_TASK_PRIORITY,
+                                &threads->fusion_task);
+    return ok == pdPASS ? ESP_OK : ESP_FAIL;
+}
 
-    return ESP_OK;
+static esp_err_t create_ble_sender_task(application_threads_t *threads)
+{
+    if (!threads)
+        return ESP_ERR_INVALID_ARG;
+
+    BaseType_t ok = xTaskCreate(ble_sender_task_fn, "ble_tx", BLE_SENDER_TASK_STACK_SIZE, NULL,
+                                BLE_SENDER_TASK_PRIORITY, &threads->ble_sender_task);
+    return ok == pdPASS ? ESP_OK : ESP_FAIL;
 }
 
 static esp_err_t create_threads(application_threads_t *threads)
 {
-    esp_err_t sender_result = create_lk8ex1_sender_thread(threads);
-    sender_result == ESP_OK ? sender_result = create_baro_read_thread(threads) : sender_result;
-    sender_result == ESP_OK ? sender_result = create_imu_read_thread(threads) : sender_result;
-    return sender_result;
-}
-
-static esp_err_t launch_threads(const application_threads_t *threads)
-{
-    if (!threads || !threads->lk8ex1_sender_task)
-        return ESP_ERR_INVALID_ARG;
-
-    xTaskNotifyGive(threads->lk8ex1_sender_task);
-    return ESP_OK;
+    esp_err_t ret = create_baro_task(threads);
+    ret == ESP_OK ? ret = create_fusion_task(threads) : ret;
+    ret == ESP_OK ? ret = create_ble_sender_task(threads) : ret;
+    return ret;
 }
 
 void app_main(void)
@@ -267,5 +218,7 @@ void app_main(void)
     bool ret = startup_step_succeeded("initialize_modules", initialize_modules());
     ret ? ret = startup_step_succeeded("configure_modules_usage", configure_modules_usage()) : ret;
     ret ? ret = startup_step_succeeded("create_threads", create_threads(&threads)) : ret;
-    ret ? ret = startup_step_succeeded("launch_threads", launch_threads(&threads)) : ret;
+
+    if (ret)
+        ESP_LOGI(TAG, "pipeline running: baro=%s, imu=%s", baro_sensor ? "yes" : "no", imu_sensor ? "yes" : "no");
 }

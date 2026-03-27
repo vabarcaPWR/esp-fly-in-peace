@@ -74,13 +74,13 @@
   - [x] Task 8.5: Barometric altitude calculation (GREEN)
   - [x] Task 8.6: 3-state EKF implementation (GREEN)
   - [x] Task 8.7: Altitude calibration (GREEN)
-- [ ] **Phase 9: Data Pipeline**
-  - [ ] Task 9.1: Shared flight data structure and mutex
-  - [ ] Task 9.2: Calibration queue (fusion_task consumer)
-  - [ ] Task 9.3: Barometer reader task (10 Hz)
-  - [ ] Task 9.4: Sensor fusion task (100 Hz — AHRS + EKF)
-  - [ ] Task 9.5: BLE sender task (8 Hz)
-  - [ ] Task 9.6: Replace simulated provider with real sensor data
+- [x] **Phase 9: Data Pipeline**
+  - [x] Task 9.1: Shared flight data structure and mutex
+  - [x] Task 9.2: Calibration queue (fusion_task consumer)
+  - [x] Task 9.3: Barometer reader task (10 Hz)
+  - [x] Task 9.4: Sensor fusion task (100 Hz — AHRS + EKF)
+  - [x] Task 9.5: BLE sender task (8 Hz)
+  - [x] Task 9.6: Replace simulated provider with real sensor data
   - [ ] Task 9.7: End-to-end data flow validation
 - [ ] **Phase 10: NVS Configuration**
   - [ ] Task 10.1: Config schema definition and defaults
@@ -1914,6 +1914,9 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 ## Phase 9: Data Pipeline
 
+> **Status**: ✅ Implementación completada — build OK, 95/95 tests, hardware boot+run estable.
+> Task 9.7 (validación E2E con BLE client) pendiente.
+
 **Objective**: Wire up the FreeRTOS task model for dual-rate sensor fusion: `baro_task` reads the barometric sensor at 10 Hz, `fusion_task` reads the IMU at 100 Hz, runs the AHRS and EKF, and publishes to the shared flight data structure. `ble_sender_task` reads at 8 Hz, formats LK8EX1, and sends over BLE. When `CONFIG_IMU_NONE=y`, `fusion_task` degrades gracefully to a baro-only EKF (no AHRS, 10 Hz predict+update combined).  
 **Estimated Duration**: 4–5 days  
 **Dependencies**: Phases 3 (BLE), 6 or 7 (baro sensor), 7.5 (IMU HAL), 8 (AHRS + EKF), 2 (LK8EX1)  
@@ -1929,17 +1932,17 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 ---
 
-### Task 9.1: Shared flight data structure and mutex
+### Task 9.1: Shared flight data structure and mutex ✅
 
 **Description**: Implement the `shared_flight_data_t` struct and access primitives.
 
 **Acceptance Criteria**:
-- [ ] `shared_flight_data_t` struct: `altitude_m`, `vario_ms`, `pressure_pa`, `temperature_mc`, `reference_pressure_pa`, `vertical_accel_ms2`, `timestamp_us`, `sensor_valid`, `imu_valid`
-- [ ] Mutex created with `xSemaphoreCreateMutex()`
-- [ ] Writer API (fusion_task): `xSemaphoreTake` → write all fields → `xSemaphoreGive`
-- [ ] Reader API (ble_sender): `xSemaphoreTake` → copy struct → `xSemaphoreGive`
-- [ ] Mutex timeout: `pdMS_TO_TICKS(10)` to avoid deadlocks
-- [ ] Defined in a shared header accessible to all pipeline tasks
+- [x] `shared_flight_data_t` struct: `altitude_m`, `vario_ms`, `pressure_pa`, `temperature_mc`, `reference_pressure_pa`, `vertical_accel_ms2`, `timestamp_us`, `sensor_valid`, `imu_valid`
+- [x] Mutex created with `xSemaphoreCreateMutex()`
+- [x] Writer API (fusion_task): `xSemaphoreTake` → write all fields → `xSemaphoreGive`
+- [x] Reader API (ble_sender): `xSemaphoreTake` → copy struct → `xSemaphoreGive`
+- [x] Mutex timeout: `pdMS_TO_TICKS(10)` to avoid deadlocks
+- [x] Defined in a shared header accessible to all pipeline tasks
 
 **Validation**:
 - Build succeeds, mutex created in `app_main()`
@@ -1950,18 +1953,18 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 ---
 
-### Task 9.2: Calibration queue (fusion_task consumer)
+### Task 9.2: Calibration queue (fusion_task consumer) ✅
 
 **Description**: Implement the `calibration_queue` — a depth-1 queue that routes altitude calibration requests from `config_task` to `fusion_task`.
 
 **Acceptance Criteria**:
-- [ ] `calibration_request_t` struct: `known_altitude_m` (`float`)
-- [ ] Queue: `xQueueCreate(1, sizeof(calibration_request_t))` — depth 1, overwrite mode
+- [x] `calibration_request_t` struct: `known_altitude_m` (`float`)
+- [x] Queue: `xQueueCreate(1, sizeof(calibration_request_t))` — depth 1, overwrite mode
 - [ ] Producer: `config_task` (on `CONFIG_REQUEST_CALIBRATE`)
-- [ ] Consumer: `fusion_task` (non-blocking poll with `xQueueReceive(..., 0)` at start of each cycle)
-- [ ] On receive: `fusion_task` calls `ekf_calibrate()` with known altitude + last pressure reading
+- [x] Consumer: `fusion_task` (non-blocking poll with `xQueueReceive(..., 0)` at start of each cycle)
+- [x] On receive: `fusion_task` calls `ekf_calibrate()` with known altitude + last pressure reading
 - [ ] After calibration: `config_manager_save()` persists new `reference_pressure_pa`
-- [ ] Queue created in `app_main()` alongside other queues
+- [x] Queue created in `app_main()` alongside other queues
 
 **Validation**:
 - Send calibration request via BLE → fusion_task processes → altitude now matches known value
@@ -1975,18 +1978,18 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 ---
 
-### Task 9.3: Barometer reader task (10 Hz)
+### Task 9.3: Barometer reader task (10 Hz) ✅
 
 **Description**: Implement `baro_task_fn` running at 10 Hz, dedicated to barometric sensor reads. The baro read blocks ~18 ms (MS5611 at OSR 4096), so it runs in its own task to avoid blocking the fusion task's 100 Hz loop.
 
 **Acceptance Criteria**:
-- [ ] `baro_task` created with Priority 5, stack 4096 bytes
-- [ ] Loop every 100 ms:
+- [x] `baro_task` created with Priority 5, stack 4096 bytes
+- [x] Loop every 100 ms:
   1. `sensor_read(&sensor_data)` — blocks ~18 ms for sensor conversion
   2. Write result to a shared `baro_latest_t` struct (atomic flag + data)
   3. Set `baro_new_data_available` flag (read by `fusion_task`)
   4. `vTaskDelay(remaining time to hit 100 ms period)`
-- [ ] Handles sensor read errors: set `sensor_valid = false` after 3 consecutive failures
+- [x] Handles sensor read errors: set `sensor_valid = false` after 3 consecutive failures
 - [ ] Registered with Task Watchdog Timer (TWDT), fed at end of each cycle
 - [ ] TWDT timeout: 5 seconds
 
@@ -2001,13 +2004,13 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 ---
 
-### Task 9.4: Sensor fusion task (100 Hz — AHRS + EKF)
+### Task 9.4: Sensor fusion task (100 Hz — AHRS + EKF) ✅
 
 **Description**: Implement `fusion_task_fn` running at 100 Hz. Reads IMU, updates AHRS, runs EKF predict at every iteration. Checks for new baro data and runs EKF measurement update when available (~every 10th iteration).
 
 **Acceptance Criteria**:
-- [ ] `fusion_task` created with Priority 6 (highest application task), stack 4096 bytes
-- [ ] Loop every 10 ms:
+- [x] `fusion_task` created with Priority 6 (highest application task), stack 4096 bytes
+- [x] Loop every 10 ms:
   1. Check `calibration_queue` for pending calibration (non-blocking poll)
      → If received: `ekf_calibrate()` + `config_manager_save()` to persist new P0
   2. `imu_hal_read(&imu_data)` — ~0.6 ms at 400 kHz I2C
@@ -2019,9 +2022,9 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
      - `ekf_update_baro(&ekf_state, &ekf_cfg, baro_data.pressure_pa, baro_data.timestamp_us)` — ~0.05 ms
   7. `xSemaphoreTake(mutex)` → copy EKF state + sensor data to `shared_flight_data` → `xSemaphoreGive(mutex)`
   8. `vTaskDelay(remaining time to hit 10 ms period)`
-- [ ] Total cycle: ~0.7 ms (7% CPU at 100 Hz) — leaves ~9.3 ms for other tasks and light-sleep
-- [ ] When `CONFIG_IMU_NONE=y`: `fusion_task` runs at 10 Hz, reads baro directly, runs EKF predict+update combined (degrades to baro-only mode)
-- [ ] Handles IMU read errors: skip AHRS/EKF predict, set `imu_valid = false` after 3 consecutive failures
+- [x] Total cycle: ~0.7 ms (7% CPU at 100 Hz) — leaves ~9.3 ms for other tasks and light-sleep
+- [x] When `CONFIG_IMU_NONE=y`: `fusion_task` runs at 10 Hz, reads baro directly, runs EKF predict+update combined (degrades to baro-only mode)
+- [x] Handles IMU read errors: skip AHRS/EKF predict, set `imu_valid = false` after 3 consecutive failures
 - [ ] Registered with TWDT, fed at end of each cycle
 
 **Validation**:
@@ -2040,20 +2043,20 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 ---
 
-### Task 9.5: BLE sender task (8 Hz)
+### Task 9.5: BLE sender task (8 Hz) ✅
 
 **Description**: Implement `ble_sender_task_fn` running at 8 Hz.
 
 **Acceptance Criteria**:
-- [ ] `ble_sender_task` created with Priority 3, stack 4096 bytes
-- [ ] Loop every 125 ms:
+- [x] `ble_sender_task` created with Priority 3, stack 4096 bytes
+- [x] Loop every 125 ms:
   1. `xSemaphoreTake(mutex)` → copy `shared_flight_data` → `xSemaphoreGive(mutex)`
   2. Build `lk8ex1_data_t` from flight data (convert vario m/s → cm/s, temperature milli-°C → deci-°C)
   3. `lk8ex1_format(&data, buffer, sizeof(buffer))`
   4. `ble_nus_send((uint8_t *)buffer, strlen(buffer))`
   5. `vTaskDelay(remaining time to hit 125 ms period)`
-- [ ] Silently skips send if BLE not connected (`ble_nus_is_connected()` or `ESP_ERR_INVALID_STATE`)
-- [ ] Handles `sensor_valid == false`: sends LK8EX1 with `altitude=99999, vario=0`
+- [x] Silently skips send if BLE not connected (`ble_nus_is_connected()` or `ESP_ERR_INVALID_STATE`)
+- [x] Handles `sensor_valid == false`: sends LK8EX1 with `altitude=99999, vario=0`
 
 **Validation**:
 - Connect with nRF Connect, verify LK8EX1 sentences arriving at ~8 Hz with real sensor data
@@ -2065,13 +2068,13 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 ---
 
-### Task 9.6: Replace simulated provider with real sensor data
+### Task 9.6: Replace simulated provider with real sensor data ✅
 
 **Description**: Remove the temporary simulated LK8EX1 sender from Phase 3 and use the real pipeline.
 
 **Acceptance Criteria**:
-- [ ] Temporary simulation code in `main.c` removed
-- [ ] `app_main()` orchestrates initialization in correct order:
+- [x] Temporary simulation code in `main.c` removed
+- [x] `app_main()` orchestrates initialization in correct order:
   1. `led_init()` → `LED_STATE_BOOT`
   2. `sensor_init()`
   3. `imu_hal_init()` (when `CONFIG_IMU_MPU6050=y`)
@@ -2080,7 +2083,7 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
   6. Register BLE state callback → LED
   7. Create `baro_task`, `fusion_task`, `ble_sender_task`
   8. `led_set_state(LED_STATE_BLE_DISCONNECTED)`
-- [ ] All tasks running with correct priorities
+- [x] All tasks running with correct priorities
 
 **Validation**:
 - Boot → sensor reads start → BLE advertises → connect → real LK8EX1 data flows

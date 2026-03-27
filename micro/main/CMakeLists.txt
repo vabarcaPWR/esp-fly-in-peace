@@ -1,8 +1,9 @@
 idf_component_register(
     SRCS
         "main.c"
-        "lk8ex1_simulation_profile.c"
-        "lk8ex1_simulation_runtime.c"
+        "baro_task.c"
+        "fusion_task.c"
+        "ble_sender_task.c"
     INCLUDE_DIRS "."
-    REQUIRES ble_nus leds lk8ex1 sensors
+    REQUIRES ahrs ble_nus ekf leds lk8ex1 sensors
 )
