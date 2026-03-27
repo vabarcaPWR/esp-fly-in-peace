@@ -28,7 +28,7 @@
     - ../components/sensors/src
     - ../components/sensors/src/*/src
     - ../main
-    - fakes
+
   :include:
     - ../components/*/inc
     - ../components/*/src
@@ -50,10 +50,8 @@
   :common: &common_defines []
   :test:
     - *common_defines
-    - TEST
   :test_preprocess:
     - *common_defines
-    - TEST
 
 :cmock:
   :mock_prefix: mock_
