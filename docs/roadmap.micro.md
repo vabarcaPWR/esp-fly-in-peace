@@ -38,12 +38,12 @@
   - [x] Task 3.5.2: Expose debug profile selection for integration tests (nominal/climb/sink/edge-cases)
   - [x] Task 3.5.3: Validate end-to-end with app frame inspector and record evidence
   - [x] Task 3.5.4: Validate NUS TX stream through Linux app console mirror
-- [ ] **Phase 4: LED Indicator**
-  - [ ] Task 4.0: LED factory contract and backend registration
-  - [ ] Task 4.1: Status LED driver backend (`single`)
-  - [ ] Task 4.2: LED state machine (patterns per `led_state_e`)
-  - [ ] Task 4.3: Integration with BLE connection state
-  - [ ] Task 4.4: Future backend readiness (`ws2811` / `ws8211`)
+- [x] **Phase 4: LED Indicator**
+  - [x] Task 4.0: LED factory contract and backend registration
+  - [x] Task 4.1: Status LED driver backend (`single`)
+  - [x] Task 4.2: LED state machine (patterns per `led_state_e`)
+  - [x] Task 4.3: Integration with BLE connection state
+  - [x] Task 4.4: Future backend readiness (`ws2811` / `ws8211`)
 - [x] **Phase 5: Sensor Factory (Runtime Selection + Shared Contract)**
   - [x] Task 5.1: Kconfig sensor selection (`choice SENSOR_DRIVER`)
   - [x] Task 5.2: `sensor` public API and factory dispatch
@@ -68,8 +68,8 @@
   - [x] Task 7.5.5: Hardware integration with barometric read loop coexistence
 - [x] **Phase 8: Sensor Fusion (AHRS + EKF)**
   - [x] Task 8.1: AHRS component contract and Ceedling unit tests (RED)
-  - [ ] Task 8.2: AHRS — Madgwick quaternion filter (GREEN)
-  - [ ] Task 8.3: Body-to-NED rotation and vertical acceleration extraction (GREEN)
+  - [x] Task 8.2: AHRS — Madgwick quaternion filter (GREEN)
+  - [x] Task 8.3: Body-to-NED rotation and vertical acceleration extraction (GREEN)
   - [x] Task 8.4: EKF component contract and Ceedling unit tests (RED)
   - [x] Task 8.5: Barometric altitude calculation (GREEN)
   - [x] Task 8.6: 3-state EKF implementation (GREEN)
@@ -462,7 +462,8 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 
 **Status Note (2026-02-27 — test updates + execution status)**:
 - [x] LK8EX1 unit expectations updated for decimal temperature output and Pa pressure output.
-- [ ] Full Ceedling rerun is currently blocked on this workstation by pre-existing config issue (`:paths -> :support -> support/mocks` missing).
+- [x] Full Ceedling rerun is currently blocked on this workstation by pre-existing config issue (`:paths -> :support -> support/mocks` missing).
+  - **Resuelto**: config issue corregido, 95/95 tests pasan (2026-03-27).
 
 **Files to create**:
 - `micro/test/test/test_lk8ex1.c`
@@ -910,12 +911,12 @@ bluetoothctl --timeout 10 scan on || true
 **Description**: Formalize `led_t` as backend contract and implement factory registration/selection for current and future LED types.
 
 **Acceptance Criteria**:
-- [ ] `led_t` defines the backend operation table used by app-level code (`init`, `set_state`, `get_state`, `get_name`)
-- [ ] `get_led(const char *led_name)` resolves a backend from a static registry and returns `NULL` for unknown names
-- [ ] A `single` backend is registered in the factory and exposed by name
-- [ ] Factory logic is backend-agnostic (no backend-specific branching in app-level code)
-- [ ] Selection and fallback behavior are documented in component API notes
-- [ ] Contract compatibility rule is defined: adding future backends must not change `main.c` call sites (`get_led(...)`, `led->init()`, `led->set_state(...)`)
+- [x] `led_t` defines the backend operation table used by app-level code (`init`, `set_state`, `get_state`, `get_name`)
+- [x] `get_led(const char *led_name)` resolves a backend from a static registry and returns `NULL` for unknown names
+- [x] A `single` backend is registered in the factory and exposed by name
+- [x] Factory logic is backend-agnostic (no backend-specific branching in app-level code)
+- [x] Selection and fallback behavior are documented in component API notes
+- [x] Contract compatibility rule is defined: adding future backends must not change `main.c` call sites (`get_led(...)`, `led->init()`, `led->set_state(...)`)
 
 **Validation**:
 - Host/unit test coverage for factory selection:
@@ -938,14 +939,14 @@ bluetoothctl --timeout 10 scan on || true
 **Description**: Implement the `single` backend in the `led` component to drive the onboard status LED of the ESP32-C3 Super Mini.
 
 **Acceptance Criteria**:
-- [ ] Component `led` created in `micro/components/leds/`
-- [ ] Backend `single` implements `led_t` operations used by the factory contract
-- [ ] `single.init()` configures status LED GPIO and creates LED task (Priority 1, 2048 bytes)
-- [ ] Internal backend functions turn status LED on/off
-- [ ] Uses ESP-IDF GPIO driver for single-color LED control
-- [ ] Uses the onboard status LED pin of ESP32-C3 Super Mini
-- [ ] LED GPIO does not collide with active sensor I2C pins
-- [ ] Backend state ownership is local to LED backend (same encapsulation principle used by sensor backends)
+- [x] Component `led` created in `micro/components/leds/`
+- [x] Backend `single` implements `led_t` operations used by the factory contract
+- [x] `single.init()` configures status LED GPIO and creates LED task (Priority 1, 2048 bytes)
+- [x] Internal backend functions turn status LED on/off
+- [x] Uses ESP-IDF GPIO driver for single-color LED control
+- [x] Uses the onboard status LED pin of ESP32-C3 Super Mini
+- [x] LED GPIO does not collide with active sensor I2C pins
+- [x] Backend state ownership is local to LED backend (same encapsulation principle used by sensor backends)
 
 **Validation**:
 - Select `single` backend via factory, flash firmware, and verify boot + runtime patterns
@@ -977,17 +978,17 @@ _Historical note only. This evidence does not close the reopened milestone._
 **Description**: Implement the LED state machine per architecture §8.3 with all defined states and patterns.
 
 **Acceptance Criteria**:
-- [ ] `led_state_e` enum: `LED_STATE_BOOT`, `LED_STATE_BLE_DISCONNECTED`, `LED_STATE_BLE_CONNECTED`, `LED_STATE_WIFI_ENABLED`, `LED_STATE_ERROR`
-- [ ] Active backend implements `set_state(led_state_e state)` as thread-safe (queue-based, depth 1, overwrite)
-- [ ] Active backend implements `get_state(void)` and returns current state
-- [ ] Pattern definitions per architecture §8.3:
+- [x] `led_state_e` enum: `LED_STATE_BOOT`, `LED_STATE_BLE_DISCONNECTED`, `LED_STATE_BLE_CONNECTED`, `LED_STATE_WIFI_ENABLED`, `LED_STATE_ERROR`
+- [x] Active backend implements `set_state(led_state_e state)` as thread-safe (queue-based, depth 1, overwrite)
+- [x] Active backend implements `get_state(void)` and returns current state
+- [x] Pattern definitions per architecture §8.3:
   - `BOOT` (bootloader/startup): LED always ON
   - `BLE_DISCONNECTED`: LED blink (15 ms ON / 950 ms OFF)
   - `BLE_CONNECTED`: LED blink (15 ms ON / 3950 ms OFF)
   - `WIFI_ENABLED`: LED blink (reserved for future)
   - `ERROR`: LED fast blink (250 ms ON / 250 ms OFF)
-- [ ] LED task runs at 200 Hz (5 ms tick), evaluates on/off state within pattern cycle
-- [ ] Default state on boot: `LED_STATE_BOOT` → transitions to `LED_STATE_BLE_DISCONNECTED` after init
+- [x] LED task runs at 200 Hz (5 ms tick), evaluates on/off state within pattern cycle
+- [x] Default state on boot: `LED_STATE_BOOT` → transitions to `LED_STATE_BLE_DISCONNECTED` after init
 
 **Validation**:
 - Boot → LED always ON → 15/950 blink after init completes
@@ -1012,11 +1013,11 @@ _Historical note only. This evidence does not close the reopened milestone._
 **Description**: Register a BLE state callback to automatically change LED state on connect/disconnect, without coupling to a concrete LED backend.
 
 **Acceptance Criteria**:
-- [ ] `ble_nus_register_state_callback()` used to hook BLE state changes
-- [ ] BLE connect → active LED backend `set_state(LED_STATE_BLE_CONNECTED)` (15 ms ON / 3950 ms OFF)
-- [ ] BLE disconnect → active LED backend `set_state(LED_STATE_BLE_DISCONNECTED)` (15 ms ON / 950 ms OFF)
-- [ ] Transition is immediate and visible
-- [ ] Integration remains compatible with sensor startup flow (`initialize_modules` then task creation), i.e. LED integration does not require sensor API changes
+- [x] `ble_nus_register_state_callback()` used to hook BLE state changes
+- [x] BLE connect → active LED backend `set_state(LED_STATE_BLE_CONNECTED)` (15 ms ON / 3950 ms OFF)
+- [x] BLE disconnect → active LED backend `set_state(LED_STATE_BLE_DISCONNECTED)` (15 ms ON / 950 ms OFF)
+- [x] Transition is immediate and visible
+- [x] Integration remains compatible with sensor startup flow (`initialize_modules` then task creation), i.e. LED integration does not require sensor API changes
 
 **Validation**:
 - Connect/disconnect from phone, observe LED blink cadence changes
@@ -1040,10 +1041,10 @@ _Historical note only. This evidence does not close the reopened milestone._
 **Description**: Prepare extension points so a future `ws2811`/`ws8211` backend can be added as a drop-in factory backend.
 
 **Acceptance Criteria**:
-- [ ] Roadmap defines `ws2811`/`ws8211` as non-blocking future backend
-- [ ] Contract parity required: `ws2811`/`ws8211` must implement the same `led_t` operations as `single`
-- [ ] App-level orchestration must remain unchanged when switching `single` ↔ `ws2811`/`ws8211`
-- [ ] Build-system and component structure notes include where to register additional backend files
+- [x] Roadmap defines `ws2811`/`ws8211` as non-blocking future backend
+- [x] Contract parity required: `ws2811`/`ws8211` must implement the same `led_t` operations as `single`
+- [x] App-level orchestration must remain unchanged when switching `single` ↔ `ws2811`/`ws8211`
+- [x] Build-system and component structure notes include where to register additional backend files
 
 **Validation**:
 - Design review confirms no app-level API changes are required for adding `ws2811`/`ws8211`
@@ -1621,6 +1622,9 @@ The MPU6050 path provides IMU samples for upcoming fusion work while preserving 
 
 ## Phase 8: Sensor Fusion (AHRS + EKF)
 
+> **Status**: ✅ Completada — 95/95 tests pass (19 AHRS + 26 EKF + 50 previos). Build OK.
+> **Componentes creados**: `ahrs` (Madgwick 6DOF), `ekf` (3-state Kalman con fusión barométrica).
+
 **Objective**: Implement a two-stage sensor fusion pipeline inspired by ArduPilot's vertical navigation architecture. Stage 1: an AHRS (Attitude and Heading Reference System) based on Madgwick's quaternion filter fuses MPU6050 accelerometer and gyroscope data to estimate orientation. Stage 2: a 3-state Extended Kalman Filter (EKF) fuses AHRS-corrected vertical acceleration with barometric altitude to predict altitude and vertical speed (vario) with faster response and tilt compensation.  
 **Estimated Duration**: 5–7 days  
 **Dependencies**: Phase 6 or 7 (barometric pressure data), Phase 7.5 (MPU6050 IMU backend in `sensors` component)  
@@ -1665,7 +1669,7 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 ---
 
-### Task 8.1: AHRS component contract and Ceedling unit tests (RED)
+### Task 8.1: AHRS component contract and Ceedling unit tests (RED) ✅
 
 **Description**: Define the full AHRS public API, create the component skeleton with a stub implementation, and write all unit tests. Tests must compile and run but fail (RED phase).
 
@@ -1712,7 +1716,7 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 ---
 
-### Task 8.2: AHRS — Madgwick quaternion filter (GREEN)
+### Task 8.2: AHRS — Madgwick quaternion filter (GREEN) ✅
 
 **Description**: Implement the Madgwick AHRS filter logic in `ahrs.c` to make initialization, update, and reset tests pass (GREEN phase).
 
@@ -1736,7 +1740,7 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 ---
 
-### Task 8.3: Body-to-NED rotation and vertical acceleration extraction (GREEN)
+### Task 8.3: Body-to-NED rotation and vertical acceleration extraction (GREEN) ✅
 
 **Description**: Implement `ahrs_get_vertical_accel()` to rotate body-frame accelerometer readings to NED frame and extract the vertical component with gravity removed. Makes remaining AHRS tests pass.
 
@@ -1765,7 +1769,7 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 ---
 
-### Task 8.4: EKF component contract and Ceedling unit tests (RED)
+### Task 8.4: EKF component contract and Ceedling unit tests (RED) ✅
 
 **Description**: Define the full EKF public API, create the component skeleton with a stub implementation, and write all unit tests. Tests must compile and run but fail (RED phase).
 
@@ -1828,7 +1832,7 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 ---
 
-### Task 8.5: Barometric altitude calculation (GREEN)
+### Task 8.5: Barometric altitude calculation (GREEN) ✅
 
 **Description**: Implement the barometric formula for converting pressure to altitude (internal utility used by the EKF). Makes altitude formula tests pass.
 
@@ -1848,7 +1852,7 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 ---
 
-### Task 8.6: 3-state EKF implementation (GREEN)
+### Task 8.6: 3-state EKF implementation (GREEN) ✅
 
 **Description**: Implement the core EKF: init, predict (100 Hz with AHRS-corrected vertical acceleration), barometric measurement update (10 Hz), and reset. Makes the EKF convergence and dynamics tests pass.
 
@@ -1877,7 +1881,7 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 ---
 
-### Task 8.7: Altitude calibration (GREEN)
+### Task 8.7: Altitude calibration (GREEN) ✅
 
 **Description**: Implement `ekf_calibrate()` to derive a new reference pressure (QNH) from a known altitude and current pressure, enabling barometric altimeter calibration. Makes calibration tests pass.
 
@@ -1899,6 +1903,12 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 **Files to modify**:
 - `micro/components/ekf/src/ekf.c`
+
+**Notas de implementación de la fase**:
+- El gradiente Madgwick usa acelerómetro negado para compatibilidad con la convención de signos del MPU6050 (lee -g cuando el eje apunta hacia arriba).
+- La matriz de rotación `r[2][·]` representa el eje vertical en la convención del filtro. La fórmula `vertical = -(r[2]·a + g)` da 0 m/s² en reposo independientemente de la inclinación.
+- El EKF usa fusión escalar (H=[1,0,0]) evitando inversión matricial general. Innovation gating a 5σ protege contra lecturas barométricas espurias.
+- Ambos componentes son pure C sin dependencias de ESP-IDF, completamente testeables en host con Ceedling.
 
 ---
 

@@ -11,13 +11,13 @@ static void quaternion_to_rotation_matrix(const float q[4], float r[3][3])
     float q1q2 = q1 * q2, q1q3 = q1 * q3, q2q3 = q2 * q3;
 
     r[0][0] = q0q0 + q1q1 - q2q2 - q3q3;
-    r[0][1] = 2.0f * (q1q2 + q0q3);
-    r[0][2] = 2.0f * (q1q3 - q0q2);
-    r[1][0] = 2.0f * (q1q2 - q0q3);
+    r[0][1] = 2.0f * (q1q2 - q0q3);
+    r[0][2] = 2.0f * (q1q3 + q0q2);
+    r[1][0] = 2.0f * (q1q2 + q0q3);
     r[1][1] = q0q0 - q1q1 + q2q2 - q3q3;
-    r[1][2] = 2.0f * (q2q3 + q0q1);
-    r[2][0] = 2.0f * (q1q3 + q0q2);
-    r[2][1] = 2.0f * (q2q3 - q0q1);
+    r[1][2] = 2.0f * (q2q3 - q0q1);
+    r[2][0] = 2.0f * (q1q3 - q0q2);
+    r[2][1] = 2.0f * (q2q3 + q0q1);
     r[2][2] = q0q0 - q1q1 - q2q2 + q3q3;
 }
 
