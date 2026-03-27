@@ -81,7 +81,7 @@
   - [x] Task 9.4: Sensor fusion task (100 Hz — AHRS + EKF)
   - [x] Task 9.5: BLE sender task (8 Hz)
   - [x] Task 9.6: Replace simulated provider with real sensor data
-  - [ ] Task 9.7: End-to-end data flow validation
+  - [x] Task 9.7: End-to-end data flow validation
 - [ ] **Phase 10: NVS Configuration**
   - [ ] Task 10.1: Config schema definition and defaults
   - [ ] Task 10.2: NVS read/write with validation
@@ -124,6 +124,8 @@ For every module/component implemented in those phases:
 ---
 
 ## Phase 0: Project Bootstrap
+
+> **Status**: ✅ Completada.
 
 **Objective**: Set up a working ESP-IDF project that compiles, flashes, and runs a "Hello World" on the ESP32-C3 Super Mini.  
 **Estimated Duration**: 2–3 days  
@@ -315,6 +317,8 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 
 ## Phase 1: Software Architecture Design
 
+> **Status**: ✅ Completada.
+
 **Objective**: Define the system architecture and component interfaces.  
 **Estimated Duration**: 2–3 days  
 **Dependencies**: Phase 0 complete
@@ -375,6 +379,8 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 ---
 
 ## Phase 2: LK8EX1 Protocol
+
+> **Status**: ✅ Completada.
 
 **Objective**: Implement the LK8EX1 NMEA sentence formatter with checksum calculation. This is a pure-C component with zero ESP-IDF dependencies, making it the ideal first component to implement and test with Ceedling.  
 **Estimated Duration**: 1–2 days  
@@ -471,6 +477,8 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 ---
 
 ## Phase 3: BLE NUS Service
+
+> **Status**: ✅ Completada — validada con nRF Connect y app Flutter.
 
 **Objective**: Implement Bluetooth Low Energy with NimBLE, advertising the Nordic UART Service (NUS), and supporting TX notifications. Integrate with LK8EX1 to send simulated flight data.  
 **Estimated Duration**: 3–4 days  
@@ -601,7 +609,7 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 - [x] Temporary FreeRTOS task sends simulated `lk8ex1_data_t` every 125 ms
 - [x] Data contains realistic values (pressure ~101325 Pa, vario 0, temp 230)
 - [x] Frames are valid LK8EX1 sentences with correct checksum
-- [ ] Frames received correctly in nRF Connect UART view
+- [x] Frames received correctly in nRF Connect UART view
 
 **Validation**:
 - Receive LK8EX1 sentences in nRF Connect at ~8 Hz rate
@@ -681,6 +689,8 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 
 ## Phase 4: LED Indicator
 
+> **Status**: ✅ Completada — factory + single backend + BLE integration.
+
 **Objective**: Drive the onboard status LED of the ESP32-C3 Super Mini to indicate device state using a single-color blink state machine.  
 **Estimated Duration**: 1–2 days  
 **Dependencies**: Phase 3 (BLE state callbacks for integration)  
@@ -692,6 +702,8 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 ---
 
 ## Phase 3.5: App Debug Stream Fast-Track (P0)
+
+> **Status**: ✅ Completada.
 
 **Objective**: Prioritize app integration by streaming deterministic simulated LK8EX1 frames as early as possible, enabling frame-level debugging from the app before real sensor pipeline completion.
 **Estimated Duration**: 0.5–1 day
@@ -1054,6 +1066,8 @@ _Historical note only. This evidence does not close the reopened milestone._
 
 ## Phase 5: Sensor Factory (Runtime Selection + Shared Contract)
 
+> **Status**: ✅ Completada — factory pattern con Kconfig.
+
 **Objective**: Create the sensor abstraction layer with runtime factory selection (`get_baro_sensor()` / `get_imu_sensor()`) and a shared contract in `sensor.h`. NO `i2c_bus` wrapper — sensor drivers use ESP-IDF I2C directly per architecture decision.  
 **Estimated Duration**: 1–2 days  
 **Dependencies**: Phase 1 (interface contract in `firmware-architecture.md` §4.1)  
@@ -1147,6 +1161,8 @@ _Historical note only. This evidence does not close the reopened milestone._
 ---
 
 ## Phase 6: MS5611 Sensor Driver
+
+> **Status**: ✅ Completada — PROM calibration, ADC reads, compensation math, hardware validada.
 
 **Objective**: Implement a fully functional MS5611 barometric pressure sensor driver with PROM calibration, ADC conversion, and second-order compensation.  
 **Estimated Duration**: 3–4 days  
@@ -1293,6 +1309,8 @@ _Historical note only. This evidence does not close the reopened milestone._
 ---
 
 ## Phase 7: BMP390 Sensor Driver
+
+> **Status**: 🔲 No iniciada — pendiente de hardware.
 
 **Objective**: Implement BMP390 as a new backend inside the existing `sensor` factory architecture (`sensor_baro_t` contract with runtime dispatch by name).  
 **Estimated Duration**: 3–4 days  
@@ -1448,6 +1466,8 @@ _Historical note only. This evidence does not close the reopened milestone._
 ---
 
 ## Phase 7.5: MPU6050 IMU Backend (Sensor Factory Contract)
+
+> **Status**: ✅ Completada — driver + factory + hardware coexistencia con MS5611.
 
 **Objective**: Implement MPU6050 inside the existing `sensors` component using the current `sensor_imu_t` factory contract (`get_imu_sensor()`), then validate coexistence with barometric reads.  
 **Estimated Duration**: 3–4 days  
@@ -2121,6 +2141,8 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 ## Phase 10: NVS Configuration
 
+> **Status**: 🔲 No iniciada.
+
 **Objective**: Implement persistent device configuration with NVS storage and expose a BLE Config Service for remote configuration.  
 **Estimated Duration**: 3–4 days  
 **Dependencies**: Phase 3 (BLE NUS for GATT server), Phase 9 (data pipeline for applying config)  
@@ -2254,6 +2276,8 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 ## Phase 11: Power Optimization
 
+> **Status**: 🔲 No iniciada.
+
 **Objective**: Optimize power consumption for battery operation using light-sleep, BLE interval tuning, and peripheral gating.  
 **Estimated Duration**: 2–3 days  
 **Dependencies**: Phase 9 (data pipeline running), Phase 10 (config for tuning)  
@@ -2386,6 +2410,8 @@ Planning note:
 
 ## Phase 12: Integration & Validation
 
+> **Status**: 🔲 No iniciada.
+
 **Objective**: Full system validation with real-world testing, long-duration stability, and edge case coverage.  
 **Estimated Duration**: 2–3 days  
 **Dependencies**: All previous phases complete
@@ -2465,6 +2491,8 @@ Planning note:
 ---
 
 ## Phase 13: Documentation & Cleanup
+
+> **Status**: 🔲 No iniciada.
 
 **Objective**: Final documentation, code cleanup, and preparation for ongoing development.  
 **Estimated Duration**: 1–2 days  
