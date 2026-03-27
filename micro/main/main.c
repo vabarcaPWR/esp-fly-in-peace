@@ -11,6 +11,9 @@
 #define SENSOR_READ_PERIOD_MS 100U
 #define SENSOR_READ_TASK_STACK_SIZE 3072U
 #define SENSOR_READ_TASK_PRIORITY 4U
+#define IMU_READ_PERIOD_MS 100U
+#define IMU_READ_TASK_STACK_SIZE 3072U
+#define IMU_READ_TASK_PRIORITY 4U
 #define LK8EX1_TX_TASK_STACK_SIZE 4096U
 #define LK8EX1_TX_TASK_PRIORITY 3U
 
@@ -24,7 +27,8 @@ static const led_t *led = NULL;
 typedef struct application_threads_s
 {
     TaskHandle_t lk8ex1_sender_task;
-    TaskHandle_t sensor_read_task;
+    TaskHandle_t baro_read_task;
+    TaskHandle_t imu_read_task;
 } application_threads_t;
 
 static bool startup_step_succeeded(const char *step_name, esp_err_t result)
@@ -42,7 +46,8 @@ static void application_threads_reset(application_threads_t *threads)
         return;
 
     threads->lk8ex1_sender_task = NULL;
-    threads->sensor_read_task = NULL;
+    threads->baro_read_task = NULL;
+    threads->imu_read_task = NULL;
 }
 
 static void sensor_read_task_fn(void *param)
@@ -81,6 +86,46 @@ static void sensor_read_task_fn(void *param)
             ESP_LOGW(TAG, "sensor read error: 0x%x", ret);
         }
         vTaskDelayUntil(&last_wake_tick, pdMS_TO_TICKS(SENSOR_READ_PERIOD_MS));
+    }
+}
+
+static void imu_read_task_fn(void *param)
+{
+    (void)param;
+
+    TickType_t last_wake_tick = xTaskGetTickCount();
+
+    const sensor_imu_t *sensor = get_imu_sensor("MPU6050");
+    if (!sensor)
+    {
+        ESP_LOGW(TAG, "IMU sensor not found");
+        vTaskDelete(NULL);
+        return;
+    }
+
+    if (sensor->init() != ESP_OK)
+    {
+        ESP_LOGW(TAG, "IMU sensor init failed");
+        vTaskDelete(NULL);
+        return;
+    }
+
+    const char *sensor_name = sensor->get_name() ? sensor->get_name() : "unknown";
+
+    while (true)
+    {
+        data_imu_t data = {0};
+        esp_err_t ret = sensor->read(&data);
+        if (ret == ESP_OK)
+        {
+            ESP_LOGI(TAG, "[%s] A=%.2f,%.2f,%.2f m/s2  G=%.3f,%.3f,%.3f rad/s", sensor_name, data.accel_x,
+                     data.accel_y, data.accel_z, data.gyro_x, data.gyro_y, data.gyro_z);
+        }
+        else
+        {
+            ESP_LOGW(TAG, "IMU read error: 0x%x", ret);
+        }
+        vTaskDelayUntil(&last_wake_tick, pdMS_TO_TICKS(IMU_READ_PERIOD_MS));
     }
 }
 
@@ -150,13 +195,26 @@ static esp_err_t create_lk8ex1_sender_thread(application_threads_t *threads)
     return ESP_OK;
 }
 
-static esp_err_t create_sensor_read_thread(application_threads_t *threads)
+static esp_err_t create_baro_read_thread(application_threads_t *threads)
 {
     if (!threads)
         return ESP_ERR_INVALID_ARG;
 
     BaseType_t task_created = xTaskCreate(sensor_read_task_fn, "sensor_read", SENSOR_READ_TASK_STACK_SIZE, NULL,
-                                          SENSOR_READ_TASK_PRIORITY, &threads->sensor_read_task);
+                                          SENSOR_READ_TASK_PRIORITY, &threads->baro_read_task);
+    if (task_created != pdPASS)
+        return ESP_FAIL;
+
+    return ESP_OK;
+}
+
+static esp_err_t create_imu_read_thread(application_threads_t *threads)
+{
+    if (!threads)
+        return ESP_ERR_INVALID_ARG;
+
+    BaseType_t task_created = xTaskCreate(imu_read_task_fn, "imu_read", IMU_READ_TASK_STACK_SIZE, NULL,
+                                          IMU_READ_TASK_PRIORITY, &threads->imu_read_task);
     if (task_created != pdPASS)
         return ESP_FAIL;
 
@@ -166,10 +224,9 @@ static esp_err_t create_sensor_read_thread(application_threads_t *threads)
 static esp_err_t create_threads(application_threads_t *threads)
 {
     esp_err_t sender_result = create_lk8ex1_sender_thread(threads);
-    if (sender_result != ESP_OK)
-        return sender_result;
-
-    return create_sensor_read_thread(threads);
+    sender_result == ESP_OK ? sender_result = create_baro_read_thread(threads) : sender_result;
+    sender_result == ESP_OK ? sender_result = create_imu_read_thread(threads) : sender_result;
+    return sender_result;
 }
 
 static esp_err_t launch_threads(const application_threads_t *threads)
