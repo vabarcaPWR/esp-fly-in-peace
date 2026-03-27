@@ -67,13 +67,13 @@
   - [x] Task 7.5.4: Ceedling unit tests for MPU6050 backend/factory behavior
   - [x] Task 7.5.5: Hardware integration with barometric read loop coexistence
 - [ ] **Phase 8: Sensor Fusion (AHRS + EKF)**
-  - [ ] Task 8.1: AHRS — Madgwick quaternion filter
-  - [ ] Task 8.2: Body-to-NED rotation and vertical acceleration extraction
-  - [ ] Task 8.3: 3-state EKF implementation (altitude, vario, accel_bias)
-  - [ ] Task 8.4: Barometric altitude calculation
-  - [ ] Task 8.5: Altitude calibration (inverse barometric formula)
-  - [ ] Task 8.6: Ceedling unit tests for AHRS
-  - [ ] Task 8.7: Ceedling unit tests for EKF with synthetic data
+  - [ ] Task 8.1: AHRS component contract and Ceedling unit tests (RED)
+  - [ ] Task 8.2: AHRS — Madgwick quaternion filter (GREEN)
+  - [ ] Task 8.3: Body-to-NED rotation and vertical acceleration extraction (GREEN)
+  - [ ] Task 8.4: EKF component contract and Ceedling unit tests (RED)
+  - [ ] Task 8.5: Barometric altitude calculation (GREEN)
+  - [ ] Task 8.6: 3-state EKF implementation (GREEN)
+  - [ ] Task 8.7: Altitude calibration (GREEN)
 - [ ] **Phase 9: Data Pipeline**
   - [ ] Task 9.1: Shared flight data structure and mutex
   - [ ] Task 9.2: Calibration queue (fusion_task consumer)
@@ -1647,6 +1647,11 @@ $$\mathbf{x} = \begin{bmatrix} h \\ \dot{h} \\ b_a \end{bmatrix}, \quad
 
 Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis accelerometer bias.
 
+**Metodología TDD (RED → GREEN → REFACTOR)**:
+- Cada componente sigue el ciclo: (1) definir contrato API en header, (2) escribir tests que compilen pero fallen (RED), (3) implementar hasta que todos los tests pasen (GREEN), (4) refactorizar manteniendo tests verdes.
+- Los tasks RED crean el esqueleto del componente (CMakeLists, header, stub `.c`) y todos los tests.
+- Los tasks GREEN implementan la lógica hasta que los tests correspondientes pasen.
+
 **Refactorización (obligatoria)**:
 - Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
 - Reducir duplicación y complejidad accidental sin cambiar comportamiento funcional.
@@ -1656,29 +1661,44 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 ---
 
-### Task 8.1: AHRS — Madgwick quaternion filter
+### Task 8.1: AHRS component contract and Ceedling unit tests (RED)
 
-**Description**: Implement a Madgwick AHRS filter to estimate orientation (quaternion) from MPU6050 accelerometer and gyroscope data. This provides the body-to-NED rotation matrix needed for tilt-compensated vertical acceleration.
+**Description**: Define the full AHRS public API, create the component skeleton with a stub implementation, and write all unit tests. Tests must compile and run but fail (RED phase).
 
 **Acceptance Criteria**:
 - [ ] Component `ahrs` created in `micro/components/ahrs/`
-- [ ] `ahrs_cfg_t` struct: `beta` (default 0.1 — filter gain, trades convergence speed vs noise), `sample_rate_hz` (default 100)
-- [ ] `ahrs_state_t` struct: quaternion `q[4]` (w, x, y, z), rotation matrix `r[3][3]` (body→NED), `initialized` flag
-- [ ] `esp_err_t ahrs_init(ahrs_state_t *state, const ahrs_cfg_t *cfg)` — initializes quaternion to identity `[1,0,0,0]`
-- [ ] `esp_err_t ahrs_update(ahrs_state_t *state, const ahrs_cfg_t *cfg, const data_imu_t *imu)` — one Madgwick filter iteration using accel + gyro
-- [ ] `esp_err_t ahrs_reset(ahrs_state_t *state)` — resets quaternion to identity
-- [ ] Quaternion is normalized after each update to prevent drift
-- [ ] Rotation matrix `r[3][3]` updated from quaternion after each iteration
-- [ ] Pure C, no ESP-IDF dependencies (fully host-testable)
-- [ ] All math uses `float` (not `double`)
+- [ ] `micro/components/ahrs/CMakeLists.txt` registers the component (no ESP-IDF dependencies beyond `esp_err.h` types)
+- [ ] `micro/components/ahrs/inc/ahrs.h` defines:
+  - `ahrs_cfg_t` struct: `beta` (default 0.1 — filter gain), `sample_rate_hz` (default 100)
+  - `ahrs_state_t` struct: quaternion `q[4]` (w, x, y, z), rotation matrix `r[3][3]` (body→NED), `initialized` flag
+  - `esp_err_t ahrs_init(ahrs_state_t *state, const ahrs_cfg_t *cfg)`
+  - `esp_err_t ahrs_update(ahrs_state_t *state, const ahrs_cfg_t *cfg, const data_imu_t *imu)`
+  - `esp_err_t ahrs_reset(ahrs_state_t *state)`
+  - `esp_err_t ahrs_get_vertical_accel(const ahrs_state_t *state, const data_imu_t *imu, float *vertical_accel_ms2)`
+- [ ] `micro/components/ahrs/src/ahrs.c` created as stub (functions return `ESP_ERR_NOT_SUPPORTED`)
+- [ ] Header remains C/C++ compatible (`extern "C"` intact)
+- [ ] Test file `micro/test/test/test_ahrs.c` exists with all test cases:
+  - Test: init with NULL state/cfg returns `ESP_ERR_INVALID_ARG`
+  - Test: init sets quaternion to identity `[1, 0, 0, 0]`
+  - Test: stationary IMU (accel = `[0, 0, -9.81]`, gyro = `[0, 0, 0]`) → quaternion stays near identity
+  - Test: vertical acceleration extraction at rest → ≈ 0 m/s²
+  - Test: vertical acceleration extraction with 30° roll → still ≈ 0 m/s² (tilt compensation works)
+  - Test: known rotation sequence converges to expected orientation
+  - Test: reset clears state properly
+  - Test: `ahrs_get_vertical_accel` with uninitialized state returns `ESP_ERR_INVALID_STATE`
+- [ ] Tests compile and run — all FAIL (RED)
+- [ ] `./scripts/micro/build.sh` succeeds (component compiles)
+- [ ] Pure C, no ESP-IDF dependencies, all math uses `float` (not `double`)
 
 **Validation**:
-- Unit tests show convergence to correct orientation with synthetic gyro + accel data
+- `ceedling test:test_ahrs` compiles and runs — tests fail as expected (RED)
+- `./scripts/micro/build.sh` succeeds
 
 **Files to create**:
 - `micro/components/ahrs/CMakeLists.txt`
 - `micro/components/ahrs/inc/ahrs.h`
-- `micro/components/ahrs/src/ahrs.c`
+- `micro/components/ahrs/src/ahrs.c` (stub)
+- `micro/test/test/test_ahrs.c`
 
 **Notes**:
 - Madgwick filter selected over Mahony for better accuracy with low-cost MEMS sensors.
@@ -1688,26 +1708,51 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 ---
 
-### Task 8.2: Body-to-NED rotation and vertical acceleration extraction
+### Task 8.2: AHRS — Madgwick quaternion filter (GREEN)
 
-**Description**: Implement the function that rotates body-frame accelerometer readings to NED (North-East-Down) frame using the AHRS quaternion, then extracts the vertical (Down) component with gravity removed.
+**Description**: Implement the Madgwick AHRS filter logic in `ahrs.c` to make initialization, update, and reset tests pass (GREEN phase).
 
 **Acceptance Criteria**:
-- [ ] `esp_err_t ahrs_get_vertical_accel(const ahrs_state_t *state, const data_imu_t *imu, float *vertical_accel_ms2)` implemented
+- [ ] `ahrs_init()` initializes quaternion to identity `[1,0,0,0]`, sets `initialized = true`
+- [ ] `ahrs_update()` performs one Madgwick filter iteration using accel + gyro:
+  - Normalizes accelerometer vector
+  - Computes gradient descent step from accelerometer (gravity reference)
+  - Integrates gyroscope with correction: `q_dot = 0.5 * q ⊗ gyro - beta * gradient`
+  - Normalizes quaternion after integration
+  - Updates rotation matrix `r[3][3]` from quaternion
+- [ ] `ahrs_reset()` resets quaternion to identity, clears `initialized` flag
+- [ ] Quaternion normalization prevents drift accumulation
+- [ ] All AHRS init, update, reset, and stationary convergence tests from Task 8.1 pass (GREEN)
+
+**Validation**:
+- `ceedling test:test_ahrs` — init, update, reset, and stationary tests GREEN
+
+**Files to modify**:
+- `micro/components/ahrs/src/ahrs.c`
+
+---
+
+### Task 8.3: Body-to-NED rotation and vertical acceleration extraction (GREEN)
+
+**Description**: Implement `ahrs_get_vertical_accel()` to rotate body-frame accelerometer readings to NED frame and extract the vertical component with gravity removed. Makes remaining AHRS tests pass.
+
+**Acceptance Criteria**:
+- [ ] `ahrs_get_vertical_accel()` implemented
 - [ ] Uses rotation matrix row 3 (Down axis) to project body-frame accel to vertical: $a_z^{NED} = R_{20} \cdot a_x + R_{21} \cdot a_y + R_{22} \cdot a_z$
 - [ ] Gravity compensation: $a_{vertical} = a_z^{NED} + g$ (NED convention: Down is positive, gravity adds +9.81 to cancel the accelerometer's -9.81 reading at rest)
 - [ ] Sign convention: positive = upward acceleration (climbing), negative = downward (sinking)
 - [ ] Output is in m/s² with gravity removed — at rest, output ≈ 0 m/s²
 - [ ] Handles edge case: AHRS not initialized → returns `ESP_ERR_INVALID_STATE`
-- [ ] Pure C, no ESP-IDF dependencies
+- [ ] All AHRS tests from Task 8.1 pass (GREEN) — including:
+  - vertical accel at rest ≈ 0 m/s²
+  - vertical accel with 30° roll ≈ 0 m/s² (tilt compensation)
 
 **Validation**:
+- `ceedling test:test_ahrs` — ALL tests GREEN
 - At rest (accel = `[0, 0, -9.81]` body, no rotation): output ≈ 0 m/s²
 - At rest with 30° roll: body accel has XZ components, but output still ≈ 0 m/s² (tilt compensation works)
-- Upward acceleration (e.g., thermal entry): output > 0 m/s²
 
 **Files to modify**:
-- `micro/components/ahrs/inc/ahrs.h`
 - `micro/components/ahrs/src/ahrs.c`
 
 **Notes**:
@@ -1716,53 +1761,60 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 ---
 
-### Task 8.3: 3-state EKF implementation (altitude, vario, accel_bias)
+### Task 8.4: EKF component contract and Ceedling unit tests (RED)
 
-**Description**: Implement a 3-state Extended Kalman Filter for vertical navigation per ArduPilot's vertical channel approach. The EKF uses AHRS-corrected vertical acceleration for prediction and barometric altitude for measurement updates.
+**Description**: Define the full EKF public API, create the component skeleton with a stub implementation, and write all unit tests. Tests must compile and run but fail (RED phase).
 
 **Acceptance Criteria**:
 - [ ] Component `ekf` created in `micro/components/ekf/`
-- [ ] `ekf_cfg_t` struct:
-  - `q_altitude` (process noise for altitude, default: 0.1)
-  - `q_vario` (process noise for vario, default: 0.5)
-  - `q_accel_bias` (process noise for accel bias, default: 0.001)
-  - `r_altitude` (baro measurement noise, default: 0.5 m²)
-  - `reference_pressure_pa` (QNH reference, default: 101325.0)
-- [ ] `ekf_state_t` struct:
-  - `altitude_m` (estimated altitude in meters)
-  - `vario_ms` (estimated vertical speed in m/s)
-  - `accel_bias_ms2` (estimated Z-axis accelerometer bias in m/s²)
-  - `p[3][3]` (error covariance matrix, 3×3)
-  - `last_predict_us` (timestamp of last prediction)
-  - `last_baro_us` (timestamp of last barometric update)
-  - `initialized` (first sample flag)
-- [ ] `esp_err_t ekf_init(ekf_state_t *state, const ekf_cfg_t *cfg)` — initializes state, covariance = scaled identity
-- [ ] `esp_err_t ekf_predict(ekf_state_t *state, const ekf_cfg_t *cfg, float vertical_accel_ms2, int64_t timestamp_us)` — prediction step using AHRS-corrected vertical acceleration (called at 100 Hz):
-  - Removes estimated bias: `a_corrected = vertical_accel - accel_bias`
-  - State prediction: `altitude += vario * dt + 0.5 * a_corrected * dt²`, `vario += a_corrected * dt`, `bias unchanged`
-  - Covariance prediction: `P = F * P * F' + Q`
-- [ ] `esp_err_t ekf_update_baro(ekf_state_t *state, const ekf_cfg_t *cfg, float pressure_pa, int64_t timestamp_us)` — barometric measurement update (called at 10 Hz):
-  - Converts pressure to altitude using barometric formula with `reference_pressure_pa`
-  - Innovation: `y = baro_altitude - predicted_altitude`
-  - Innovation gating: reject update if innovation exceeds 5σ (ArduPilot `HGT_I_GATE` pattern)
-  - Scalar Kalman gain: `K = P * H' / (H * P * H' + R)` with `H = [1, 0, 0]`
-  - State correction: `x += K * y`
-  - Covariance correction: `P = (I - K * H) * P`
-- [ ] `esp_err_t ekf_reset(ekf_state_t *state)` — clears state
-- [ ] `esp_err_t ekf_calibrate(ekf_cfg_t *cfg, ekf_state_t *state, float known_altitude_m, float current_pressure_pa)` — computes new P0 via inverse barometric formula, resets filter
-  - Validates: altitude ∈ [-500, 10000] m, pressure ∈ [20000, 120000] Pa
-- [ ] First baro update initializes altitude from pressure, marks `initialized = true`
-- [ ] Pure C, no ESP-IDF dependencies (fully host-testable)
-- [ ] All math uses `float` (not `double`)
+- [ ] `micro/components/ekf/CMakeLists.txt` registers the component (no ESP-IDF dependencies beyond `esp_err.h` types)
+- [ ] `micro/components/ekf/inc/ekf.h` defines:
+  - `ekf_cfg_t` struct:
+    - `q_altitude` (process noise for altitude, default: 0.1)
+    - `q_vario` (process noise for vario, default: 0.5)
+    - `q_accel_bias` (process noise for accel bias, default: 0.001)
+    - `r_altitude` (baro measurement noise, default: 0.5 m²)
+    - `reference_pressure_pa` (QNH reference, default: 101325.0)
+  - `ekf_state_t` struct:
+    - `altitude_m` (estimated altitude in meters)
+    - `vario_ms` (estimated vertical speed in m/s)
+    - `accel_bias_ms2` (estimated Z-axis accelerometer bias in m/s²)
+    - `p[3][3]` (error covariance matrix, 3×3)
+    - `last_predict_us` (timestamp of last prediction)
+    - `last_baro_us` (timestamp of last barometric update)
+    - `initialized` (first sample flag)
+  - `esp_err_t ekf_init(ekf_state_t *state, const ekf_cfg_t *cfg)`
+  - `esp_err_t ekf_predict(ekf_state_t *state, const ekf_cfg_t *cfg, float vertical_accel_ms2, int64_t timestamp_us)`
+  - `esp_err_t ekf_update_baro(ekf_state_t *state, const ekf_cfg_t *cfg, float pressure_pa, int64_t timestamp_us)`
+  - `esp_err_t ekf_reset(ekf_state_t *state)`
+  - `esp_err_t ekf_calibrate(ekf_cfg_t *cfg, ekf_state_t *state, float known_altitude_m, float current_pressure_pa)`
+- [ ] `micro/components/ekf/src/ekf.c` created as stub (functions return `ESP_ERR_NOT_SUPPORTED`)
+- [ ] Header remains C/C++ compatible (`extern "C"` intact)
+- [ ] Test file `micro/test/test/test_ekf.c` exists with all test cases:
+  - Test: init with NULL state/cfg returns `ESP_ERR_INVALID_ARG`
+  - Test: altitude formula produces correct results (101325 Pa → 0 m, 89876 Pa → ~1000 m, 79501 Pa → ~2000 m)
+  - Test: constant pressure + zero vertical accel → altitude stable, vario ≈ 0
+  - Test: upward acceleration → positive vario, altitude increases
+  - Test: downward acceleration → negative vario, altitude decreases
+  - Test: EKF predict at 100 Hz + baro update at 10 Hz → converges to correct altitude
+  - Test: accel bias estimation converges with constant bias injected
+  - Test: innovation gating rejects spurious baro reading (5σ gate)
+  - Test: `ekf_calibrate()` with known altitude derives correct P0
+  - Test: `ekf_calibrate()` rejects out-of-range altitude/pressure
+  - Test: `ekf_reset()` clears state properly
+- [ ] Tests compile and run — all FAIL (RED)
+- [ ] `./scripts/micro/build.sh` succeeds (component compiles)
+- [ ] Pure C, no ESP-IDF dependencies, all math uses `float` (not `double`)
 
 **Validation**:
-- Unit tests show convergence and correct vario derivation
-- EKF predict at 100 Hz + baro update at 10 Hz → smooth altitude estimation
+- `ceedling test:test_ekf` compiles and runs — tests fail as expected (RED)
+- `./scripts/micro/build.sh` succeeds
 
 **Files to create**:
 - `micro/components/ekf/CMakeLists.txt`
 - `micro/components/ekf/inc/ekf.h`
-- `micro/components/ekf/src/ekf.c`
+- `micro/components/ekf/src/ekf.c` (stub)
+- `micro/test/test/test_ekf.c`
 
 **Notes**:
 - The 3×3 state system avoids general matrix inversion: the baro measurement update uses scalar innovation (`H = [1, 0, 0]`), so the Kalman gain reduces to the first column of P divided by `(P[0][0] + R)`.
@@ -1772,9 +1824,9 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 ---
 
-### Task 8.4: Barometric altitude calculation
+### Task 8.5: Barometric altitude calculation (GREEN)
 
-**Description**: Implement the barometric formula for converting pressure to altitude (shared utility used by the EKF).
+**Description**: Implement the barometric formula for converting pressure to altitude (internal utility used by the EKF). Makes altitude formula tests pass.
 
 **Acceptance Criteria**:
 - [ ] Internal function converts `pressure_pa` to altitude in meters
@@ -1782,83 +1834,67 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 - [ ] Reference pressure $P_0$ taken from `ekf_cfg_t.reference_pressure_pa` (default: 101325 Pa)
 - [ ] Input: `float pressure_pa`, output: `float altitude_m`
 - [ ] Pure function, no side effects
+- [ ] Altitude formula tests from Task 8.4 pass (GREEN): 101325 Pa → 0 m, 89876 Pa → ~1000 m, 79501 Pa → ~2000 m
 
 **Validation**:
-- 101325 Pa → 0 m, 89876 Pa → ~1000 m, 79501 Pa → ~2000 m
+- `ceedling test:test_ekf` — altitude formula tests GREEN
+
+**Files to modify**:
+- `micro/components/ekf/src/ekf.c`
 
 ---
 
-### Task 8.5: Altitude calibration (inverse barometric formula)
+### Task 8.6: 3-state EKF implementation (GREEN)
 
-**Description**: Implement `ekf_calibrate()` to derive a new reference pressure (QNH) from a known altitude and current pressure, enabling barometric altimeter calibration.
+**Description**: Implement the core EKF: init, predict (100 Hz with AHRS-corrected vertical acceleration), barometric measurement update (10 Hz), and reset. Makes the EKF convergence and dynamics tests pass.
 
 **Acceptance Criteria**:
-- [ ] `esp_err_t ekf_calibrate(ekf_cfg_t *cfg, ekf_state_t *state, float known_altitude_m, float current_pressure_pa)` implemented
+- [ ] `ekf_init()` initializes state to zero, covariance to scaled identity, marks `initialized = false`
+- [ ] `ekf_predict()` — prediction step using AHRS-corrected vertical acceleration (called at 100 Hz):
+  - Removes estimated bias: `a_corrected = vertical_accel - accel_bias`
+  - State prediction: `altitude += vario * dt + 0.5 * a_corrected * dt²`, `vario += a_corrected * dt`, `bias unchanged`
+  - Covariance prediction: `P = F * P * F' + Q`
+- [ ] `ekf_update_baro()` — barometric measurement update (called at 10 Hz):
+  - Converts pressure to altitude using barometric formula with `reference_pressure_pa`
+  - Innovation: `y = baro_altitude - predicted_altitude`
+  - Innovation gating: reject update if innovation exceeds 5σ (ArduPilot `HGT_I_GATE` pattern)
+  - Scalar Kalman gain: `K = P * H' / (H * P * H' + R)` with `H = [1, 0, 0]`
+  - State correction: `x += K * y`
+  - Covariance correction: `P = (I - K * H) * P`
+- [ ] First baro update initializes altitude from pressure, marks `initialized = true`
+- [ ] `ekf_reset()` clears state and covariance
+- [ ] All EKF dynamics tests from Task 8.4 pass (GREEN): constant pressure stable, up/down accel, predict+update convergence, bias estimation, innovation gating, reset
+
+**Validation**:
+- `ceedling test:test_ekf` — EKF dynamics tests GREEN
+
+**Files to modify**:
+- `micro/components/ekf/src/ekf.c`
+
+---
+
+### Task 8.7: Altitude calibration (GREEN)
+
+**Description**: Implement `ekf_calibrate()` to derive a new reference pressure (QNH) from a known altitude and current pressure, enabling barometric altimeter calibration. Makes calibration tests pass.
+
+**Acceptance Criteria**:
+- [ ] `ekf_calibrate()` implemented
 - [ ] Computes P0 using inverse barometric formula: $P_0 = P / (1 - h/44330)^{5.255}$
 - [ ] Stores result in `cfg->reference_pressure_pa`
 - [ ] Resets filter state (`ekf_reset`) so next update uses new P0 immediately
 - [ ] Validates inputs: `known_altitude_m` ∈ [-500, 10000], `current_pressure_pa` ∈ [20000, 120000]
 - [ ] Returns `ESP_ERR_INVALID_ARG` for out-of-range values; P0 unchanged on error
-- [ ] Pure function, no ESP-IDF dependencies
+- [ ] All calibration tests from Task 8.4 pass (GREEN):
+  - Calibrate at sea level (0 m, 101325 Pa) → P0 = 101325
+  - Calibrate at 500 m with 95461 Pa → P0 ≈ 101325
+  - Reject out-of-range altitude/pressure
 
 **Validation**:
-- Calibrate at sea level (0 m, 101325 Pa) → P0 = 101325
-- Calibrate at 500 m with 95461 Pa → P0 ≈ 101325
-- After calibration, `ekf_update_baro()` produces altitude matching known value
+- `ceedling test:test_ekf` — ALL tests GREEN
+- `./scripts/micro/test.sh` — full suite green
 
 **Files to modify**:
-- `micro/components/ekf/inc/ekf.h`
 - `micro/components/ekf/src/ekf.c`
-
----
-
-### Task 8.6: Ceedling unit tests for AHRS
-
-**Description**: Write comprehensive unit tests for the Madgwick AHRS filter.
-
-**Acceptance Criteria**:
-- [ ] Test file `micro/test/test/test_ahrs.c` exists
-- [ ] Test: init sets quaternion to identity `[1, 0, 0, 0]`
-- [ ] Test: stationary IMU (accel = `[0, 0, -9.81]`, gyro = `[0, 0, 0]`) → quaternion stays near identity
-- [ ] Test: vertical acceleration extraction at rest → ≈ 0 m/s²
-- [ ] Test: vertical acceleration extraction with 30° roll → still ≈ 0 m/s² (tilt compensation works)
-- [ ] Test: known rotation sequence converges to expected orientation
-- [ ] Test: init with NULL state returns `ESP_ERR_INVALID_ARG`
-- [ ] Test: reset clears state properly
-- [ ] All tests pass in `ceedling test:all`
-
-**Validation**:
-- Run `./scripts/micro/test.sh` — all tests green
-
-**Files to create**:
-- `micro/test/test/test_ahrs.c`
-
----
-
-### Task 8.7: Ceedling unit tests for EKF with synthetic data
-
-**Description**: Write comprehensive unit tests for the 3-state EKF.
-
-**Acceptance Criteria**:
-- [ ] Test file `micro/test/test/test_ekf.c` exists
-- [ ] Test: constant pressure + zero vertical accel → altitude stable, vario ≈ 0
-- [ ] Test: altitude formula produces correct results for known pressures
-- [ ] Test: upward acceleration → positive vario, altitude increases
-- [ ] Test: downward acceleration → negative vario, altitude decreases
-- [ ] Test: EKF predict at 100 Hz + baro update at 10 Hz → converges to correct altitude
-- [ ] Test: accel bias estimation converges with constant bias injected
-- [ ] Test: innovation gating rejects spurious baro reading (5σ gate)
-- [ ] Test: `ekf_calibrate()` with known altitude derives correct P0
-- [ ] Test: `ekf_calibrate()` rejects out-of-range altitude/pressure
-- [ ] Test: `ekf_reset()` clears state properly
-- [ ] Test: init with NULL state returns `ESP_ERR_INVALID_ARG`
-- [ ] All tests pass in `ceedling test:all`
-
-**Validation**:
-- Run `./scripts/micro/test.sh` — all tests green
-
-**Files to create**:
-- `micro/test/test/test_ekf.c`
 
 ---
 
