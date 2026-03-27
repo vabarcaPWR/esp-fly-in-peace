@@ -22,6 +22,26 @@ menu "Sensor driver"
                 Resolution: 24-bit, accuracy ±0.5 hPa. Lower noise than MS5611.
     endchoice
 
+    choice IMU_DRIVER
+        prompt "IMU sensor driver"
+        default IMU_MPU6050
+        help
+            Select the inertial measurement unit (IMU) connected to the I2C bus.
+            Choose "None" to build without IMU support.
+
+        config IMU_MPU6050
+            bool "MPU6050"
+            help
+                InvenSense MPU6050 6-axis IMU (accelerometer + gyroscope).
+                I2C address: 0x68 (AD0 low) or 0x69 (AD0 high).
+                Accel range: ±2 g. Gyro range: ±250 °/s.
+
+        config IMU_NONE
+            bool "None"
+            help
+                No IMU sensor. Fusion tasks will degrade to baro-only mode.
+    endchoice
+
     config SENSOR_I2C_SDA_GPIO
         int "I2C SDA GPIO number"
         default 6

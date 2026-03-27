@@ -94,8 +94,8 @@ static void imu_read_task_fn(void *param)
         data_imu_t data = {0};
         esp_err_t ret = sensor->read(&data);
         if (ret == ESP_OK)
-            ESP_LOGI(TAG, "[%s] A=%.2f,%.2f,%.2f m/s2  G=%.3f,%.3f,%.3f rad/s", sensor_name, data.accel_x,
-                     data.accel_y, data.accel_z, data.gyro_x, data.gyro_y, data.gyro_z);
+            ESP_LOGI(TAG, "[%s] A=%.2f,%.2f,%.2f m/s2  G=%.3f,%.3f,%.3f rad/s", sensor_name, data.accel_x, data.accel_y,
+                     data.accel_z, data.gyro_x, data.gyro_y, data.gyro_z);
         else
             ESP_LOGW(TAG, "IMU read error: 0x%x", ret);
 
@@ -135,7 +135,9 @@ static void ble_connection_led_state_handler(bool connected, uint16_t conn_handl
 
 static esp_err_t initialize_sensors(void)
 {
+#ifdef CONFIG_SENSOR_MS5611
     baro_sensor = get_baro_sensor("ms5611");
+#endif
     if (baro_sensor)
     {
         esp_err_t result = baro_sensor->init();
@@ -146,7 +148,9 @@ static esp_err_t initialize_sensors(void)
         }
     }
 
+#ifdef CONFIG_IMU_MPU6050
     imu_sensor = get_imu_sensor("MPU6050");
+#endif
     if (imu_sensor)
     {
         esp_err_t result = imu_sensor->init();
@@ -212,9 +216,8 @@ static esp_err_t create_baro_read_thread(application_threads_t *threads)
     if (!baro_sensor)
         return ESP_OK;
 
-    BaseType_t task_created =
-        xTaskCreate(baro_read_task_fn, "baro_read", SENSOR_READ_TASK_STACK_SIZE, (void *)baro_sensor,
-                    SENSOR_READ_TASK_PRIORITY, &threads->baro_read_task);
+    BaseType_t task_created = xTaskCreate(baro_read_task_fn, "baro_read", SENSOR_READ_TASK_STACK_SIZE,
+                                          (void *)baro_sensor, SENSOR_READ_TASK_PRIORITY, &threads->baro_read_task);
     if (task_created != pdPASS)
         return ESP_FAIL;
 
