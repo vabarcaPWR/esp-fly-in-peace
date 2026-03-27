@@ -41,6 +41,7 @@ extern "C"
         const char *(*get_name)(void);
     } sensor_imu_t;
 
+    esp_err_t sensor_i2c_bus_init(void);
     const sensor_baro_t *get_baro_sensor(const char *sensor_name);
     const sensor_imu_t *get_imu_sensor(const char *sensor_name);
 

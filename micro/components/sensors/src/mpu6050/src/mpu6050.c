@@ -8,6 +8,7 @@
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "i2c_bus.h"
 
 static bool mpu6050_initialized = false;
 
@@ -18,15 +19,6 @@ static bool mpu6050_initialized = false;
 #define MPU6050_HAS_I2C_MASTER_API 0
 #endif
 
-#ifndef CONFIG_SENSOR_I2C_INTERNAL_PULLUP
-#define CONFIG_SENSOR_I2C_INTERNAL_PULLUP 0
-#endif
-
-#ifndef CONFIG_SENSOR_I2C_ALLOW_PD
-#define CONFIG_SENSOR_I2C_ALLOW_PD 0
-#endif
-
-#define MPU6050_I2C_PORT I2C_NUM_0
 #define MPU6050_I2C_ADDR 0x68
 #define MPU6050_I2C_FREQ_HZ 400000
 #define MPU6050_WHO_AM_I_REG 0x75
@@ -49,7 +41,6 @@ typedef struct mpu6050_context_s
 {
     bool i2c_ready;
 #if MPU6050_HAS_I2C_MASTER_API
-    i2c_master_bus_handle_t i2c_bus_handle;
     i2c_master_dev_handle_t i2c_dev_handle;
 #endif
 } mpu6050_context_t;
@@ -57,7 +48,6 @@ typedef struct mpu6050_context_s
 static mpu6050_context_t mpu6050_ctx = {
     .i2c_ready = false,
 #if MPU6050_HAS_I2C_MASTER_API
-    .i2c_bus_handle = NULL,
     .i2c_dev_handle = NULL,
 #endif
 };
@@ -83,23 +73,9 @@ static esp_err_t mpu6050_read_register(uint8_t reg, uint8_t *data, size_t len)
 
 static esp_err_t mpu6050_i2c_init(void)
 {
-    i2c_master_bus_config_t bus_config = {
-        .clk_source = I2C_CLK_SRC_DEFAULT,
-        .i2c_port = MPU6050_I2C_PORT,
-        .scl_io_num = CONFIG_SENSOR_I2C_SCL_GPIO,
-        .sda_io_num = CONFIG_SENSOR_I2C_SDA_GPIO,
-        .glitch_ignore_cnt = 7,
-        .flags.enable_internal_pullup = CONFIG_SENSOR_I2C_INTERNAL_PULLUP,
-    };
-
-    esp_err_t result = i2c_new_master_bus(&bus_config, &mpu6050_ctx.i2c_bus_handle);
-    if (result == ESP_ERR_INVALID_STATE)
-    {
-        ESP_LOGW(TAG, "I2C bus already initialized, reusing");
-        result = ESP_OK;
-    }
-    if (result != ESP_OK)
-        return result;
+    i2c_master_bus_handle_t bus = sensor_i2c_bus_get_handle();
+    if (!bus)
+        return ESP_ERR_INVALID_STATE;
 
     i2c_device_config_t dev_config = {
         .dev_addr_length = I2C_ADDR_BIT_LEN_7,
@@ -107,7 +83,7 @@ static esp_err_t mpu6050_i2c_init(void)
         .scl_speed_hz = MPU6050_I2C_FREQ_HZ,
     };
 
-    return i2c_master_bus_add_device(mpu6050_ctx.i2c_bus_handle, &dev_config, &mpu6050_ctx.i2c_dev_handle);
+    return i2c_master_bus_add_device(bus, &dev_config, &mpu6050_ctx.i2c_dev_handle);
 }
 
 static int16_t mpu6050_raw_from_bytes(uint8_t high, uint8_t low)

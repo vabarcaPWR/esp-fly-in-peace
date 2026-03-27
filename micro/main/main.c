@@ -23,6 +23,8 @@
 
 static const char *TAG = "main";
 static const led_t *led = NULL;
+static const sensor_baro_t *baro_sensor = NULL;
+static const sensor_imu_t *imu_sensor = NULL;
 
 typedef struct application_threads_s
 {
@@ -50,27 +52,16 @@ static void application_threads_reset(application_threads_t *threads)
     threads->imu_read_task = NULL;
 }
 
-static void sensor_read_task_fn(void *param)
+static void baro_read_task_fn(void *param)
 {
-    (void)param;
-
-    TickType_t last_wake_tick = xTaskGetTickCount();
-
-    const sensor_baro_t *sensor = get_baro_sensor("ms5611");
+    const sensor_baro_t *sensor = (const sensor_baro_t *)param;
     if (!sensor)
     {
-        ESP_LOGW(TAG, "Barometric sensor not found");
         vTaskDelete(NULL);
         return;
     }
 
-    if (sensor->init() != ESP_OK)
-    {
-        ESP_LOGW(TAG, "Barometric sensor init failed");
-        vTaskDelete(NULL);
-        return;
-    }
-
+    TickType_t last_wake_tick = xTaskGetTickCount();
     const char *sensor_name = sensor->get_name() ? sensor->get_name() : "unknown";
 
     while (true)
@@ -78,38 +69,24 @@ static void sensor_read_task_fn(void *param)
         data_baro_t data = {0};
         esp_err_t ret = sensor->read(&data);
         if (ret == ESP_OK)
-        {
             ESP_LOGI(TAG, "[%s] P=%ld Pa  T=%ld m°C", sensor_name, (long)data.pressure_pa, (long)data.temperature_mc);
-        }
         else
-        {
-            ESP_LOGW(TAG, "sensor read error: 0x%x", ret);
-        }
+            ESP_LOGW(TAG, "baro read error: 0x%x", ret);
+
         vTaskDelayUntil(&last_wake_tick, pdMS_TO_TICKS(SENSOR_READ_PERIOD_MS));
     }
 }
 
 static void imu_read_task_fn(void *param)
 {
-    (void)param;
-
-    TickType_t last_wake_tick = xTaskGetTickCount();
-
-    const sensor_imu_t *sensor = get_imu_sensor("MPU6050");
+    const sensor_imu_t *sensor = (const sensor_imu_t *)param;
     if (!sensor)
     {
-        ESP_LOGW(TAG, "IMU sensor not found");
         vTaskDelete(NULL);
         return;
     }
 
-    if (sensor->init() != ESP_OK)
-    {
-        ESP_LOGW(TAG, "IMU sensor init failed");
-        vTaskDelete(NULL);
-        return;
-    }
-
+    TickType_t last_wake_tick = xTaskGetTickCount();
     const char *sensor_name = sensor->get_name() ? sensor->get_name() : "unknown";
 
     while (true)
@@ -117,14 +94,11 @@ static void imu_read_task_fn(void *param)
         data_imu_t data = {0};
         esp_err_t ret = sensor->read(&data);
         if (ret == ESP_OK)
-        {
             ESP_LOGI(TAG, "[%s] A=%.2f,%.2f,%.2f m/s2  G=%.3f,%.3f,%.3f rad/s", sensor_name, data.accel_x,
                      data.accel_y, data.accel_z, data.gyro_x, data.gyro_y, data.gyro_z);
-        }
         else
-        {
             ESP_LOGW(TAG, "IMU read error: 0x%x", ret);
-        }
+
         vTaskDelayUntil(&last_wake_tick, pdMS_TO_TICKS(IMU_READ_PERIOD_MS));
     }
 }
@@ -159,11 +133,46 @@ static void ble_connection_led_state_handler(bool connected, uint16_t conn_handl
     led->set_state(state);
 }
 
+static esp_err_t initialize_sensors(void)
+{
+    baro_sensor = get_baro_sensor("ms5611");
+    if (baro_sensor)
+    {
+        esp_err_t result = baro_sensor->init();
+        if (result != ESP_OK)
+        {
+            ESP_LOGW(TAG, "Baro sensor init failed: 0x%x", result);
+            baro_sensor = NULL;
+        }
+    }
+
+    imu_sensor = get_imu_sensor("MPU6050");
+    if (imu_sensor)
+    {
+        esp_err_t result = imu_sensor->init();
+        if (result != ESP_OK)
+        {
+            ESP_LOGW(TAG, "IMU sensor init failed: 0x%x", result);
+            imu_sensor = NULL;
+        }
+    }
+
+    return ESP_OK;
+}
+
 static esp_err_t initialize_modules(void)
 {
     esp_err_t led_result = initialize_led_module();
     if (led_result != ESP_OK)
         return led_result;
+
+    esp_err_t i2c_result = sensor_i2c_bus_init();
+    if (i2c_result != ESP_OK)
+        return i2c_result;
+
+    esp_err_t sensor_result = initialize_sensors();
+    if (sensor_result != ESP_OK)
+        return sensor_result;
 
     esp_err_t ble_result = initialize_ble_nus_module();
     if (ble_result != ESP_OK)
@@ -200,8 +209,12 @@ static esp_err_t create_baro_read_thread(application_threads_t *threads)
     if (!threads)
         return ESP_ERR_INVALID_ARG;
 
-    BaseType_t task_created = xTaskCreate(sensor_read_task_fn, "sensor_read", SENSOR_READ_TASK_STACK_SIZE, NULL,
-                                          SENSOR_READ_TASK_PRIORITY, &threads->baro_read_task);
+    if (!baro_sensor)
+        return ESP_OK;
+
+    BaseType_t task_created =
+        xTaskCreate(baro_read_task_fn, "baro_read", SENSOR_READ_TASK_STACK_SIZE, (void *)baro_sensor,
+                    SENSOR_READ_TASK_PRIORITY, &threads->baro_read_task);
     if (task_created != pdPASS)
         return ESP_FAIL;
 
@@ -213,7 +226,10 @@ static esp_err_t create_imu_read_thread(application_threads_t *threads)
     if (!threads)
         return ESP_ERR_INVALID_ARG;
 
-    BaseType_t task_created = xTaskCreate(imu_read_task_fn, "imu_read", IMU_READ_TASK_STACK_SIZE, NULL,
+    if (!imu_sensor)
+        return ESP_OK;
+
+    BaseType_t task_created = xTaskCreate(imu_read_task_fn, "imu_read", IMU_READ_TASK_STACK_SIZE, (void *)imu_sensor,
                                           IMU_READ_TASK_PRIORITY, &threads->imu_read_task);
     if (task_created != pdPASS)
         return ESP_FAIL;

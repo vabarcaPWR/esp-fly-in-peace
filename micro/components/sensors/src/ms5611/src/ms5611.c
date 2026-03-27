@@ -9,6 +9,7 @@
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "i2c_bus.h"
 #include "sdkconfig.h"
 
 #if __has_include("driver/i2c_master.h")
@@ -16,20 +17,6 @@
 #define MS5611_HAS_I2C_MASTER_API 1
 #else
 #define MS5611_HAS_I2C_MASTER_API 0
-#endif
-
-#ifndef CONFIG_SENSOR_I2C_INTERNAL_PULLUP
-#define CONFIG_SENSOR_I2C_INTERNAL_PULLUP 0
-#endif
-
-#ifndef CONFIG_SENSOR_I2C_ALLOW_PD
-#define CONFIG_SENSOR_I2C_ALLOW_PD 0
-#endif
-
-#if MS5611_HAS_I2C_MASTER_API
-#define MS5611_I2C_PORT I2C_NUM_0
-#else
-#define MS5611_I2C_PORT 0
 #endif
 #define MS5611_RESET_COMMAND 0x1E
 #define MS5611_ADC_READ_COMMAND 0x00
@@ -46,7 +33,6 @@ typedef struct ms5611_context_s
     bool i2c_ready;
     bool calibration_ready;
 #if MS5611_HAS_I2C_MASTER_API
-    i2c_master_bus_handle_t i2c_bus_handle;
     i2c_master_dev_handle_t i2c_dev_handle;
 #endif
     uint16_t prom[8];
@@ -56,7 +42,6 @@ static ms5611_context_t ms5611_context = {
     .i2c_ready = false,
     .calibration_ready = false,
 #if MS5611_HAS_I2C_MASTER_API
-    .i2c_bus_handle = NULL,
     .i2c_dev_handle = NULL,
 #endif
     .prom = {0},
@@ -127,27 +112,11 @@ static esp_err_t ms5611_i2c_read_adc_24b(int32_t *value)
 static esp_err_t ms5611_ensure_i2c_ready(void)
 {
     if (ms5611_context.i2c_ready)
-    {
         return ESP_OK;
-    }
 
-    i2c_master_bus_config_t bus_config = {
-        .i2c_port = MS5611_I2C_PORT,
-        .sda_io_num = CONFIG_SENSOR_I2C_SDA_GPIO,
-        .scl_io_num = CONFIG_SENSOR_I2C_SCL_GPIO,
-        .clk_source = I2C_CLK_SRC_DEFAULT,
-        .glitch_ignore_cnt = 7,
-        .intr_priority = 0,
-        .trans_queue_depth = 1,
-        .flags.enable_internal_pullup = CONFIG_SENSOR_I2C_INTERNAL_PULLUP,
-        .flags.allow_pd = CONFIG_SENSOR_I2C_ALLOW_PD,
-    };
-
-    esp_err_t result = i2c_new_master_bus(&bus_config, &ms5611_context.i2c_bus_handle);
-    if (result != ESP_OK)
-    {
-        return result;
-    }
+    i2c_master_bus_handle_t bus = sensor_i2c_bus_get_handle();
+    if (!bus)
+        return ESP_ERR_INVALID_STATE;
 
     i2c_device_config_t device_config = {
         .dev_addr_length = I2C_ADDR_BIT_LEN_7,
@@ -157,11 +126,9 @@ static esp_err_t ms5611_ensure_i2c_ready(void)
         .flags.disable_ack_check = 0,
     };
 
-    result = i2c_master_bus_add_device(ms5611_context.i2c_bus_handle, &device_config, &ms5611_context.i2c_dev_handle);
+    esp_err_t result = i2c_master_bus_add_device(bus, &device_config, &ms5611_context.i2c_dev_handle);
     if (result != ESP_OK)
-    {
         return result;
-    }
 
     ms5611_context.i2c_ready = true;
     return ESP_OK;
