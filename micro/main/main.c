@@ -93,6 +93,9 @@ static esp_err_t initialize_sensors(void)
 #ifdef CONFIG_SENSOR_MS5611
     baro_sensor = get_baro_sensor("ms5611");
 #endif
+#ifdef CONFIG_SENSOR_BMP390
+    baro_sensor = get_baro_sensor("bmp390");
+#endif
     if (baro_sensor)
     {
         esp_err_t result = baro_sensor->init();

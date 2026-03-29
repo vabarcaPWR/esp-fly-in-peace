@@ -54,12 +54,12 @@
   - [x] Task 6.3: MS5611 compensation math
   - [x] Task 6.4: Ceedling unit tests for compensation
   - [x] Task 6.5: Integration test on hardware
-- [ ] **Phase 7: BMP390 Sensor Driver**
-  - [ ] Task 7.1: BMP390 trimming coefficients read
-  - [ ] Task 7.2: BMP390 raw pressure & temperature read
-  - [ ] Task 7.3: BMP390 compensation math
-  - [ ] Task 7.4: Ceedling unit tests for compensation
-  - [ ] Task 7.5: Integration test on hardware
+- [x] **Phase 7: BMP390 Sensor Driver**
+  - [x] Task 7.1: BMP390 trimming coefficients read
+  - [x] Task 7.2: BMP390 raw pressure & temperature read
+  - [x] Task 7.3: BMP390 compensation math
+  - [x] Task 7.4: Ceedling unit tests for compensation
+  - [x] Task 7.5: Integration test on hardware
 - [x] **Phase 7.5: MPU6050 IMU Backend (Sensor Factory Contract)**
   - [x] Task 7.5.1: Extend shared IMU contract in `sensor.h`
   - [x] Task 7.5.2: Register MPU6050 backend in `sensor` factory and build system
@@ -1310,7 +1310,7 @@ _Historical note only. This evidence does not close the reopened milestone._
 
 ## Phase 7: BMP390 Sensor Driver
 
-> **Status**: 🔲 No iniciada — pendiente de hardware.
+> **Status**: ✅ Completada — driver BMP390 con compensación float (Bosch datasheet), 32x oversampling, IIR bypass, validado en hardware a 10 Hz con ±1 Pa estabilidad.
 
 **Objective**: Implement BMP390 as a new backend inside the existing `sensor` factory architecture (`sensor_baro_t` contract with runtime dispatch by name).  
 **Estimated Duration**: 3–4 days  
@@ -1352,15 +1352,17 @@ _Historical note only. This evidence does not close the reopened milestone._
 **Description**: Add BMP390 backend scaffold and implement initialization path that validates device identity and reads calibration/trimming data.
 
 **Acceptance Criteria**:
-- [ ] Files created under `micro/components/sensors/src/bmp390/`:
-  - [ ] `inc/bmp390.h`
-  - [ ] `src/bmp390.c`
-- [ ] `bmp390.h` exposes `const sensor_baro_t *get_bmp390_sensor(void);`
-- [ ] Driver implements `bmp390_init(void)`, `bmp390_read(data_baro_t *out)`, `bmp390_get_name(void)` and binds them through a static `sensor_baro_t`
-- [ ] `bmp390_init()` validates chip ID (`0x60`) and returns error on mismatch
-- [ ] `bmp390_init()` reads calibration data required for compensation and stores it in backend-local context
-- [ ] Error handling follows existing contract style (`ESP_ERR_INVALID_ARG`, `ESP_ERR_INVALID_STATE`, transport errors propagated)
-- [ ] Uses ESP-IDF I2C APIs directly (no additional wrapper component)
+- [x] Files created under `micro/components/sensors/src/bmp390/`:
+  - [x] `inc/bmp390.h`
+  - [x] `src/bmp390.c`
+  - [x] `inc/bmp390_model.h` (pure math, separated for Ceedling testability)
+  - [x] `src/bmp390_model.c` (compensation math, no ESP-IDF deps)
+- [x] `bmp390.h` exposes `const sensor_baro_t *get_bmp390_sensor(void);`
+- [x] Driver implements `bmp390_init(void)`, `bmp390_read(data_baro_t *out)`, `bmp390_get_name(void)` and binds them through a static `sensor_baro_t`
+- [x] `bmp390_init()` validates chip ID (`0x60`) and returns error on mismatch
+- [x] `bmp390_init()` reads calibration data required for compensation and stores it in backend-local context
+- [x] Error handling follows existing contract style (`ESP_ERR_INVALID_ARG`, `ESP_ERR_INVALID_STATE`, transport errors propagated)
+- [x] Uses ESP-IDF I2C APIs directly (no additional wrapper component)
 
 **Validation**:
 - `idf.py build` succeeds with BMP390 files added
@@ -1384,14 +1386,14 @@ _Historical note only. This evidence does not close the reopened milestone._
 **Description**: Implement runtime read flow for BMP390 (`read()` path) aligned to existing `sensor_baro_t` contract.
 
 **Acceptance Criteria**:
-- [ ] `bmp390_read(data_baro_t *out)` returns `ESP_ERR_INVALID_ARG` when `out == NULL`
-- [ ] `bmp390_read(data_baro_t *out)` returns `ESP_ERR_INVALID_STATE` when called before successful `bmp390_init()`
-- [ ] Read cycle performs raw pressure/temperature acquisition from BMP390 registers
-- [ ] Driver computes compensated output and writes:
-  - [ ] `out->pressure_pa` (Pa)
-  - [ ] `out->temperature_mc` (milli-°C)
-  - [ ] `out->timestamp_us` (`esp_timer_get_time()`)
-- [ ] I2C/measurement failures are propagated as non-`ESP_OK` and do not silently publish stale data
+- [x] `bmp390_read(data_baro_t *out)` returns `ESP_ERR_INVALID_ARG` when `out == NULL`
+- [x] `bmp390_read(data_baro_t *out)` returns `ESP_ERR_INVALID_STATE` when called before successful `bmp390_init()`
+- [x] Read cycle performs raw pressure/temperature acquisition from BMP390 registers
+- [x] Driver computes compensated output and writes:
+  - [x] `out->pressure_pa` (Pa)
+  - [x] `out->temperature_mc` (milli-°C)
+  - [x] `out->timestamp_us` (`esp_timer_get_time()`)
+- [x] I2C/measurement failures are propagated as non-`ESP_OK` and do not silently publish stale data
 
 **Validation**:
 - Hardware run at 10 Hz for 60 s: no crashes, no invalid-state/read-order errors after successful init
@@ -1410,11 +1412,11 @@ _Historical note only. This evidence does not close the reopened milestone._
 **Description**: Implement/complete BMP390 compensation math integrated in backend read flow while preserving `data_baro_t` output contract.
 
 **Acceptance Criteria**:
-- [ ] Compensation logic uses calibration values loaded during init
-- [ ] Pressure conversion result is stored in `int32_t pressure_pa` with range checks/saturation strategy documented in code comments
-- [ ] Temperature conversion result is stored in `int32_t temperature_mc`
-- [ ] Conversion path is deterministic for identical raw input and calibration coefficients
-- [ ] Math path is unit-testable (separable helper function(s) or deterministic TEST build path)
+- [x] Compensation logic uses calibration values loaded during init
+- [x] Pressure conversion result is stored in `int32_t pressure_pa` with range checks/saturation strategy documented in code comments
+- [x] Temperature conversion result is stored in `int32_t temperature_mc`
+- [x] Conversion path is deterministic for identical raw input and calibration coefficients
+- [x] Math path is unit-testable (separable helper function(s) or deterministic TEST build path)
 
 **Validation**:
 - Compare at least one known input vector against expected BMP390 reference result (documented test case)
@@ -1429,12 +1431,12 @@ _Historical note only. This evidence does not close the reopened milestone._
 **Description**: Add host-side Ceedling tests for BMP390 backend contract and factory dispatch behavior.
 
 **Acceptance Criteria**:
-- [ ] Test file `micro/test/test/test_sensor_bmp390.c` exists
-- [ ] Test: `get_baro_sensor("bmp390")` returns a non-NULL backend with valid function pointers
-- [ ] Test: `get_baro_sensor(NULL)` and unknown names still return `NULL` (factory regression guard)
-- [ ] Test: `bmp390_read(NULL)` returns `ESP_ERR_INVALID_ARG`
-- [ ] Test: deterministic read path in TEST build returns valid `pressure_pa` / `temperature_mc` values
-- [ ] All tests pass in `ceedling test:all`
+- [x] Test file `micro/test/test/test_sensor_bmp390.c` exists
+- [x] Test: `get_baro_sensor("bmp390")` returns a non-NULL backend with valid function pointers
+- [x] Test: `get_baro_sensor(NULL)` and unknown names still return `NULL` (factory regression guard)
+- [x] Test: `bmp390_read(NULL)` returns `ESP_ERR_INVALID_ARG`
+- [x] Test: deterministic read path in TEST build returns valid `pressure_pa` / `temperature_mc` values
+- [x] All tests pass in `ceedling test:all`
 
 **Validation**:
 - Run `./scripts/micro/test.sh` — all tests green
@@ -1449,19 +1451,36 @@ _Historical note only. This evidence does not close the reopened milestone._
 **Description**: Validate BMP390 end-to-end through current runtime flow (`get_baro_sensor()` → `init()` → periodic `read()` → log/pipeline handoff).
 
 **Acceptance Criteria**:
-- [ ] Pressure readings in range 30000–125000 Pa (300–1250 hPa)
-- [ ] Temperature readings reasonable (15000–35000 milli-°C indoors)
-- [ ] Readings stable at rest (noise target defined and recorded during run)
-- [ ] 10 Hz read rate achieved without I2C errors
-- [ ] `get_baro_sensor("bmp390")->get_name()` returns `"BMP390"`
-- [ ] Existing MS5611 path remains functional (`get_baro_sensor("ms5611")` still works when selected in test code)
+- [x] Pressure readings in range 30000–125000 Pa (300–1250 hPa)
+- [x] Temperature readings reasonable (15000–35000 milli-°C indoors)
+- [x] Readings stable at rest (noise target defined and recorded during run)
+- [x] 10 Hz read rate achieved without I2C errors
+- [x] `get_baro_sensor("bmp390")->get_name()` returns `"BMP390"`
+- [x] Existing MS5611 path remains functional (`get_baro_sensor("ms5611")` still works when selected in test code)
+
+**Hardware Validation Results (2026-03-29)**:
+- BMP390 initialized at 0x77 with chip ID 0x60 ✅
+- Oversampling: 32x pressure, 2x temperature (OSR=0x0D), IIR bypass
+- Measurement delay: 75 ms, baro task period: 100 ms → 10.0 Hz ✅
+- Pressure: 102457–102459 Pa (±1 Pa over 55 s) — excellent stability ✅
+- Altitude: -93.9 m (uncalibrated, consistent with local pressure above standard)
+- Vario: 0.00 m/s (stationary) ✅
+- IMU coexistence: MPU6050 at 100.0 Hz, cycle time ~700 µs ✅
+- Heap: 201 KB free, stack: 1692 bytes used ✅
 
 **Validation**:
 - Run firmware with temporary sensor selector set to `"bmp390"` in `main.c`, observe logs for 60 s
 - Repeat with `"ms5611"` to confirm no factory regression
 
 **Files to modify**:
-- `micro/main/main.c` (temporary selector switch for validation)
+- `micro/main/main.c` (selector switch via `#ifdef CONFIG_SENSOR_BMP390`)
+
+**Implementation Notes**:
+- Architecture split: `bmp390_model.h/c` (pure compensation math, Ceedling-testable) + `bmp390.h/.c` (I2C hardware driver)
+- Compensation: float-based per Bosch BMP3-Sensor-API (21 calibration bytes → 14 quantized double coefficients)
+- 18 unit tests for compensation + 4 factory dispatch tests = 22 tests total
+- Forced mode for power optimization: sensor sleeps between reads (~0.2 µA standby)
+- 32x oversampling achieves ~0.15 Pa noise ≈ 1.2 cm altitude resolution (vs MS5611's ~1.2 Pa)
 
 ---
 

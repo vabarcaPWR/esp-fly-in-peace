@@ -27,13 +27,16 @@
 #define BMP390_REG_CALIB_DATA 0x31
 #define BMP390_REG_CMD 0x7E
 
+#define BMP390_REG_CONFIG 0x1F
+
 #define BMP390_SOFT_RESET_CMD 0xB6
 #define BMP390_FORCED_MODE 0x13
-#define BMP390_OSR_P8X_T1X 0x03
+#define BMP390_OSR_P32X_T2X 0x0D
+#define BMP390_IIR_BYPASS 0x00
 #define BMP390_CALIB_LEN 21U
 #define BMP390_DATA_LEN 6U
 #define BMP390_RESET_DELAY_MS 5U
-#define BMP390_MEAS_DELAY_MS 40U
+#define BMP390_MEAS_DELAY_MS 75U
 
 static const char *TAG = "bmp390";
 
@@ -153,7 +156,11 @@ esp_err_t bmp390_init(void)
     if (result != ESP_OK)
         return result;
 
-    result = bmp390_i2c_write_reg(BMP390_REG_OSR, BMP390_OSR_P8X_T1X);
+    result = bmp390_i2c_write_reg(BMP390_REG_OSR, BMP390_OSR_P32X_T2X);
+    if (result != ESP_OK)
+        return result;
+
+    result = bmp390_i2c_write_reg(BMP390_REG_CONFIG, BMP390_IIR_BYPASS);
     if (result != ESP_OK)
         return result;
 
