@@ -7,6 +7,12 @@ if(CONFIG_SENSOR_MS5611)
     list(APPEND SENSOR_INCLUDE_DIRS "src/ms5611/inc")
 endif()
 
+if(CONFIG_SENSOR_BMP390)
+    list(APPEND SENSOR_SRCS "src/bmp390/src/bmp390.c"
+                            "src/bmp390/src/bmp390_model.c")
+    list(APPEND SENSOR_INCLUDE_DIRS "src/bmp390/inc")
+endif()
+
 if(CONFIG_IMU_MPU6050)
     list(APPEND SENSOR_SRCS "src/mpu6050/src/mpu6050.c")
     list(APPEND SENSOR_INCLUDE_DIRS "src/mpu6050/inc")

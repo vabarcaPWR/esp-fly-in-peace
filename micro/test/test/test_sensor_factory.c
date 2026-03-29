@@ -1,10 +1,12 @@
 #include "sensor.h"
+#include "mock_bmp390.h"
 #include "mock_ms5611.h"
 #include "mock_mpu6050.h"
 #include "unity.h"
 
 TEST_SOURCE_FILE("../components/sensors/src/sensor.c")
 
+static int bmp390_provider_call_count;
 static int ms5611_provider_call_count;
 static int mpu6050_provider_call_count;
 
@@ -33,6 +35,25 @@ static const sensor_baro_t *stub_get_ms5611_sensor(int cmock_num_calls)
         .init = stub_baro_init,
         .read = stub_baro_read,
         .get_name = stub_baro_get_name,
+    };
+
+    return &sensor;
+}
+
+static const char *stub_bmp390_get_name(void)
+{
+    return "BMP390";
+}
+
+static const sensor_baro_t *stub_get_bmp390_sensor(int cmock_num_calls)
+{
+    (void)cmock_num_calls;
+    bmp390_provider_call_count++;
+
+    static const sensor_baro_t sensor = {
+        .init = stub_baro_init,
+        .read = stub_baro_read,
+        .get_name = stub_bmp390_get_name,
     };
 
     return &sensor;
@@ -70,8 +91,10 @@ static const sensor_imu_t *stub_get_mpu6050_sensor(int cmock_num_calls)
 
 void setUp(void)
 {
+    bmp390_provider_call_count = 0;
     ms5611_provider_call_count = 0;
     mpu6050_provider_call_count = 0;
+    get_bmp390_sensor_StubWithCallback(stub_get_bmp390_sensor);
     get_ms5611_sensor_StubWithCallback(stub_get_ms5611_sensor);
     get_mpu6050_sensor_StubWithCallback(stub_get_mpu6050_sensor);
 }
@@ -144,4 +167,27 @@ void test_does_not_query_mpu6050_when_imu_name_is_unknown(void)
 {
     (void)get_imu_sensor("unknown");
     TEST_ASSERT_EQUAL_INT(0, mpu6050_provider_call_count);
+}
+
+void test_returns_bmp390_backend_when_baro_name_is_bmp390(void)
+{
+    TEST_ASSERT_EQUAL_PTR(stub_get_bmp390_sensor(0), get_baro_sensor("bmp390"));
+}
+
+void test_queries_bmp390_once_when_baro_name_is_bmp390(void)
+{
+    (void)get_baro_sensor("bmp390");
+    TEST_ASSERT_EQUAL_INT(1, bmp390_provider_call_count);
+}
+
+void test_does_not_query_bmp390_when_baro_name_is_unknown(void)
+{
+    (void)get_baro_sensor("unknown");
+    TEST_ASSERT_EQUAL_INT(0, bmp390_provider_call_count);
+}
+
+void test_does_not_query_bmp390_when_baro_name_is_ms5611(void)
+{
+    (void)get_baro_sensor("ms5611");
+    TEST_ASSERT_EQUAL_INT(0, bmp390_provider_call_count);
 }
