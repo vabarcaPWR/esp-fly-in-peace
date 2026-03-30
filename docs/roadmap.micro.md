@@ -2442,7 +2442,7 @@ Commercial varios (BlueFlyVario, XCTracer, Stodeus miniBip) typically use linear
 
 **Acceptance Criteria**:
 - [ ] Piezo buzzer connected to configured GPIO pin with appropriate current-limiting resistor
-- [ ] Boot sequence: sound generator plays a short ascending confirmation tone (200 ms total) during `LED_STATE_BOOT`
+- [ ] Boot startup sequence plays correctly (see design below)
 - [ ] Vario tone responds to real vertical speed changes (blow on barometric sensor → climb tone)
 - [ ] Frequency transitions are smooth — no audible clicks or pops during sweeps
 - [ ] Strong climb (+5 m/s simulated) produces a clear but non-strident tone at ~1400 Hz with relaxed cadence (~200 ms cycle)
@@ -2453,6 +2453,45 @@ Commercial varios (BlueFlyVario, XCTracer, Stodeus miniBip) typically use linear
 - [ ] Stack high-water mark for `sound_task` checked (>25% remaining)
 - [ ] Default curve adjusted based on subjective listening test (iterate 2–3 times if needed)
 
+#### Boot Startup Sequence (buzzer verification)
+
+**Purpose**: Confirm at power-on that the piezo buzzer is wired correctly and the PWM driver works. The sequence runs once during boot, before the vario tone loop starts. It also gives the pilot an audible "device ready" signal.
+
+**Sequence design** — 3 ascending tones (major triad, C5-E5-G5):
+
+| Step | Frequency | Duration | Gap after |
+|------|-----------|----------|-----------|
+| 1    | 523 Hz (C5) | 80 ms  | 30 ms     |
+| 2    | 659 Hz (E5) | 80 ms  | 30 ms     |
+| 3    | 784 Hz (G5) | 120 ms | —         |
+
+- **Total duration**: ~420 ms
+- **Duty cycle**: 50% (maximum buzzer volume for clear feedback)
+- **Timing**: Plays during `LED_STATE_BOOT`, after `sound_generator_t::init()` returns `ESP_OK` and before the vario update loop begins
+
+**What it validates**:
+1. GPIO pin is correctly configured and connected to buzzer
+2. LEDC PWM driver initializes and produces output
+3. Buzzer responds across a frequency range (523–784 Hz)
+4. No dead channel or wiring fault (user hears the ascending triad or knows something is wrong)
+
+**Contract change**: Add `play_startup` function pointer to `sound_generator_t`:
+
+```c
+typedef struct sound_generator_s
+{
+    esp_err_t (*init)(void);
+    esp_err_t (*update)(double vario_cms);
+    esp_err_t (*play_startup)(void);   // NEW — blocking, plays boot sequence
+    const char *(*get_name)(void);
+} sound_generator_t;
+```
+
+- `play_startup()` is **blocking** — it plays the full sequence using `vTaskDelay()` between tones and returns `ESP_OK`
+- Called once in `sound_task_fn()` right after `init()` succeeds
+- The piezo backend implements it in the **conductor** (`piezo.c`), calling `piezo_hw_set_tone()` / `piezo_hw_mute()` directly
+- Tone sequence is defined as a `static const` array in the conductor — no model logic needed (fixed sequence, not data-driven)
+
 **Validation**:
 - Subjective listening test at desk with simulated vario values
 - BLE data stream verified unchanged (frequency + content)
@@ -2460,8 +2499,12 @@ Commercial varios (BlueFlyVario, XCTracer, Stodeus miniBip) typically use linear
 - Document final default curve if it diverges from Task 10.3 initial values
 
 **Files to modify**:
+- `micro/components/sound/inc/sound.h` (add `play_startup` to contract)
+- `micro/components/sound/src/sound.c` (factory — no logic change, just struct)
+- `micro/components/sound/src/piezo/src/piezo.c` (implement `piezo_play_startup()`)
+- `micro/main/sound_task.c` (call `gen->play_startup()` after init)
 - `micro/components/sound/src/piezo/src/piezo_model.c` (tune default curve values if needed)
-- `micro/main/main.c` (boot confirmation tone)
+- `test/test_sound_factory.c` (update mock to include new function pointer)
 
 
 ---
