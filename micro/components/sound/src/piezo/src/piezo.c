@@ -3,8 +3,12 @@
 #include "piezo_model.h"
 #include <stdlib.h>
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
 #define PIEZO_FREQ_SMOOTH_MAX_STEP 50
 #define PIEZO_BEEP_UPDATE_RESOLUTION_MS 50
+#define PIEZO_STARTUP_DUTY_PCT 50
 
 typedef enum beep_phase_e
 {
@@ -118,6 +122,36 @@ static esp_err_t piezo_update(double vario_cms)
     return ESP_OK;
 }
 
+typedef struct startup_tone_step_s
+{
+    uint16_t freq_hz;
+    uint16_t duration_ms;
+    uint16_t gap_ms;
+} startup_tone_step_t;
+
+static const startup_tone_step_t s_startup_sequence[] = {
+    {523, 80, 30},
+    {659, 80, 30},
+    {784, 120, 0},
+};
+
+#define STARTUP_SEQUENCE_LEN (sizeof(s_startup_sequence) / sizeof(s_startup_sequence[0]))
+
+static esp_err_t piezo_play_startup(void)
+{
+    for (size_t i = 0; i < STARTUP_SEQUENCE_LEN; i++)
+    {
+        piezo_hw_set_tone(s_startup_sequence[i].freq_hz, PIEZO_STARTUP_DUTY_PCT);
+        vTaskDelay(pdMS_TO_TICKS(s_startup_sequence[i].duration_ms));
+
+        piezo_hw_mute();
+        if (s_startup_sequence[i].gap_ms > 0)
+            vTaskDelay(pdMS_TO_TICKS(s_startup_sequence[i].gap_ms));
+    }
+
+    return ESP_OK;
+}
+
 static const char *piezo_get_name(void)
 {
     return "piezo";
@@ -126,6 +160,7 @@ static const char *piezo_get_name(void)
 static const sound_generator_t s_piezo_generator = {
     .init = piezo_init,
     .update = piezo_update,
+    .play_startup = piezo_play_startup,
     .get_name = piezo_get_name,
 };
 

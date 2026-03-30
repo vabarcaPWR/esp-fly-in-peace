@@ -13,6 +13,7 @@ extern "C"
     {
         esp_err_t (*init)(void);
         esp_err_t (*update)(double vario_cms);
+        esp_err_t (*play_startup)(void);
         const char *(*get_name)(void);
     } sound_generator_t;
 

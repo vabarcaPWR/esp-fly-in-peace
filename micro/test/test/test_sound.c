@@ -11,10 +11,14 @@ static esp_err_t fake_init(void)
     return ESP_OK;
 }
 
-static esp_err_t fake_update(double vario_cms, double altitude_m)
+static esp_err_t fake_update(double vario_cms)
 {
     (void)vario_cms;
-    (void)altitude_m;
+    return ESP_OK;
+}
+
+static esp_err_t fake_play_startup(void)
+{
     return ESP_OK;
 }
 
@@ -31,6 +35,7 @@ static const sound_generator_t *stub_get_piezo_sound_generator(int cmock_num_cal
     static const sound_generator_t fake_gen = {
         .init = fake_init,
         .update = fake_update,
+        .play_startup = fake_play_startup,
         .get_name = fake_get_name,
     };
 
@@ -77,4 +82,18 @@ void test_get_sound_generator_piezo_backend_name_matches(void)
     const sound_generator_t *gen = get_sound_generator("piezo");
     TEST_ASSERT_NOT_NULL(gen);
     TEST_ASSERT_EQUAL_STRING("piezo", gen->get_name());
+}
+
+void test_get_sound_generator_piezo_backend_has_play_startup(void)
+{
+    const sound_generator_t *gen = get_sound_generator("piezo");
+    TEST_ASSERT_NOT_NULL(gen);
+    TEST_ASSERT_NOT_NULL(gen->play_startup);
+}
+
+void test_get_sound_generator_piezo_play_startup_returns_ok(void)
+{
+    const sound_generator_t *gen = get_sound_generator("piezo");
+    TEST_ASSERT_NOT_NULL(gen);
+    TEST_ASSERT_EQUAL(ESP_OK, gen->play_startup());
 }

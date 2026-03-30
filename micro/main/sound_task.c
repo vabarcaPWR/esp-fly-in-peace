@@ -47,6 +47,13 @@ void sound_task_fn(void *param)
         return;
     }
 
+    if (gen->play_startup)
+    {
+        ret = gen->play_startup();
+        if (ret != ESP_OK)
+            ESP_LOGW(TAG, "startup sequence failed: 0x%x", ret);
+    }
+
     ESP_LOGI(TAG, "started with backend: %s", gen->get_name());
 
     TickType_t last_wake = xTaskGetTickCount();
