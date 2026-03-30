@@ -9,6 +9,8 @@
 #include "fusion_task.h"
 #include "led.h"
 #include "sensor.h"
+#include "sound.h"
+#include "sound_task.h"
 #include <esp_log.h>
 
 #define BARO_TASK_STACK_SIZE 4096U
@@ -17,6 +19,8 @@
 #define FUSION_TASK_PRIORITY 6U
 #define BLE_SENDER_TASK_STACK_SIZE 4096U
 #define BLE_SENDER_TASK_PRIORITY 3U
+#define SOUND_TASK_STACK_SIZE 2048U
+#define SOUND_TASK_PRIORITY 1U
 
 #ifndef BLE_COMPAT_DEVICE_NAME
 #define BLE_COMPAT_DEVICE_NAME "FlyInPeace"
@@ -37,6 +41,7 @@ typedef struct application_threads_s
     TaskHandle_t baro_task;
     TaskHandle_t fusion_task;
     TaskHandle_t ble_sender_task;
+    TaskHandle_t sound_task;
 } application_threads_t;
 
 static bool startup_step_succeeded(const char *step_name, esp_err_t result)
@@ -56,6 +61,7 @@ static void application_threads_reset(application_threads_t *threads)
     threads->baro_task = NULL;
     threads->fusion_task = NULL;
     threads->ble_sender_task = NULL;
+    threads->sound_task = NULL;
 }
 
 static esp_err_t initialize_ble_nus_module(void)
@@ -203,11 +209,22 @@ static esp_err_t create_ble_sender_task(application_threads_t *threads)
     return ok == pdPASS ? ESP_OK : ESP_FAIL;
 }
 
+static esp_err_t create_sound_task(application_threads_t *threads)
+{
+    if (!threads)
+        return ESP_ERR_INVALID_ARG;
+
+    BaseType_t ok =
+        xTaskCreate(sound_task_fn, "sound", SOUND_TASK_STACK_SIZE, NULL, SOUND_TASK_PRIORITY, &threads->sound_task);
+    return ok == pdPASS ? ESP_OK : ESP_FAIL;
+}
+
 static esp_err_t create_threads(application_threads_t *threads)
 {
     esp_err_t ret = create_baro_task(threads);
     ret == ESP_OK ? ret = create_fusion_task(threads) : ret;
     ret == ESP_OK ? ret = create_ble_sender_task(threads) : ret;
+    ret == ESP_OK ? ret = create_sound_task(threads) : ret;
     return ret;
 }
 

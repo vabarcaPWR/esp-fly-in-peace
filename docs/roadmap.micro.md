@@ -82,13 +82,13 @@
   - [x] Task 9.5: BLE sender task (8 Hz)
   - [x] Task 9.6: Replace simulated provider with real sensor data
   - [x] Task 9.7: End-to-end data flow validation
-- [ ] **Phase 10: Vario Acoustic Feedback (Piezo Buzzer)**
-  - [ ] Task 10.1: Sound factory contract and Kconfig backend selection
-  - [ ] Task 10.2: Piezo backend — types and hardware layer
-  - [ ] Task 10.3: Piezo backend — tone model (frequency + cadence curves)
-  - [ ] Task 10.4: Piezo backend — conductor (`update` implementation)
-  - [ ] Task 10.5: Sound task (`sound_task`)
-  - [ ] Task 10.6: Ceedling unit tests for piezo model and sound factory
+- [x] **Phase 10: Vario Acoustic Feedback (Piezo Buzzer)**
+  - [x] Task 10.1: Sound factory contract and Kconfig backend selection
+  - [x] Task 10.2: Piezo backend — types and hardware layer
+  - [x] Task 10.3: Piezo backend — tone model (frequency + cadence curves)
+  - [x] Task 10.4: Piezo backend — conductor (`update` implementation)
+  - [x] Task 10.5: Sound task (`sound_task`)
+  - [x] Task 10.6: Ceedling unit tests for piezo model and sound factory
   - [ ] Task 10.7: Hardware integration and comfort tuning
 - [ ] **Phase 11: NVS Configuration**
   - [ ] Task 11.1: Config schema definition and defaults
@@ -2192,7 +2192,7 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 ## Phase 10: Vario Acoustic Feedback (Piezo Buzzer)
 
-> **Status**: 🔲 No iniciada.
+> **Status**: 🟡 Tasks 10.1–10.6 completadas. Task 10.7 (hardware tuning) pendiente — requiere dispositivo físico.
 
 **Objective**: Implement acoustic vario feedback using the `sound` component, which follows the project's standard factory-backend pattern (same as `sensors` and `leds`). The `sound` component defines a `sound_generator_t` contract with `{init, update, get_name}` and dispatches to the Kconfig-selected backend. The first backend (`piezo`) drives a piezoelectric buzzer via ESP32-C3 LEDC PWM. Future backends (DAC+speaker, I2S amplifier, external codec) can be added by implementing the contract inside `sound/src/<backend>/` — no changes to the factory or task. The `update(vario_cms, altitude_m)` function encapsulates the full tone logic (model + beep state machine + hardware) inside each backend. Design prioritizes pilot comfort: logarithmic frequency response, capped max frequency (~1600 Hz), saturating cadence (min cycle ~180 ms), and smooth transitions. The tone configuration schema is prepared for remote adjustment via BLE (Phase 11).  
 **Estimated Duration**: 4–5 days  
@@ -2226,15 +2226,15 @@ Commercial varios (BlueFlyVario, XCTracer, Stodeus miniBip) typically use linear
 **Description**: Complete the `sound` component factory with Kconfig-based backend selection, following the same pattern as `sensors` (Phase 5) and `leds` (Phase 4). The component already has stub headers and factory dispatch — this task adds Kconfig, CMakeLists, and validates the factory wiring.
 
 **Acceptance Criteria**:
-- [ ] `sound/CMakeLists.txt` created with conditional backend compilation (same pattern as `sensors/CMakeLists.txt`)
-- [ ] `sound/Kconfig` with `choice SOUND_GENERATOR`:
+- [x] `sound/CMakeLists.txt` created with conditional backend compilation (same pattern as `sensors/CMakeLists.txt`)
+- [x] `sound/Kconfig` with `choice SOUND_GENERATOR`:
   - `CONFIG_SOUND_PIEZO` (default) — piezoelectric buzzer via LEDC PWM
   - `CONFIG_SOUND_NONE` — no sound output (compiles out all audio code)
-- [ ] Each option has help text describing hardware requirements and capabilities
-- [ ] Selection visible in `idf.py menuconfig` under "Component config → Sound generator"
-- [ ] Factory dispatch in `sound.c`: `get_sound_generator("piezo")` returns piezo backend when `CONFIG_SOUND_PIEZO=y`
-- [ ] `get_sound_generator(NULL)` and unknown names return `NULL`
-- [ ] Existing `sound_generator_t` contract validated: `{ init, update(vario_cms, altitude_m), get_name }`
+- [x] Each option has help text describing hardware requirements and capabilities
+- [x] Selection visible in `idf.py menuconfig` under "Component config → Sound generator"
+- [x] Factory dispatch in `sound.c`: `get_sound_generator("piezo")` returns piezo backend when `CONFIG_SOUND_PIEZO=y`
+- [x] `get_sound_generator(NULL)` and unknown names return `NULL`
+- [x] Existing `sound_generator_t` contract validated: `{ init, update(vario_cms, altitude_m), get_name }`
 
 **Validation**:
 - `idf.py menuconfig` shows the sound generator selection menu
@@ -2259,7 +2259,7 @@ Commercial varios (BlueFlyVario, XCTracer, Stodeus miniBip) typically use linear
 **Description**: Implement the piezo backend's type definitions and hardware layer inside `sound/src/piezo/`. The hardware layer drives the piezoelectric buzzer via ESP32-C3 LEDC PWM.
 
 **Acceptance Criteria**:
-- [ ] `piezo_types.h` defines:
+- [x] `piezo_types.h` defines:
   - Breakpoint structure: `piezo_tone_point_t { float vario_ms; uint16_t freq_hz; uint16_t cycle_ms; uint8_t duty_pct; }`
   - Tone curve: `piezo_tone_curve_t { piezo_tone_point_t points[PIEZO_MAX_TONE_POINTS]; uint8_t count; }`
   - `PIEZO_MAX_TONE_POINTS` = 12 (sufficient for expressive curves, fits in ~120 bytes)
@@ -2267,13 +2267,13 @@ Commercial varios (BlueFlyVario, XCTracer, Stodeus miniBip) typically use linear
   - Output: `piezo_tone_output_t { uint16_t freq_hz; uint16_t cycle_ms; uint8_t duty_pct; piezo_tone_zone_e zone; }`
   - Zones: `PIEZO_ZONE_SILENCE`, `PIEZO_ZONE_PRE_LIFT`, `PIEZO_ZONE_CLIMB`, `PIEZO_ZONE_SINK`
   - Config: `piezo_tone_config_t` (aggregates curve + thresholds + pre_lift_enabled + muted + volume_pct)
-- [ ] `piezo_hardware.h` / `piezo_hardware.c`:
+- [x] `piezo_hardware.h` / `piezo_hardware.c`:
   - `esp_err_t piezo_hw_init(uint8_t gpio_num)` — configures LEDC timer (13-bit resolution) and channel
   - `esp_err_t piezo_hw_set_tone(uint16_t freq_hz, uint8_t duty_pct)` — sets frequency and duty. `freq_hz = 0` or `duty_pct = 0` silences output
   - `void piezo_hw_mute(void)` — sets duty to 0 (silent, no GPIO toggle)
   - Frequency range: 100–4000 Hz (hardware capable, software will cap lower)
   - Duty cycle range: 0–100% (0 = mute, 50 = square wave)
-- [ ] GPIO pin configurable via Kconfig (`CONFIG_PIEZO_GPIO`, default GPIO 5) inside `sound/Kconfig`
+- [x] GPIO pin configurable via Kconfig (`CONFIG_PIEZO_GPIO`, default GPIO 5) inside `sound/Kconfig`
 
 **Validation**:
 - Tone audible on piezo buzzer at various frequencies
@@ -2294,11 +2294,11 @@ Commercial varios (BlueFlyVario, XCTracer, Stodeus miniBip) typically use linear
 **Description**: Implement the piezo backend's pure-logic tone model that maps vertical speed (m/s) to tone parameters (frequency, cycle duration, duty cycle). Uses a configurable breakpoint table with linear interpolation, inspired by the XCTracer `tone=<vario>,<freq>,<cycle>,<duty>` format. Zero ESP-IDF dependencies — fully testable with Ceedling.
 
 **Acceptance Criteria**:
-- [ ] `piezo_model.h` / `piezo_model.c` — zero ESP-IDF dependencies
-- [ ] `void piezo_model_compute(const piezo_tone_curve_t *curve, const piezo_tone_thresholds_t *thresh, float vario_ms, piezo_tone_output_t *out)` — computes `{freq_hz, cycle_ms, duty_pct, zone}` from vario input
-- [ ] Hysteresis: `climb_on > climb_off` and `sink_on < sink_off` to prevent oscillation at threshold boundaries
-- [ ] Linear interpolation between adjacent breakpoints; clamp to first/last point outside range
-- [ ] Default "comfort" curve embedded as const:
+- [x] `piezo_model.h` / `piezo_model.c` — zero ESP-IDF dependencies
+- [x] `void piezo_model_compute(const piezo_tone_curve_t *curve, const piezo_tone_thresholds_t *thresh, float vario_ms, piezo_tone_output_t *out)` — computes `{freq_hz, cycle_ms, duty_pct, zone}` from vario input
+- [x] Hysteresis: `climb_on > climb_off` and `sink_on < sink_off` to prevent oscillation at threshold boundaries
+- [x] Linear interpolation between adjacent breakpoints; clamp to first/last point outside range
+- [x] Default "comfort" curve embedded as const:
 
 | Vario (m/s) | Freq (Hz) | Cycle (ms) | Duty (%) | Notes |
 |-------------|-----------|------------|----------|-------|
@@ -2313,13 +2313,13 @@ Commercial varios (BlueFlyVario, XCTracer, Stodeus miniBip) typically use linear
 | 8.0 | 1550 | 180 | 55 | Extreme — nearly flat response |
 | 10.0 | 1600 | 180 | 55 | Max — capped frequency and cadence |
 
-- [ ] Default thresholds: `climb_on = +0.15`, `climb_off = +0.05`, `sink_on = -2.0`, `sink_off = -1.5`
-- [ ] Pre-lift zone (between `climb_off` and `climb_on`): single short tick per second (freq=400 Hz, cycle=1000 ms, duty=5%)
-- [ ] `const piezo_tone_config_t *piezo_config_get_defaults(void)` — returns pointer to static default config
-- [ ] `esp_err_t piezo_config_validate(const piezo_tone_config_t *config)` — validates all fields with range checks
-- [ ] Config struct is plain C (no pointers, no dynamic allocation) — can be serialized to/from NVS as binary blob or JSON
-- [ ] Size fits within a single BLE GATT characteristic write (< 512 bytes)
-- [ ] Documentation comment in header: "This config will be exposed via BLE Config Service in Phase 11. Add `piezo_tone_config_t` to `device_config_t` when implementing Phase 11."
+- [x] Default thresholds: `climb_on = +0.15`, `climb_off = +0.05`, `sink_on = -2.0`, `sink_off = -1.5`
+- [x] Pre-lift zone (between `climb_off` and `climb_on`): single short tick per second (freq=400 Hz, cycle=1000 ms, duty=5%)
+- [x] `const piezo_tone_config_t *piezo_config_get_defaults(void)` — returns pointer to static default config
+- [x] `esp_err_t piezo_config_validate(const piezo_tone_config_t *config)` — validates all fields with range checks
+- [x] Config struct is plain C (no pointers, no dynamic allocation) — can be serialized to/from NVS as binary blob or JSON
+- [x] Size fits within a single BLE GATT characteristic write (< 512 bytes)
+- [x] Documentation comment in header: "This config will be exposed via BLE Config Service in Phase 11. Add `piezo_tone_config_t` to `device_config_t` when implementing Phase 11."
 
 **Validation**:
 - Unit tests verify interpolation at exact breakpoints and between them
@@ -2340,17 +2340,17 @@ Commercial varios (BlueFlyVario, XCTracer, Stodeus miniBip) typically use linear
 **Description**: Implement the piezo backend conductor that orchestrates the model and hardware layers. The conductor implements the `sound_generator_t` contract: `init` sets up hardware, `update(vario_cms, altitude_m)` computes the tone via the model, manages the beep state machine, applies smoothing, and drives the hardware. `get_name` returns `"piezo"`.
 
 **Acceptance Criteria**:
-- [ ] `piezo.c` implements `sound_generator_t` contract via `get_piezo_sound_generator()`
-- [ ] `init()`: calls `piezo_hw_init(CONFIG_PIEZO_GPIO)`, loads default config
-- [ ] `update(vario_cms, altitude_m)`:
+- [x] `piezo.c` implements `sound_generator_t` contract via `get_piezo_sound_generator()`
+- [x] `init()`: calls `piezo_hw_init(CONFIG_PIEZO_GPIO)`, loads default config
+- [x] `update(vario_cms, altitude_m)`:
   1. Convert `vario_cms` (cm/s) to m/s
   2. `piezo_model_compute()` → get `{freq_hz, cycle_ms, duty_pct, zone}`
   3. Manage beep timing: track position within current cycle (ON phase vs OFF phase)
   4. Apply smoothing: frequency changes limited to ±50 Hz per call to avoid jarring jumps
   5. Call `piezo_hw_set_tone()` or `piezo_hw_mute()` based on current beep phase
-- [ ] Beep state machine: `BEEP_ON` → `BEEP_OFF` → `BEEP_ON` with durations from model output
-- [ ] `get_name()`: returns `"piezo"`
-- [ ] Runtime mute flag support (for future BLE config toggle)
+- [x] Beep state machine: `BEEP_ON` → `BEEP_OFF` → `BEEP_ON` with durations from model output
+- [x] `get_name()`: returns `"piezo"`
+- [x] Runtime mute flag support (for future BLE config toggle)
 
 **Validation**:
 - `get_piezo_sound_generator()` returns valid `sound_generator_t` pointer
@@ -2370,17 +2370,17 @@ Commercial varios (BlueFlyVario, XCTracer, Stodeus miniBip) typically use linear
 **Description**: Implement the FreeRTOS task that reads the current vario value from `shared_flight_data` and delegates to the sound generator backend via the factory contract. The task is intentionally thin — all tone logic lives inside the backend's `update()`.
 
 **Acceptance Criteria**:
-- [ ] `sound_task` created with Priority 1, stack 2048 bytes
-- [ ] At init: `const sound_generator_t *gen = get_sound_generator("piezo")` — if `NULL`, task exits immediately (no sound backend selected)
-- [ ] Calls `gen->init()` once at startup
-- [ ] Update rate: 20 Hz (50 ms period) — sufficient for responsive beep cadence without excessive CPU use
-- [ ] Each cycle:
+- [x] `sound_task` created with Priority 1, stack 2048 bytes
+- [x] At init: `const sound_generator_t *gen = get_sound_generator("piezo")` — if `NULL`, task exits immediately (no sound backend selected)
+- [x] Calls `gen->init()` once at startup
+- [x] Update rate: 20 Hz (50 ms period) — sufficient for responsive beep cadence without excessive CPU use
+- [x] Each cycle:
   1. `xSemaphoreTake(flight_data_mutex)` → copy `vario_ms` and `altitude_m` → `xSemaphoreGive()`
   2. Convert `vario_ms` (m/s) to cm/s
   3. `gen->update(vario_cms, altitude_m)`
   4. `vTaskDelay(remaining time to 50 ms)`
-- [ ] Mute on boot until first valid vario reading (`sensor_valid == true`)
-- [ ] Task priority: 1 (same level as LED task — non-critical audio)
+- [x] Mute on boot until first valid vario reading (`sensor_valid == true`)
+- [x] Task priority: 1 (same level as LED task — non-critical audio)
 
 **Validation**:
 - Sound output responds to vertical speed changes
@@ -2405,27 +2405,27 @@ Commercial varios (BlueFlyVario, XCTracer, Stodeus miniBip) typically use linear
 **Description**: Write comprehensive unit tests for the piezo model (interpolation, thresholds, hysteresis, config validation) and sound factory dispatch.
 
 **Acceptance Criteria**:
-- [ ] Test file `micro/test/test/test_piezo_model.c` exists
-- [ ] Test file `micro/test/test/test_sound.c` exists
-- [ ] Test: compute at exact breakpoint returns breakpoint values
-- [ ] Test: compute between breakpoints returns linearly interpolated values
-- [ ] Test: compute below first breakpoint clamps to first point
-- [ ] Test: compute above last breakpoint clamps to last point
-- [ ] Test: vario in dead zone (between climb_off and sink_off, outside pre-lift) → `PIEZO_ZONE_SILENCE`
-- [ ] Test: vario in pre-lift zone → `PIEZO_ZONE_PRE_LIFT` with tick parameters
-- [ ] Test: vario crosses climb_on threshold → `PIEZO_ZONE_CLIMB`
-- [ ] Test: vario drops below climb_off (not climb_on) → hysteresis holds `PIEZO_ZONE_CLIMB` until below `climb_off`
-- [ ] Test: sink threshold hysteresis symmetric to climb
-- [ ] Test: default config passes validation
-- [ ] Test: config with unsorted breakpoints rejected
-- [ ] Test: config with freq_hz > 4000 rejected
-- [ ] Test: config with count < 2 rejected
-- [ ] Test: config with climb_on <= climb_off rejected
-- [ ] Test (factory): `get_sound_generator("piezo")` returns non-NULL when `CONFIG_SOUND_PIEZO=y`
-- [ ] Test (factory): returned backend `get_name()` matches `"piezo"`
-- [ ] Test (factory): `get_sound_generator(NULL)` returns `NULL`
-- [ ] Test (factory): `get_sound_generator("unknown")` returns `NULL`
-- [ ] All tests pass in `ceedling test:all`
+- [x] Test file `micro/test/test/test_piezo_model.c` exists
+- [x] Test file `micro/test/test/test_sound.c` exists
+- [x] Test: compute at exact breakpoint returns breakpoint values
+- [x] Test: compute between breakpoints returns linearly interpolated values
+- [x] Test: compute below first breakpoint clamps to first point
+- [x] Test: compute above last breakpoint clamps to last point
+- [x] Test: vario in dead zone (between climb_off and sink_off, outside pre-lift) → `PIEZO_ZONE_SILENCE`
+- [x] Test: vario in pre-lift zone → `PIEZO_ZONE_PRE_LIFT` with tick parameters
+- [x] Test: vario crosses climb_on threshold → `PIEZO_ZONE_CLIMB`
+- [x] Test: vario drops below climb_off (not climb_on) → hysteresis holds `PIEZO_ZONE_CLIMB` until below `climb_off`
+- [x] Test: sink threshold hysteresis symmetric to climb
+- [x] Test: default config passes validation
+- [x] Test: config with unsorted breakpoints rejected
+- [x] Test: config with freq_hz > 4000 rejected
+- [x] Test: config with count < 2 rejected
+- [x] Test: config with climb_on <= climb_off rejected
+- [x] Test (factory): `get_sound_generator("piezo")` returns non-NULL when `CONFIG_SOUND_PIEZO=y`
+- [x] Test (factory): returned backend `get_name()` matches `"piezo"`
+- [x] Test (factory): `get_sound_generator(NULL)` returns `NULL`
+- [x] Test (factory): `get_sound_generator("unknown")` returns `NULL`
+- [x] All tests pass in `ceedling test:all`
 
 **Validation**:
 - Run `./scripts/micro/test.sh` — all tests green

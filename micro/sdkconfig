@@ -2342,6 +2342,14 @@ CONFIG_SENSOR_I2C_ADDR=0x77
 # CONFIG_SENSOR_I2C_INTERNAL_PULLUP is not set
 CONFIG_SENSOR_I2C_ALLOW_PD=y
 # end of Sensor driver
+
+#
+# Sound generator
+#
+CONFIG_SOUND_PIEZO=y
+# CONFIG_SOUND_NONE is not set
+CONFIG_PIEZO_GPIO=5
+# end of Sound generator
 # end of Component config
 
 # CONFIG_IDF_EXPERIMENTAL_FEATURES is not set

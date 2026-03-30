@@ -12,7 +12,7 @@ extern "C"
     typedef struct sound_generator_s
     {
         esp_err_t (*init)(void);
-        esp_err_t (*update)(double vario_cms, double altitude_m);
+        esp_err_t (*update)(double vario_cms);
         const char *(*get_name)(void);
     } sound_generator_t;
 

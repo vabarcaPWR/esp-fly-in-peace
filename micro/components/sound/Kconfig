@@ -1,0 +1,33 @@
+menu "Sound generator"
+
+    choice SOUND_GENERATOR
+        prompt "Sound output backend"
+        default SOUND_PIEZO
+        help
+            Select the sound output backend for vario acoustic feedback.
+            Only one backend is compiled into the binary.
+
+        config SOUND_PIEZO
+            bool "Piezoelectric buzzer (LEDC PWM)"
+            help
+                Drives a piezoelectric buzzer via ESP32-C3 LEDC PWM.
+                Requires a passive piezo buzzer connected to the configured GPIO pin
+                with an appropriate current-limiting resistor (100–220 Ohm).
+                Frequency range: 100–4000 Hz. Duty cycle: 0–100%.
+
+        config SOUND_NONE
+            bool "None (no sound output)"
+            help
+                Disables all sound output. No audio code is compiled.
+                Use this for silent operation or boards without a buzzer.
+    endchoice
+
+    config PIEZO_GPIO
+        int "Piezo buzzer GPIO number"
+        default 5
+        depends on SOUND_PIEZO
+        help
+            GPIO number connected to the piezoelectric buzzer.
+            Default: GPIO 5 (available on ESP32-C3 Super Mini).
+
+endmenu

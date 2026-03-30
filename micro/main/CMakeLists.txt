@@ -4,6 +4,7 @@ idf_component_register(
         "baro_task.c"
         "fusion_task.c"
         "ble_sender_task.c"
+        "sound_task.c"
     INCLUDE_DIRS "."
-    REQUIRES ahrs ble_nus ekf leds lk8ex1 sensors
+    REQUIRES ahrs ble_nus ekf leds lk8ex1 sensors sound
 )
