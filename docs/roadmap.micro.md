@@ -47,7 +47,7 @@
 - [x] **Phase 5: Sensor Factory (Runtime Selection + Shared Contract)**
   - [x] Task 5.1: Kconfig sensor selection (`choice SENSOR_DRIVER`)
   - [x] Task 5.2: `sensor` public API and factory dispatch
-  - [x] Task 5.3: I2C bus initialization
+  - [x] Task 5.3: I2C bus initialization (`bus_drivers` component)
 - [x] **Phase 6: MS5611 Sensor Driver**
   - [x] Task 6.1: MS5611 PROM calibration read
   - [x] Task 6.2: MS5611 raw pressure & temperature read
@@ -1076,7 +1076,7 @@ _Historical note only. This evidence does not close the reopened milestone._
 
 > **Status**: ✅ Completada — factory pattern con Kconfig.
 
-**Objective**: Create the sensor abstraction layer with runtime factory selection (`get_baro_sensor()` / `get_imu_sensor()`) and a shared contract in `sensor.h`. NO `i2c_bus` wrapper — sensor drivers use ESP-IDF I2C directly per architecture decision.  
+**Objective**: Create the sensor abstraction layer with runtime factory selection (`get_baro_sensor()` / `get_imu_sensor()`) and a shared contract in `sensor.h`. I2C bus initialization centralized in the `bus_drivers` infrastructure component, shared by all sensor backends.  
 **Estimated Duration**: 1–2 days  
 **Dependencies**: Phase 1 (interface contract in `firmware-architecture.md` §4.1)  
  
@@ -1137,26 +1137,44 @@ _Historical note only. This evidence does not close the reopened milestone._
 
 ---
 
-### Task 5.3: I2C bus initialization
+### Task 5.3: I2C bus initialization (`bus_drivers` component)
 
-**Description**: Define and implement I2C initialization ownership for factory-selected sensor backends using ESP-IDF's I2C driver directly (no wrapper component).
+**Description**: Centralize I2C master bus initialization in a shared infrastructure component (`bus_drivers`) so all sensor backends share a single bus instance without duplicating init logic.
 
 **Acceptance Criteria**:
-- [x] I2C master bus initialization is explicitly owned by the selected backend path
+- [x] I2C master bus initialization is centralized in `bus_drivers` component
 - [x] I2C port: `I2C_NUM_0`, SDA: GPIO 6, SCL: GPIO 7, Clock: 400 kHz (current board configuration)
 - [x] Pull-ups: configured via GPIO config (external 4.7 kΩ recommended)
 - [x] Uses ESP-IDF v5.x `i2c_master.h` API
+- [x] `sensor_i2c_bus_init()` is idempotent (safe to call multiple times)
+- [x] `sensor_i2c_bus_get_handle()` returns the shared bus handle for backends
+- [x] `sensors` component declares `bus_drivers` in `REQUIRES`
 
 **Validation**:
 - Build succeeds
 - (After Phase 6) I2C scan detects sensor at address 0x77
 
-**Files to modify**:
-- `micro/components/sensors/src/sensor.c`
+**Files**:
+- `micro/components/bus_drivers/CMakeLists.txt`
+- `micro/components/bus_drivers/i2c/inc/i2c_bus.h`
+- `micro/components/bus_drivers/i2c/src/i2c_bus.c`
+
+**Component structure** (`bus_drivers` — shared infrastructure):
+```
+micro/components/bus_drivers/
+├── CMakeLists.txt          # Registers i2c/src/i2c_bus.c, exposes i2c/inc
+└── i2c/
+    ├── inc/
+    │   └── i2c_bus.h       # sensor_i2c_bus_init(), sensor_i2c_bus_get_handle()
+    └── src/
+        └── i2c_bus.c       # Single-instance I2C master bus (idempotent init)
+```
 
 **Notes**:
-- **No `i2c_bus` wrapper component**: per architecture decision, sensor drivers use ESP-IDF I2C directly to minimize abstraction layers.
-- With factory pattern, ownership of bus setup stays explicit in the selected backend flow and is not hidden behind an extra wrapper module.
+- **Architecture evolution**: originally implemented inline in `sensor.c` (Phase 5 v1). Refactored to a dedicated `bus_drivers` component to avoid coupling bus ownership to a single factory component. This enables future bus consumers (e.g., external EEPROM, display) without depending on `sensors`.
+- The component name `hal` was rejected (collides with ESP-IDF's internal `hal` component that provides `hal/sha_types.h` for mbedtls). Renamed to `bus_drivers`.
+- `bus_drivers` is a **shared infrastructure component**, not a factory component — it has no Kconfig selection, no factory dispatch, no backends. It simply exposes a bus API.
+- Future bus types (SPI, UART) can be added under `bus_drivers/spi/`, `bus_drivers/uart/` following the same `<bus>/inc/` + `<bus>/src/` layout.
 
 **Status Note (2026-03-03 — Phase 5 complete)**:
 - Component `sensors` created with Kconfig support, public API header, and factory dispatch implementation.
@@ -1165,6 +1183,12 @@ _Historical note only. This evidence does not close the reopened milestone._
 - `sensor.c` exposes factory entry points (`get_baro_sensor()` / `get_imu_sensor()`), with `ms5611` already registered for barometric sensor selection.
 - Driver registration remains extensible for upcoming backends (BMP390, IMU).
 - Build succeeds with zero warnings. `.clang-format` applied.
+
+**Status Note (2026-03-30 — bus_drivers refactoring)**:
+- Extracted `i2c_bus.c` from `sensors/src/` into standalone `bus_drivers` component.
+- `sensors/CMakeLists.txt` updated: removed `i2c_bus.c` from SRCS, added `bus_drivers` to REQUIRES.
+- Name `hal/` tried first but collided with ESP-IDF internal component; renamed to `bus_drivers/`.
+- Clean build verified. All 117 Ceedling tests pass.
 
 ---
 

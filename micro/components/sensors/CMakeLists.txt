@@ -1,5 +1,4 @@
-set(SENSOR_SRCS "src/sensor.c"
-                "src/i2c_bus.c")
+set(SENSOR_SRCS "src/sensor.c")
 set(SENSOR_INCLUDE_DIRS "inc")
 
 if(CONFIG_SENSOR_MS5611)
@@ -22,6 +21,6 @@ idf_component_register(
     SRCS ${SENSOR_SRCS}
     INCLUDE_DIRS ${SENSOR_INCLUDE_DIRS}
     PRIV_INCLUDE_DIRS "src"
-    REQUIRES esp_timer
+    REQUIRES esp_timer bus_drivers
     PRIV_REQUIRES esp_driver_i2c
 )

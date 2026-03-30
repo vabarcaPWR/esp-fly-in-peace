@@ -93,6 +93,28 @@ micro/components/<component>/
 
 **Reference implementations**: `sensors/` (baro + IMU factories), `leds/` (LED factory), `sound/` (sound generator factory).
 
+## Shared Infrastructure Components
+
+Components that provide cross-cutting services (bus drivers, utilities) follow a simpler structure — no factory, no Kconfig selection, no backends:
+
+```
+micro/components/<component>/
+├── CMakeLists.txt              # Registers sources and public include dirs
+└── <subsystem>/                # One directory per subsystem (e.g., i2c, spi)
+    ├── inc/
+    │   └── <subsystem>.h       # Public API
+    └── src/
+        └── <subsystem>.c       # Implementation
+```
+
+**Rules**:
+1. No factory dispatch — consumers include the header and call functions directly.
+2. Subsystem directories group related code (e.g., `i2c/`, `spi/`, `uart/`).
+3. Implementations must be **idempotent** and **safe for multiple consumers** (guard against double-init).
+4. Components that depend on infrastructure declare it in `REQUIRES` in their `CMakeLists.txt`.
+
+**Reference implementation**: `bus_drivers/` (I2C bus shared across sensor backends).
+
 ## Mobile App Rules (app/)
 
 - **Language**: Dart (Flutter). Comments in English.
