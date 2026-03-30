@@ -55,6 +55,44 @@ Read `.github/PRE-PROMPT.md` for full project scope, constraints, and style guid
 - **DRY**: Do not repeat yourself. Extract shared logic into well-named helper functions.
 - **Self-documenting code**: Function and variable names must convey intent. If a comment is needed, rename the symbol instead.
 
+## Component Architecture (Factory + Backend Pattern)
+
+All firmware components that support multiple implementations **must** follow the factory-backend pattern established by `sensors`, `leds`, and `sound`. This is the mandatory structure:
+
+```
+micro/components/<component>/
+├── CMakeLists.txt                    # Conditional backend compilation via Kconfig
+├── Kconfig                           # choice <COMPONENT>_BACKEND with options per backend
+├── inc/
+│   └── <component>.h                 # Public contract: <component>_t struct with function pointers + factory function
+└── src/
+    ├── <component>.c                 # Factory dispatch: get_<component>(name) returns selected backend
+    └── <backend_name>/               # One directory per backend implementation
+        ├── inc/
+        │   ├── <backend>.h           # Backend API: get_<backend>_<component>() returning const <component>_t*
+        │   ├── <backend>_types.h     # Backend-specific types (breakpoints, config, data structs)
+        │   ├── <backend>_model.h     # Model layer API — pure logic, zero ESP-IDF deps, testable with Ceedling
+        │   └── <backend>_hardware.h  # Hardware layer API — peripheral drivers, GPIO, I2C, PWM
+        └── src/
+            ├── <backend>.c           # Conductor — orchestrates model + hardware, implements contract
+            ├── <backend>_model.c     # Model implementation — deterministic, no side effects
+            └── <backend>_hardware.c  # Hardware implementation — ESP-IDF peripheral calls
+```
+
+**Rules**:
+1. The **public contract** (`<component>.h`) defines a struct with function pointers (`init`, domain-specific operations, `get_name`) and a factory function `get_<component>(const char *name)`.
+2. **Backends** live under `src/<backend_name>/` within the same component. Each backend implements the contract and registers via the factory.
+3. **Kconfig** selects the active backend at build time. Unselected backends are compiled out.
+4. Each backend internally follows the **conductor-model-hardware** split:
+   - **Model** (`_model.c`): pure logic, no ESP-IDF dependencies, fully testable with Ceedling.
+   - **Hardware** (`_hardware.c`): platform adapters, peripheral calls, GPIO, I2C, PWM.
+   - **Conductor** (`<backend>.c`): orchestrates model + hardware, implements the contract's function pointers.
+5. Backend-specific types go in `_types.h` — shared between model, hardware, and conductor.
+6. The factory and the consuming task/module are **backend-agnostic** — they only interact via the contract's function pointers.
+7. Adding a new backend requires: implement the contract in a new `src/<new_backend>/` directory, register in the factory's `<component>.c`, and add a Kconfig option. No changes to the task or other consumers.
+
+**Reference implementations**: `sensors/` (baro + IMU factories), `leds/` (LED factory), `sound/` (sound generator factory).
+
 ## Mobile App Rules (app/)
 
 - **Language**: Dart (Flutter). Comments in English.

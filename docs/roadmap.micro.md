@@ -82,33 +82,41 @@
   - [x] Task 9.5: BLE sender task (8 Hz)
   - [x] Task 9.6: Replace simulated provider with real sensor data
   - [x] Task 9.7: End-to-end data flow validation
-- [ ] **Phase 10: NVS Configuration**
-  - [ ] Task 10.1: Config schema definition and defaults
-  - [ ] Task 10.2: NVS read/write with validation
-  - [ ] Task 10.3: BLE Config Service GATT (read/write characteristics)
-  - [ ] Task 10.4: Config task (event-driven)
-  - [ ] Task 10.5: Ceedling unit tests for config validation
-- [ ] **Phase 11: Power Optimization**
-  - [ ] Task 11.1: Light-sleep between sensor reads
-  - [ ] Task 11.2: BLE connection interval optimization
-  - [ ] Task 11.3: Peripheral power gating
-  - [ ] Task 11.4: Power consumption measurement & logging
-- [ ] **Phase 12: Integration & Validation**
-  - [ ] Task 12.1: End-to-end test with XCTrack
-  - [ ] Task 12.2: Long-duration stability test (8+ hours)
-  - [ ] Task 12.3: Power consumption budget verification
-  - [ ] Task 12.4: Edge case testing (BLE disconnect/reconnect, sensor errors)
-- [ ] **Phase 13: Documentation & Cleanup**
-  - [ ] Task 13.1: Firmware README with build/flash instructions
-  - [ ] Task 13.2: Component API documentation
-  - [ ] Task 13.3: Architecture diagram update (Mermaid)
-  - [ ] Task 13.4: Code review pass (Boy Scout Rule)
+- [ ] **Phase 10: Vario Acoustic Feedback (Piezo Buzzer)**
+  - [ ] Task 10.1: Sound factory contract and Kconfig backend selection
+  - [ ] Task 10.2: Piezo backend — types and hardware layer
+  - [ ] Task 10.3: Piezo backend — tone model (frequency + cadence curves)
+  - [ ] Task 10.4: Piezo backend — conductor (`update` implementation)
+  - [ ] Task 10.5: Sound task (`sound_task`)
+  - [ ] Task 10.6: Ceedling unit tests for piezo model and sound factory
+  - [ ] Task 10.7: Hardware integration and comfort tuning
+- [ ] **Phase 11: NVS Configuration**
+  - [ ] Task 11.1: Config schema definition and defaults
+  - [ ] Task 11.2: NVS read/write with validation
+  - [ ] Task 11.3: BLE Config Service GATT (read/write characteristics)
+  - [ ] Task 11.4: Config task (event-driven)
+  - [ ] Task 11.5: Ceedling unit tests for config validation
+- [ ] **Phase 12: Power Optimization**
+  - [ ] Task 12.1: Light-sleep between sensor reads
+  - [ ] Task 12.2: BLE connection interval optimization
+  - [ ] Task 12.3: Peripheral power gating
+  - [ ] Task 12.4: Power consumption measurement & logging
+- [ ] **Phase 13: Integration & Validation**
+  - [ ] Task 13.1: End-to-end test with XCTrack
+  - [ ] Task 13.2: Long-duration stability test (8+ hours)
+  - [ ] Task 13.3: Power consumption budget verification
+  - [ ] Task 13.4: Edge case testing (BLE disconnect/reconnect, sensor errors)
+- [ ] **Phase 14: Documentation & Cleanup**
+  - [ ] Task 14.1: Firmware README with build/flash instructions
+  - [ ] Task 14.2: Component API documentation
+  - [ ] Task 14.3: Architecture diagram update (Mermaid)
+  - [ ] Task 14.4: Code review pass (Boy Scout Rule)
 
 ---
 
 ## Cross-Phase Rule — `conductor-model-hardware`
 
-**Mandatory scope**: all implementation phases (`0`, `2` to `12`).
+**Mandatory scope**: all implementation phases (`0`, `2` to `13`).
 
 For every module/component implemented in those phases:
 
@@ -2158,13 +2166,290 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 ---
 
-## Phase 10: NVS Configuration
+## Phase 10: Vario Acoustic Feedback (Piezo Buzzer)
 
 > **Status**: 🔲 No iniciada.
 
-**Objective**: Implement persistent device configuration with NVS storage and expose a BLE Config Service for remote configuration.  
+**Objective**: Implement acoustic vario feedback using the `sound` component, which follows the project's standard factory-backend pattern (same as `sensors` and `leds`). The `sound` component defines a `sound_generator_t` contract with `{init, update, get_name}` and dispatches to the Kconfig-selected backend. The first backend (`piezo`) drives a piezoelectric buzzer via ESP32-C3 LEDC PWM. Future backends (DAC+speaker, I2S amplifier, external codec) can be added by implementing the contract inside `sound/src/<backend>/` — no changes to the factory or task. The `update(vario_cms, altitude_m)` function encapsulates the full tone logic (model + beep state machine + hardware) inside each backend. Design prioritizes pilot comfort: logarithmic frequency response, capped max frequency (~1600 Hz), saturating cadence (min cycle ~180 ms), and smooth transitions. The tone configuration schema is prepared for remote adjustment via BLE (Phase 11).  
+**Estimated Duration**: 4–5 days  
+**Dependencies**: Phase 9 (data pipeline — `shared_flight_data` with `vario_ms`)  
+ 
+**Refactorización (obligatoria)**:
+- Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
+- Reducir duplicación y complejidad accidental sin cambiar comportamiento funcional.
+- Mantener nombres y límites de módulo claros para código autoexplicativo.
+- Convención de nombres por rol obligatoria: `*_conductor.c`, `*_model.c`, `*_hardware.c` (si aplica al módulo).
+- Repetir la validación de la fase después de cada refactorización.
+
+**Architecture Reference**: `firmware-architecture.md` §5 Tasks (new `sound_task`), §4 Components (new `sound`)
+
+**Design Rationale — Comfort-First Approach**:
+
+Commercial varios (BlueFlyVario, XCTracer, Stodeus miniBip) typically use linear or semi-linear frequency curves that can become strident above +3 m/s and produce frantic cadences above +5 m/s. This design addresses those issues:
+
+1. **Logarithmic frequency curve**: frequency rises quickly in weak lift (+0.2 to +1.0 m/s) for early thermal detection, then flattens progressively. Strong lift (+4 m/s and above) produces a clear but gentle tone, never shrill.
+2. **Cadence saturation**: the beep cycle (ON+OFF period) decreases with climb rate but saturates at a minimum of ~180 ms. This prevents the "machine gun" effect at high climb rates that causes pilot stress.
+3. **Frequency cap**: max tone frequency is limited to ~1600 Hz (configurable). For reference, BlueFlyVario defaults can exceed 2500 Hz and XCTracer goes up to 1800 Hz.
+4. **Duty cycle curve**: duty increases gently from ~30% at threshold to ~55% at strong lift. Never reaches 100% (continuous) in climb — always retains an audible pause for spatial awareness.
+5. **Sink tone**: continuous low-frequency tone (200–350 Hz) below sink threshold. Gentle and non-alarming.
+6. **Pre-lift zone**: optional subtle single tick (very short pulse, low frequency) between climb_off and climb_on thresholds to hint at weak lift without committing to full beeping.
+7. **Smooth transitions**: frequency and cadence changes are interpolated over 2–3 update cycles (~100–150 ms) to avoid jarring jumps.
+
+---
+
+### Task 10.1: Sound factory contract and Kconfig backend selection
+
+**Description**: Complete the `sound` component factory with Kconfig-based backend selection, following the same pattern as `sensors` (Phase 5) and `leds` (Phase 4). The component already has stub headers and factory dispatch — this task adds Kconfig, CMakeLists, and validates the factory wiring.
+
+**Acceptance Criteria**:
+- [ ] `sound/CMakeLists.txt` created with conditional backend compilation (same pattern as `sensors/CMakeLists.txt`)
+- [ ] `sound/Kconfig` with `choice SOUND_GENERATOR`:
+  - `CONFIG_SOUND_PIEZO` (default) — piezoelectric buzzer via LEDC PWM
+  - `CONFIG_SOUND_NONE` — no sound output (compiles out all audio code)
+- [ ] Each option has help text describing hardware requirements and capabilities
+- [ ] Selection visible in `idf.py menuconfig` under "Component config → Sound generator"
+- [ ] Factory dispatch in `sound.c`: `get_sound_generator("piezo")` returns piezo backend when `CONFIG_SOUND_PIEZO=y`
+- [ ] `get_sound_generator(NULL)` and unknown names return `NULL`
+- [ ] Existing `sound_generator_t` contract validated: `{ init, update(vario_cms, altitude_m), get_name }`
+
+**Validation**:
+- `idf.py menuconfig` shows the sound generator selection menu
+- `sdkconfig` contains `CONFIG_SOUND_PIEZO=y` by default
+- Build succeeds with `CONFIG_SOUND_NONE=y` (sound code compiled out)
+
+**Files to create**:
+- `micro/components/sound/CMakeLists.txt`
+- `micro/components/sound/Kconfig`
+
+**Files to modify**:
+- `micro/components/sound/src/sound.c` (update Kconfig guard from `CONFIG_SENSOR_PIEZO` to `CONFIG_SOUND_PIEZO`)
+
+**Notes**:
+- The `sound_generator_t.update(vario_cms, altitude_m)` contract pushes all tone logic (model, beep state machine, hardware) into each backend. The factory and task remain trivially simple.
+- Pattern mirrors `sensor.h` / `get_baro_sensor()` and `led.h` / `get_led()`.
+
+---
+
+### Task 10.2: Piezo backend — types and hardware layer
+
+**Description**: Implement the piezo backend's type definitions and hardware layer inside `sound/src/piezo/`. The hardware layer drives the piezoelectric buzzer via ESP32-C3 LEDC PWM.
+
+**Acceptance Criteria**:
+- [ ] `piezo_types.h` defines:
+  - Breakpoint structure: `piezo_tone_point_t { float vario_ms; uint16_t freq_hz; uint16_t cycle_ms; uint8_t duty_pct; }`
+  - Tone curve: `piezo_tone_curve_t { piezo_tone_point_t points[PIEZO_MAX_TONE_POINTS]; uint8_t count; }`
+  - `PIEZO_MAX_TONE_POINTS` = 12 (sufficient for expressive curves, fits in ~120 bytes)
+  - Thresholds: `piezo_tone_thresholds_t { float climb_on_ms; float climb_off_ms; float sink_on_ms; float sink_off_ms; }`
+  - Output: `piezo_tone_output_t { uint16_t freq_hz; uint16_t cycle_ms; uint8_t duty_pct; piezo_tone_zone_e zone; }`
+  - Zones: `PIEZO_ZONE_SILENCE`, `PIEZO_ZONE_PRE_LIFT`, `PIEZO_ZONE_CLIMB`, `PIEZO_ZONE_SINK`
+  - Config: `piezo_tone_config_t` (aggregates curve + thresholds + pre_lift_enabled + muted + volume_pct)
+- [ ] `piezo_hardware.h` / `piezo_hardware.c`:
+  - `esp_err_t piezo_hw_init(uint8_t gpio_num)` — configures LEDC timer (13-bit resolution) and channel
+  - `esp_err_t piezo_hw_set_tone(uint16_t freq_hz, uint8_t duty_pct)` — sets frequency and duty. `freq_hz = 0` or `duty_pct = 0` silences output
+  - `void piezo_hw_mute(void)` — sets duty to 0 (silent, no GPIO toggle)
+  - Frequency range: 100–4000 Hz (hardware capable, software will cap lower)
+  - Duty cycle range: 0–100% (0 = mute, 50 = square wave)
+- [ ] GPIO pin configurable via Kconfig (`CONFIG_PIEZO_GPIO`, default GPIO 5) inside `sound/Kconfig`
+
+**Validation**:
+- Tone audible on piezo buzzer at various frequencies
+- Mute produces silence (no residual oscillation)
+
+**Files to create**:
+- `micro/components/sound/src/piezo/src/piezo_hardware.c`
+
+**Files to modify**:
+- `micro/components/sound/src/piezo/inc/piezo_types.h` (fill in type definitions)
+- `micro/components/sound/src/piezo/inc/piezo_hardware.h` (fill in API declarations)
+- `micro/components/sound/Kconfig` (add `CONFIG_PIEZO_GPIO` under piezo option)
+
+---
+
+### Task 10.3: Piezo backend — tone model (frequency + cadence curves)
+
+**Description**: Implement the piezo backend's pure-logic tone model that maps vertical speed (m/s) to tone parameters (frequency, cycle duration, duty cycle). Uses a configurable breakpoint table with linear interpolation, inspired by the XCTracer `tone=<vario>,<freq>,<cycle>,<duty>` format. Zero ESP-IDF dependencies — fully testable with Ceedling.
+
+**Acceptance Criteria**:
+- [ ] `piezo_model.h` / `piezo_model.c` — zero ESP-IDF dependencies
+- [ ] `void piezo_model_compute(const piezo_tone_curve_t *curve, const piezo_tone_thresholds_t *thresh, float vario_ms, piezo_tone_output_t *out)` — computes `{freq_hz, cycle_ms, duty_pct, zone}` from vario input
+- [ ] Hysteresis: `climb_on > climb_off` and `sink_on < sink_off` to prevent oscillation at threshold boundaries
+- [ ] Linear interpolation between adjacent breakpoints; clamp to first/last point outside range
+- [ ] Default "comfort" curve embedded as const:
+
+| Vario (m/s) | Freq (Hz) | Cycle (ms) | Duty (%) | Notes |
+|-------------|-----------|------------|----------|-------|
+| -10.0 | 200 | 0 | 100 | Strong sink — continuous low |
+| -2.0 | 280 | 0 | 100 | Sink threshold — continuous |
+| 0.0 | 400 | 600 | 30 | Near zero — slow gentle beep |
+| 0.5 | 550 | 500 | 35 | Weak lift — clear but calm |
+| 1.0 | 700 | 420 | 40 | Moderate lift |
+| 2.0 | 950 | 320 | 45 | Good lift |
+| 3.0 | 1150 | 250 | 50 | Strong lift |
+| 5.0 | 1400 | 200 | 55 | Very strong — cadence saturating |
+| 8.0 | 1550 | 180 | 55 | Extreme — nearly flat response |
+| 10.0 | 1600 | 180 | 55 | Max — capped frequency and cadence |
+
+- [ ] Default thresholds: `climb_on = +0.15`, `climb_off = +0.05`, `sink_on = -2.0`, `sink_off = -1.5`
+- [ ] Pre-lift zone (between `climb_off` and `climb_on`): single short tick per second (freq=400 Hz, cycle=1000 ms, duty=5%)
+- [ ] `const piezo_tone_config_t *piezo_config_get_defaults(void)` — returns pointer to static default config
+- [ ] `esp_err_t piezo_config_validate(const piezo_tone_config_t *config)` — validates all fields with range checks
+- [ ] Config struct is plain C (no pointers, no dynamic allocation) — can be serialized to/from NVS as binary blob or JSON
+- [ ] Size fits within a single BLE GATT characteristic write (< 512 bytes)
+- [ ] Documentation comment in header: "This config will be exposed via BLE Config Service in Phase 11. Add `piezo_tone_config_t` to `device_config_t` when implementing Phase 11."
+
+**Validation**:
+- Unit tests verify interpolation at exact breakpoints and between them
+- Unit tests verify threshold hysteresis behavior
+- Unit tests verify clamping outside curve range
+- Unit tests verify config validation
+
+**Files to create**:
+- `micro/components/sound/src/piezo/src/piezo_model.c`
+
+**Files to modify**:
+- `micro/components/sound/src/piezo/inc/piezo_model.h` (fill in API declarations)
+
+---
+
+### Task 10.4: Piezo backend — conductor (`update` implementation)
+
+**Description**: Implement the piezo backend conductor that orchestrates the model and hardware layers. The conductor implements the `sound_generator_t` contract: `init` sets up hardware, `update(vario_cms, altitude_m)` computes the tone via the model, manages the beep state machine, applies smoothing, and drives the hardware. `get_name` returns `"piezo"`.
+
+**Acceptance Criteria**:
+- [ ] `piezo.c` implements `sound_generator_t` contract via `get_piezo_sound_generator()`
+- [ ] `init()`: calls `piezo_hw_init(CONFIG_PIEZO_GPIO)`, loads default config
+- [ ] `update(vario_cms, altitude_m)`:
+  1. Convert `vario_cms` (cm/s) to m/s
+  2. `piezo_model_compute()` → get `{freq_hz, cycle_ms, duty_pct, zone}`
+  3. Manage beep timing: track position within current cycle (ON phase vs OFF phase)
+  4. Apply smoothing: frequency changes limited to ±50 Hz per call to avoid jarring jumps
+  5. Call `piezo_hw_set_tone()` or `piezo_hw_mute()` based on current beep phase
+- [ ] Beep state machine: `BEEP_ON` → `BEEP_OFF` → `BEEP_ON` with durations from model output
+- [ ] `get_name()`: returns `"piezo"`
+- [ ] Runtime mute flag support (for future BLE config toggle)
+
+**Validation**:
+- `get_piezo_sound_generator()` returns valid `sound_generator_t` pointer
+- `update()` produces audible tones that change with vario input
+- No audible artifacts (clicks, pops) during frequency transitions
+
+**Files to create**:
+- `micro/components/sound/src/piezo/src/piezo.c`
+
+**Files to modify**:
+- `micro/components/sound/src/piezo/inc/piezo.h` (verify contract alignment)
+
+---
+
+### Task 10.5: Sound task (`sound_task`)
+
+**Description**: Implement the FreeRTOS task that reads the current vario value from `shared_flight_data` and delegates to the sound generator backend via the factory contract. The task is intentionally thin — all tone logic lives inside the backend's `update()`.
+
+**Acceptance Criteria**:
+- [ ] `sound_task` created with Priority 1, stack 2048 bytes
+- [ ] At init: `const sound_generator_t *gen = get_sound_generator("piezo")` — if `NULL`, task exits immediately (no sound backend selected)
+- [ ] Calls `gen->init()` once at startup
+- [ ] Update rate: 20 Hz (50 ms period) — sufficient for responsive beep cadence without excessive CPU use
+- [ ] Each cycle:
+  1. `xSemaphoreTake(flight_data_mutex)` → copy `vario_ms` and `altitude_m` → `xSemaphoreGive()`
+  2. Convert `vario_ms` (m/s) to cm/s
+  3. `gen->update(vario_cms, altitude_m)`
+  4. `vTaskDelay(remaining time to 50 ms)`
+- [ ] Mute on boot until first valid vario reading (`sensor_valid == true`)
+- [ ] Task priority: 1 (same level as LED task — non-critical audio)
+
+**Validation**:
+- Sound output responds to vertical speed changes
+- No interference with BLE data stream or sensor reads
+- Task exits gracefully when `CONFIG_SOUND_NONE=y`
+
+**Files to create**:
+- `micro/main/sound_task.c`
+- `micro/main/sound_task.h`
+
+**Files to modify**:
+- `micro/main/main.c` (task creation in `app_main()`)
+
+**Notes**:
+- Task priority order updated: 6=fusion, 5=baro, 4=NimBLE, 3=ble_sender, 2=config, 1=led/sound, 0=idle.
+- The 20 Hz update rate allows fine-grained beep timing (50 ms resolution) while keeping CPU overhead minimal (~0.1% at task priority 1).
+
+---
+
+### Task 10.6: Ceedling unit tests for piezo model and sound factory
+
+**Description**: Write comprehensive unit tests for the piezo model (interpolation, thresholds, hysteresis, config validation) and sound factory dispatch.
+
+**Acceptance Criteria**:
+- [ ] Test file `micro/test/test/test_piezo_model.c` exists
+- [ ] Test file `micro/test/test/test_sound.c` exists
+- [ ] Test: compute at exact breakpoint returns breakpoint values
+- [ ] Test: compute between breakpoints returns linearly interpolated values
+- [ ] Test: compute below first breakpoint clamps to first point
+- [ ] Test: compute above last breakpoint clamps to last point
+- [ ] Test: vario in dead zone (between climb_off and sink_off, outside pre-lift) → `PIEZO_ZONE_SILENCE`
+- [ ] Test: vario in pre-lift zone → `PIEZO_ZONE_PRE_LIFT` with tick parameters
+- [ ] Test: vario crosses climb_on threshold → `PIEZO_ZONE_CLIMB`
+- [ ] Test: vario drops below climb_off (not climb_on) → hysteresis holds `PIEZO_ZONE_CLIMB` until below `climb_off`
+- [ ] Test: sink threshold hysteresis symmetric to climb
+- [ ] Test: default config passes validation
+- [ ] Test: config with unsorted breakpoints rejected
+- [ ] Test: config with freq_hz > 4000 rejected
+- [ ] Test: config with count < 2 rejected
+- [ ] Test: config with climb_on <= climb_off rejected
+- [ ] Test (factory): `get_sound_generator("piezo")` returns non-NULL when `CONFIG_SOUND_PIEZO=y`
+- [ ] Test (factory): returned backend `get_name()` matches `"piezo"`
+- [ ] Test (factory): `get_sound_generator(NULL)` returns `NULL`
+- [ ] Test (factory): `get_sound_generator("unknown")` returns `NULL`
+- [ ] All tests pass in `ceedling test:all`
+
+**Validation**:
+- Run `./scripts/micro/test.sh` — all tests green
+
+**Files to create**:
+- `micro/test/test/test_piezo_model.c`
+- `micro/test/test/test_sound.c`
+
+---
+
+### Task 10.7: Hardware integration and comfort tuning
+
+**Description**: Integrate the sound component with the live data pipeline on real hardware and fine-tune the default curve for pilot comfort.
+
+**Acceptance Criteria**:
+- [ ] Piezo buzzer connected to configured GPIO pin with appropriate current-limiting resistor
+- [ ] Boot sequence: sound generator plays a short ascending confirmation tone (200 ms total) during `LED_STATE_BOOT`
+- [ ] Vario tone responds to real vertical speed changes (blow on barometric sensor → climb tone)
+- [ ] Frequency transitions are smooth — no audible clicks or pops during sweeps
+- [ ] Strong climb (+5 m/s simulated) produces a clear but non-strident tone at ~1400 Hz with relaxed cadence (~200 ms cycle)
+- [ ] Silence in dead zone is clean (no buzzer whine or residual oscillation)
+- [ ] Sink tone is gentle and distinguishable from climb (lower pitch, continuous)
+- [ ] Pre-lift tick is subtle and non-distracting
+- [ ] No interference with BLE data stream or sensor reads (verify BLE throughput unchanged)
+- [ ] Stack high-water mark for `sound_task` checked (>25% remaining)
+- [ ] Default curve adjusted based on subjective listening test (iterate 2–3 times if needed)
+
+**Validation**:
+- Subjective listening test at desk with simulated vario values
+- BLE data stream verified unchanged (frequency + content)
+- 30-minute stability run with sound active — no crashes, no memory leaks
+- Document final default curve if it diverges from Task 10.3 initial values
+
+**Files to modify**:
+- `micro/components/sound/src/piezo/src/piezo_model.c` (tune default curve values if needed)
+- `micro/main/main.c` (boot confirmation tone)
+
+
+---
+
+
+## Phase 11: NVS Configuration
+
+> **Status**: 🔲 No iniciada.
+
+**Objective**: Implement persistent device configuration with NVS storage and expose a BLE Config Service for remote configuration. Includes persistence and BLE exposure of the vario tone configuration (`piezo_tone_config_t`) defined in Phase 10.  
 **Estimated Duration**: 3–4 days  
-**Dependencies**: Phase 3 (BLE NUS for GATT server), Phase 9 (data pipeline for applying config)  
+**Dependencies**: Phase 3 (BLE NUS for GATT server), Phase 9 (data pipeline for applying config), Phase 10 (sound tone config schema)  
  
 **Refactorización (obligatoria)**:
 - Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
@@ -2177,13 +2462,13 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 ---
 
-### Task 10.1: Config schema definition and defaults
+### Task 11.1: Config schema definition and defaults
 
 **Description**: Define the `device_config_t` struct and default values per architecture §4.8.
 
 **Acceptance Criteria**:
 - [ ] Component `config_manager` created in `micro/components/config_manager/`
-- [ ] `device_config_t` struct per architecture: `sensor_rate_hz` (10), `ble_tx_rate_hz` (4), `kalman_q` (0.01), `kalman_r` (0.5), `reference_pressure_pa` (101325.0), `device_name` ("FlyInPeace"), `wifi_enabled` (false)
+- [ ] `device_config_t` struct per architecture: `sensor_rate_hz` (10), `ble_tx_rate_hz` (4), `kalman_q` (0.01), `kalman_r` (0.5), `reference_pressure_pa` (101325.0), `device_name` ("FlyInPeace"), `wifi_enabled` (false), `vario_tone_config_t tone` (from Phase 10 buzzer component)
 - [ ] `const device_config_t *config_manager_get_defaults(void)` returns pointer to static defaults
 - [ ] Validation rules per architecture: `sensor_rate_hz` ∈ [1,100], `ble_tx_rate_hz` ∈ [1,50], etc.
 - [ ] Internal validation function: returns `ESP_ERR_INVALID_ARG` for out-of-range values
@@ -2198,7 +2483,7 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 ---
 
-### Task 10.2: NVS read/write with validation
+### Task 11.2: NVS read/write with validation
 
 **Description**: Implement persistent configuration storage in NVS.
 
@@ -2218,7 +2503,7 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 ---
 
-### Task 10.3: BLE Config Service GATT (read/write characteristics)
+### Task 11.3: BLE Config Service GATT (read/write characteristics)
 
 **Description**: Add the Config Service to the BLE GATT server per `ble_protocol.md`.
 
@@ -2245,7 +2530,7 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 ---
 
-### Task 10.4: Config task (event-driven)
+### Task 11.4: Config task (event-driven)
 
 **Description**: Implement the `config_task` per architecture §5.2 — event-driven via queue.
 
@@ -2268,7 +2553,7 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 ---
 
-### Task 10.5: Ceedling unit tests for config validation
+### Task 11.5: Ceedling unit tests for config validation
 
 **Description**: Write unit tests for config validation logic.
 
@@ -2293,13 +2578,13 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 ---
 
-## Phase 11: Power Optimization
+## Phase 12: Power Optimization
 
 > **Status**: 🔲 No iniciada.
 
 **Objective**: Optimize power consumption for battery operation using light-sleep, BLE interval tuning, and peripheral gating.  
 **Estimated Duration**: 2–3 days  
-**Dependencies**: Phase 9 (data pipeline running), Phase 10 (config for tuning)  
+**Dependencies**: Phase 9 (data pipeline running), Phase 11 (config for tuning)  
  
 **Refactorización (obligatoria)**:
 - Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
@@ -2314,7 +2599,7 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 ### Recalculated Power Baseline (Status LED, non-RGB)
 
 Assumptions for planning:
-- Onboard status LED current when ON (`I_led_on`): **2.0 mA** (to be confirmed in Phase 11.4 measurements).
+- Onboard status LED current when ON (`I_led_on`): **2.0 mA** (to be confirmed in Phase 12.4 measurements).
 - Values below represent LED contribution only (delta over core system current).
 
 | LED State | Pattern | Duty Cycle | Average LED Current |
@@ -2347,7 +2632,7 @@ Planning note:
 
 ---
 
-### Task 11.1: Light-sleep between sensor reads
+### Task 12.1: Light-sleep between sensor reads
 
 **Description**: Enable automatic light-sleep using ESP-IDF power management.
 
@@ -2370,7 +2655,7 @@ Planning note:
 
 ---
 
-### Task 11.2: BLE connection interval optimization
+### Task 12.2: BLE connection interval optimization
 
 **Description**: Optimize BLE connection parameters to reduce radio-on time while maintaining acceptable latency.
 
@@ -2390,7 +2675,7 @@ Planning note:
 
 ---
 
-### Task 11.3: Peripheral power gating
+### Task 12.3: Peripheral power gating
 
 **Description**: Disable unused peripherals to reduce baseline power consumption.
 
@@ -2408,7 +2693,7 @@ Planning note:
 
 ---
 
-### Task 11.4: Power consumption measurement & logging
+### Task 12.4: Power consumption measurement & logging
 
 **Description**: Measure and document power consumption in various states.
 
@@ -2427,7 +2712,7 @@ Planning note:
 
 ---
 
-## Phase 12: Integration & Validation
+## Phase 13: Integration & Validation
 
 > **Status**: 🔲 No iniciada.
 
@@ -2443,7 +2728,7 @@ Planning note:
 
 ---
 
-### Task 12.1: End-to-end test with XCTrack
+### Task 13.1: End-to-end test with XCTrack
 
 **Description**: Validate the complete system with XCTrack (the target variometer app for paragliding).
 
@@ -2452,6 +2737,7 @@ Planning note:
 - [ ] XCTrack receives and parses LK8EX1 sentences correctly
 - [ ] Altitude display in XCTrack matches expected value (±10 m at known altitude)
 - [ ] Vario display responds to pressure changes (blow on sensor → positive reading)
+- [ ] Buzzer tone matches vario display in XCTrack (climb tone when XCTrack shows positive vario)
 - [ ] No data gaps or parsing errors in XCTrack logs
 
 **Validation**:
@@ -2460,7 +2746,7 @@ Planning note:
 
 ---
 
-### Task 12.2: Long-duration stability test (8+ hours)
+### Task 13.2: Long-duration stability test (8+ hours)
 
 **Description**: Run the system for extended duration to verify stability.
 
@@ -2477,9 +2763,9 @@ Planning note:
 
 ---
 
-### Task 12.3: Power consumption budget verification
+### Task 13.3: Power consumption budget verification
 
-**Description**: Verify actual power consumption meets the design budget from Phase 11.
+**Description**: Verify actual power consumption meets the design budget from Phase 12.
 
 **Acceptance Criteria**:
 - [ ] Actual current draw matches documented power budget (±20%)
@@ -2492,7 +2778,7 @@ Planning note:
 
 ---
 
-### Task 12.4: Edge case testing (BLE disconnect/reconnect, sensor errors)
+### Task 13.4: Edge case testing (BLE disconnect/reconnect, sensor errors)
 
 **Description**: Test error handling and recovery scenarios.
 
@@ -2509,17 +2795,17 @@ Planning note:
 
 ---
 
-## Phase 13: Documentation & Cleanup
+## Phase 14: Documentation & Cleanup
 
 > **Status**: 🔲 No iniciada.
 
 **Objective**: Final documentation, code cleanup, and preparation for ongoing development.  
 **Estimated Duration**: 1–2 days  
-**Dependencies**: Phase 12 complete
+**Dependencies**: Phase 13 complete
 
 ---
 
-### Task 13.1: Firmware README with build/flash instructions
+### Task 14.1: Firmware README with build/flash instructions
 
 **Description**: Write a comprehensive README for the firmware directory.
 
@@ -2542,7 +2828,7 @@ Planning note:
 
 ---
 
-### Task 13.2: Component API documentation
+### Task 14.2: Component API documentation
 
 **Description**: Ensure all public headers have complete Doxygen documentation.
 
@@ -2557,7 +2843,7 @@ Planning note:
 
 ---
 
-### Task 13.3: Architecture diagram update (Mermaid)
+### Task 14.3: Architecture diagram update (Mermaid)
 
 **Description**: Update the architecture document with final Mermaid diagrams reflecting the actual implementation.
 
@@ -2575,7 +2861,7 @@ Planning note:
 
 ---
 
-### Task 13.4: Code review pass (Boy Scout Rule)
+### Task 14.4: Code review pass (Boy Scout Rule)
 
 **Description**: Final code review and cleanup following the Boy Scout Rule ("leave the code cleaner than you found it").
 
