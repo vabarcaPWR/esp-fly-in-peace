@@ -5,7 +5,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include <esp_log.h>
-#include <esp_timer.h>
 #include <stdio.h>
 
 #define FUSION_BARO_PERIOD_MS 100U
@@ -21,10 +20,8 @@ static void publish_flight_data(const ekf_state_t *ekf, const ekf_cfg_t *ekf_cfg
         .pressure_pa = pressure_pa,
         .temperature_mc = temperature_mc,
         .reference_pressure_pa = ekf_cfg->reference_pressure_pa,
-        .vertical_accel_ms2 = 0.0f,
         .timestamp_us = ekf->last_predict_us,
         .sensor_valid = sensor_ok,
-        .imu_valid = false,
     };
     flight_data_publish(&fd);
 }

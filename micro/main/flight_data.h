@@ -19,10 +19,8 @@ extern "C"
         int32_t pressure_pa;
         int32_t temperature_mc;
         float reference_pressure_pa;
-        float vertical_accel_ms2;
         int64_t timestamp_us;
         bool sensor_valid;
-        bool imu_valid;
     } flight_data_t;
 
     typedef struct calibration_request_s

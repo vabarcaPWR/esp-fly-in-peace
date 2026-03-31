@@ -9,7 +9,6 @@
 #include "fusion_task.h"
 #include "led.h"
 #include "sensor.h"
-#include "sound.h"
 #include "sound_task.h"
 #include <esp_log.h>
 
@@ -29,7 +28,6 @@
 static const char *TAG = "main";
 static const led_t *led = NULL;
 static const sensor_baro_t *baro_sensor = NULL;
-static const sensor_imu_t *imu_sensor = NULL;
 
 typedef struct application_threads_s
 {
@@ -104,19 +102,6 @@ static esp_err_t initialize_sensors(void)
         {
             ESP_LOGW(TAG, "Baro sensor init failed: 0x%x", result);
             baro_sensor = NULL;
-        }
-    }
-
-#ifdef CONFIG_IMU_MPU6050
-    imu_sensor = get_imu_sensor("MPU6050");
-#endif
-    if (imu_sensor)
-    {
-        esp_err_t result = imu_sensor->init();
-        if (result != ESP_OK)
-        {
-            ESP_LOGW(TAG, "IMU sensor init failed: 0x%x", result);
-            imu_sensor = NULL;
         }
     }
 
@@ -214,5 +199,5 @@ void app_main(void)
     ret ? ret = startup_step_succeeded("create_threads", create_threads(&threads)) : ret;
 
     if (ret)
-        ESP_LOGI(TAG, "pipeline running: baro=%s, imu=%s", baro_sensor ? "yes" : "no", imu_sensor ? "yes" : "no");
+        ESP_LOGI(TAG, "pipeline running: baro=%s", baro_sensor ? "yes" : "no");
 }
