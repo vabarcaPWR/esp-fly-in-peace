@@ -795,11 +795,12 @@ esp_err_t power_manager_get_battery_mv(uint16_t *battery_mv);
 
 | Task | Function | Priority | Stack (bytes) | Rate | Core | Description |
 |------|----------|----------|---------------|------|------|-------------|
-| `fusion_task` | `fusion_task_fn` | 6 (Highest) | 4096 | 100 Hz (10 ms) | 0 | Read IMU, run AHRS + EKF predict; poll baro for EKF update |
-| `baro_task` | `baro_task_fn` | 5 (High) | 4096 | 10 Hz (100 ms) | 0 | Read barometric sensor, post data for fusion |
+| `fusion_task` | `fusion_task_fn` | 6 (Highest) | 4096 | 10 Hz (100 ms) | 0 | EKF baro-only predict + update; publish flight data |
+| `baro_task` | `baro_task_fn` | 5 (High) | 4096 | 10 Hz (100 ms) | 0 | Read BMP390 barometric sensor, post to baro queue |
 | `ble_sender_task` | `ble_sender_task_fn` | 3 (Normal) | 4096 | 8 Hz (125 ms) | 0 | Format LK8EX1, send via BLE NUS TX |
-| `led_task` | `led_task_fn` | 1 (Lowest) | 2048 | 10 Hz (100 ms) | 0 | Update WS2812 LED pattern |
-| `config_task` | `config_task_fn` | 2 (Low) | 2048 | Event-driven | 0 | Handle config read/write from BLE |
+| `sound_task` | `sound_task_fn` | 1 (Low) | 2048 | 20 Hz (50 ms) | 0 | Read vario, drive piezo buzzer via LEDC PWM |
+| `led_task` | `led_task_fn` | 1 (Lowest) | 2048 | 10 Hz (100 ms) | 0 | GPIO LED pattern (BLE connection state indicator) |
+| `config_task` | `config_task_fn` | 2 (Low) | 2048 | Event-driven | 0 | Handle config read/write from BLE (Phase 11) |
 | NimBLE host | (internal) | 4 | 4096 | Event-driven | 0 | NimBLE host processing |
 
 > ESP32-C3 is **single-core** (RISC-V). All tasks share one core.
@@ -1177,25 +1178,26 @@ stateDiagram-v2
 
 ### 9.1 RAM Budget (ESP32-C3: ~400 KB SRAM available, ~320 KB usable after ESP-IDF)
 
-| Consumer | Estimated (bytes) | Notes |
-|----------|--------------------|-------|
-| FreeRTOS heap (default) | ~36,000 | Task stacks, queues, mutexes |
-| fusion_task stack | 4,096 | IMU read, AHRS, EKF math |
-| baro_task stack | 4,096 | I2C buffers, compensation math |
-| ble_sender_task stack | 4,096 | LK8EX1 buffer, BLE API calls |
-| led_task stack | 2,048 | RMT buffer, state machine |
-| config_task stack | 2,048 | NVS reads, JSON buffer |
-| NimBLE host task stack | 4,096 | BLE stack processing |
-| NimBLE memory pool | ~16,000 | Connection, advertising, GATT |
-| shared_flight_data | 48 | Struct + mutex (added imu fields) |
-| baro_latest | 16 | Baro data + flag (inter-task) |
-| AHRS state | ~96 | Quaternion + rotation matrix |
-| EKF state | ~72 | 3-state + 3×3 covariance |
-| config_queue | ~1,064 | 4 × 264 bytes |
-| RMT LED buffer | ~1,000 | WS2812 encoding (24 bits × 4 bytes) |
-| Static buffers | ~512 | LK8EX1 format buffer, misc |
-| **Total estimated** | **~75,000** | ~23% of usable RAM |
-| **Available for ESP-IDF/NVS** | **~245,000** | WiFi stack (future) needs ~90 KB |
+| Consumer | Estimated (bytes) | Measured | Notes |
+|----------|-------------------|----------|-------|
+| FreeRTOS heap (default) | ~36,000 | — | Task stacks, queues, mutexes |
+| fusion_task stack | 4,096 | 2,308 used (stk=1788) | EKF baro-only (no AHRS/IMU) |
+| baro_task stack | 4,096 | — | BMP390 I2C read + compensation |
+| ble_sender_task stack | 4,096 | — | LK8EX1 format + BLE API calls |
+| sound_task stack | 2,048 | ~276 used (stk=1772) | Piezo buzzer LEDC PWM |
+| led_task stack | 2,048 | — | GPIO single LED, state queue |
+| config_task stack | 2,048 | — | NVS reads (Phase 11, not yet) |
+| NimBLE host task stack | 4,096 | — | BLE stack processing |
+| NimBLE memory pool | ~16,000 | — | Connection, advertising, GATT |
+| flight_data module | ~312 | — | s_mutex + s_flight_data + 2 queues (all static) |
+| EKF state | ~72 | — | 3-state + 3×3 covariance |
+| AHRS state (compiled, unused) | ~96 | — | Component linked but not wired to pipeline |
+| Piezo backend state | ~64 | — | LEDC config, tone state, beep FSM |
+| config_queue | ~1,064 | — | 4 × 264 bytes (Phase 11) |
+| Static buffers | ~512 | — | LK8EX1 format buffer, misc |
+| **Total estimated** | **~76,600** | — | ~24% of usable RAM |
+| **Free heap (measured)** | — | **~198,000** | Stable over 30s run |
+| **Available for ESP-IDF/NVS** | **~243,000** | — | WiFi stack (future) needs ~90 KB |
 
 ### 9.2 Flash Budget (4 MB flash, custom partition table)
 

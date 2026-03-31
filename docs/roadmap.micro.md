@@ -78,10 +78,11 @@
   - [x] Task 9.1: Shared flight data structure and mutex
   - [x] Task 9.2: Calibration queue (fusion_task consumer)
   - [x] Task 9.3: Barometer reader task (10 Hz)
-  - [x] Task 9.4: Sensor fusion task (100 Hz — AHRS + EKF)
+  - [x] Task 9.4: Sensor fusion task (baro-only EKF, 10 Hz)
   - [x] Task 9.5: BLE sender task (8 Hz)
   - [x] Task 9.6: Replace simulated provider with real sensor data
   - [x] Task 9.7: End-to-end data flow validation
+  - [x] Task 9.8: Encapsulate flight_data module (opaque API)
 - [x] **Phase 10: Vario Acoustic Feedback (Piezo Buzzer)**
   - [x] Task 10.1: Sound factory contract and Kconfig backend selection
   - [x] Task 10.2: Piezo backend — types and hardware layer
@@ -1985,11 +1986,11 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 ## Phase 9: Data Pipeline
 
-> **Status**: ✅ Completada — build OK, 95/95 tests, hardware boot+run estable, cross-validation con app Flutter OK.
+> **Status**: ✅ Completada — build OK, 155/155 tests, hardware boot+run estable, flight_data module encapsulado.
 
-**Objective**: Wire up the FreeRTOS task model for dual-rate sensor fusion: `baro_task` reads the barometric sensor at 10 Hz, `fusion_task` reads the IMU at 100 Hz, runs the AHRS and EKF, and publishes to the shared flight data structure. `ble_sender_task` reads at 8 Hz, formats LK8EX1, and sends over BLE. When `CONFIG_IMU_NONE=y`, `fusion_task` degrades gracefully to a baro-only EKF (no AHRS, 10 Hz predict+update combined).  
+**Objective**: Wire up the FreeRTOS task model for baro-only sensor fusion: `baro_task` reads the barometric sensor at 10 Hz, `fusion_task` runs the EKF baro-only filter at 10 Hz, and publishes to the encapsulated flight data module. `ble_sender_task` reads at 8 Hz, formats LK8EX1, and sends over BLE. `sound_task` reads at 20 Hz for acoustic feedback. The AHRS/IMU fusion path (Phase 8) exists as tested components but is not wired into the pipeline — will be re-integrated once the baro-only baseline is validated.  
 **Estimated Duration**: 4–5 days  
-**Dependencies**: Phases 3 (BLE), 6 or 7 (baro sensor), 7.5 (IMU HAL), 8 (AHRS + EKF), 2 (LK8EX1)  
+**Dependencies**: Phases 3 (BLE), 6 or 7 (baro sensor), 2 (LK8EX1)  
  
 **Refactorización (obligatoria)**:
 - Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
@@ -2004,47 +2005,45 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 ### Task 9.1: Shared flight data structure and mutex ✅
 
-**Description**: Implement the `shared_flight_data_t` struct and access primitives.
+**Description**: Implement the `flight_data_t` struct and thread-safe access API. Encapsulated in `flight_data.c` — all synchronization primitives are module-internal (`static`). No `extern` globals.
 
 **Acceptance Criteria**:
-- [x] `shared_flight_data_t` struct: `altitude_m`, `vario_ms`, `pressure_pa`, `temperature_mc`, `reference_pressure_pa`, `vertical_accel_ms2`, `timestamp_us`, `sensor_valid`, `imu_valid`
-- [x] Mutex created with `xSemaphoreCreateMutex()`
-- [x] Writer API (fusion_task): `xSemaphoreTake` → write all fields → `xSemaphoreGive`
-- [x] Reader API (ble_sender): `xSemaphoreTake` → copy struct → `xSemaphoreGive`
-- [x] Mutex timeout: `pdMS_TO_TICKS(10)` to avoid deadlocks
-- [x] Defined in a shared header accessible to all pipeline tasks
+- [x] `flight_data_t` struct: `altitude_m`, `vario_ms`, `pressure_pa`, `temperature_mc`, `reference_pressure_pa`, `vertical_accel_ms2`, `timestamp_us`, `sensor_valid`, `imu_valid`
+- [x] Mutex, data, and queues encapsulated as `static` inside `flight_data.c`
+- [x] `flight_data_init()` — creates mutex and queues (called once from `app_main`)
+- [x] `flight_data_publish(const flight_data_t *data)` — thread-safe write (fusion_task)
+- [x] `flight_data_read(flight_data_t *snapshot)` — thread-safe copy (ble_sender, sound)
+- [x] Mutex timeout: 10 ms to avoid deadlocks
+- [x] No `extern` globals — consumers use API functions only
 
 **Validation**:
-- Build succeeds, mutex created in `app_main()`
+- Build succeeds, `flight_data_init()` called in `app_main()`
 
-**Files to create/modify**:
-- `micro/main/flight_data.h` (shared struct + mutex extern)
-- `micro/main/main.c` (mutex creation in `app_main()`)
+**Files**:
+- `micro/main/flight_data.h` (types + API declarations, no FreeRTOS types exposed)
+- `micro/main/flight_data.c` (static mutex + data + queues + API implementation)
 
 ---
 
 ### Task 9.2: Calibration queue (fusion_task consumer) ✅
 
-**Description**: Implement the `calibration_queue` — a depth-1 queue that routes altitude calibration requests from `config_task` to `fusion_task`.
+**Description**: Implement the calibration queue — a depth-1 queue encapsulated inside `flight_data.c` that routes altitude calibration requests to `fusion_task`.
 
 **Acceptance Criteria**:
 - [x] `calibration_request_t` struct: `known_altitude_m` (`float`)
-- [x] Queue: `xQueueCreate(1, sizeof(calibration_request_t))` — depth 1, overwrite mode
-- [ ] Producer: `config_task` (on `CONFIG_REQUEST_CALIBRATE`)
-- [x] Consumer: `fusion_task` (non-blocking poll with `xQueueReceive(..., 0)` at start of each cycle)
+- [x] Queue encapsulated as `static` inside `flight_data.c`
+- [x] `calibration_queue_send(const calibration_request_t *req)` — producer API
+- [x] `calibration_queue_receive(calibration_request_t *out)` — non-blocking poll (fusion_task)
 - [x] On receive: `fusion_task` calls `ekf_calibrate()` with known altitude + last pressure reading
 - [ ] After calibration: `config_manager_save()` persists new `reference_pressure_pa`
-- [x] Queue created in `app_main()` alongside other queues
 
 **Validation**:
-- Send calibration request via BLE → fusion_task processes → altitude now matches known value
-- New P0 persists across reboot
+- Send calibration request → fusion_task processes → altitude now matches known value
 
-**Files to create/modify**:
-- `micro/main/flight_data.h` (add `calibration_request_t` and queue extern)
-- `micro/main/fusion_task.c` (non-blocking poll at start of loop)
-- `micro/main/config_task.c` (post to calibration_queue)
-- `micro/main/main.c` (queue creation)
+**Files**:
+- `micro/main/flight_data.h` (add `calibration_request_t` type and queue API)
+- `micro/main/flight_data.c` (queue implementation)
+- `micro/main/fusion_task.c` (uses `calibration_queue_receive()`)
 
 ---
 
@@ -2057,7 +2056,7 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 - [x] Loop every 100 ms:
   1. `sensor_read(&sensor_data)` — blocks ~18 ms for sensor conversion
   2. Write result to a shared `baro_latest_t` struct (atomic flag + data)
-  3. Set `baro_new_data_available` flag (read by `fusion_task`)
+  3. `baro_queue_send(&reading)` — overwrites depth-1 queue (read by `fusion_task`)
   4. `vTaskDelay(remaining time to hit 100 ms period)`
 - [x] Handles sensor read errors: set `sensor_valid = false` after 3 consecutive failures
 - [ ] Registered with Task Watchdog Timer (TWDT), fed at end of each cycle
@@ -2074,42 +2073,33 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 ---
 
-### Task 9.4: Sensor fusion task (100 Hz — AHRS + EKF) ✅
+### Task 9.4: Sensor fusion task (baro-only EKF, 10 Hz) ✅
 
-**Description**: Implement `fusion_task_fn` running at 100 Hz. Reads IMU, updates AHRS, runs EKF predict at every iteration. Checks for new baro data and runs EKF measurement update when available (~every 10th iteration).
+**Description**: Implement `fusion_task_fn` running the EKF in baro-only mode. Receives barometric data via `baro_queue_receive()`, runs EKF predict (with `va=0`) and baro update, publishes via `flight_data_publish()`. The AHRS/IMU fusion path is decoupled — components exist (Phase 8) but are not wired into the pipeline pending baseline validation.
 
 **Acceptance Criteria**:
-- [x] `fusion_task` created with Priority 6 (highest application task), stack 4096 bytes
-- [x] Loop every 10 ms:
-  1. Check `calibration_queue` for pending calibration (non-blocking poll)
-     → If received: `ekf_calibrate()` + `config_manager_save()` to persist new P0
-  2. `imu_hal_read(&imu_data)` — ~0.6 ms at 400 kHz I2C
-  3. `ahrs_update(&ahrs_state, &ahrs_cfg, &imu_data)` — ~0.05 ms
-  4. `ahrs_get_vertical_accel(&ahrs_state, &imu_data, &vert_accel)` — ~0.01 ms
-  5. `ekf_predict(&ekf_state, &ekf_cfg, vert_accel, imu_data.timestamp_us)` — ~0.02 ms
-  6. If `baro_new_data_available`:
-     - Clear flag, copy baro data
-     - `ekf_update_baro(&ekf_state, &ekf_cfg, baro_data.pressure_pa, baro_data.timestamp_us)` — ~0.05 ms
-  7. `xSemaphoreTake(mutex)` → copy EKF state + sensor data to `shared_flight_data` → `xSemaphoreGive(mutex)`
-  8. `vTaskDelay(remaining time to hit 10 ms period)`
-- [x] Total cycle: ~0.7 ms (7% CPU at 100 Hz) — leaves ~9.3 ms for other tasks and light-sleep
-- [x] When `CONFIG_IMU_NONE=y`: `fusion_task` runs at 10 Hz, reads baro directly, runs EKF predict+update combined (degrades to baro-only mode)
-- [x] Handles IMU read errors: skip AHRS/EKF predict, set `imu_valid = false` after 3 consecutive failures
-- [ ] Registered with TWDT, fed at end of each cycle
+- [x] `fusion_task` created with Priority 6, stack 4096 bytes
+- [x] Loop every 100 ms:
+  1. Check calibration queue via `calibration_queue_receive()` (non-blocking poll)
+  2. `baro_queue_receive(&baro_data, 100)` — blocking wait for baro sample
+  3. `ekf_predict(&ekf_state, &ekf_cfg, 0.0f, timestamp)` — predict with zero accel
+  4. `ekf_update_baro(&ekf_state, &ekf_cfg, pressure, timestamp)` — measurement update
+  5. `flight_data_publish(&fd)` — thread-safe publish
+- [x] Baro-only mode: no AHRS dependency, no IMU reads, no `sensor.h` in `fusion_task.h`
+- [x] `fusion_task.h` exports only `void fusion_task_fn(void *param)` — no context struct needed
+- [x] Console diagnostic: in-place `printf("\r...")` with raw/filtered altitude, vario, pressure, temperature
 
 **Validation**:
-- Log output shows fusion running at 100 Hz, baro updates arriving at ~10 Hz
-- EKF altitude + vario values update continuously with smooth prediction between baro corrections
+- Monitor serial output: altitude stable, vario ≈ 0 at rest, responds to pressure changes
+- EKF converges within first baro sample (no warmup needed in baro-only mode)
 
-**Files to create/modify**:
-- `micro/main/fusion_task.c`
-- `micro/main/fusion_task.h`
-- `micro/main/main.c` (task creation)
+**Files**:
+- `micro/main/fusion_task.c` (baro-only EKF loop)
+- `micro/main/fusion_task.h` (minimal: just `fusion_task_fn` declaration)
 
 **Notes**:
-- The fusion task is the highest-priority application task because IMU timing jitter directly affects AHRS accuracy.
-- ArduPilot uses the same pattern: EKF prediction at IMU rate (~83-400 Hz), baro fusion at baro rate (~14 Hz).
-- Task priority order: 6=fusion, 5=baro, 4=NimBLE, 3=ble_sender, 2=config, 1=led, 0=idle.
+- AHRS/IMU fusion (Phase 8) will be re-integrated as a future enhancement once baro-only baseline is validated on hardware.
+- The `ahrs` component is no longer in `main/CMakeLists.txt` REQUIRES — add back when re-integrating.
 
 ---
 
@@ -2120,7 +2110,7 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 **Acceptance Criteria**:
 - [x] `ble_sender_task` created with Priority 3, stack 4096 bytes
 - [x] Loop every 125 ms:
-  1. `xSemaphoreTake(mutex)` → copy `shared_flight_data` → `xSemaphoreGive(mutex)`
+  1. `flight_data_read(&snapshot)` — thread-safe copy via encapsulated API
   2. Build `lk8ex1_data_t` from flight data (convert vario m/s → cm/s, temperature milli-°C → deci-°C)
   3. `lk8ex1_format(&data, buffer, sizeof(buffer))`
   4. `ble_nus_send((uint8_t *)buffer, strlen(buffer))`
@@ -2190,9 +2180,45 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 ---
 
+### Task 9.8: Encapsulate flight_data module (opaque API) ✅
+
+**Description**: Refactor the data pipeline to eliminate all `extern` globals. The `flight_data` module now owns its mutex, flight data struct, baro queue, and calibration queue as `static` internal state. All consumers interact through a clean function API.
+
+**Acceptance Criteria**:
+- [x] `flight_data.h` exposes only types (`flight_data_t`, `calibration_request_t`) and 6 API functions
+- [x] `flight_data.c` owns all state as `static`: `s_mutex`, `s_flight_data`, `s_baro_queue`, `s_calibration_queue`
+- [x] No `extern` declarations remain in `flight_data.h`
+- [x] No FreeRTOS primitive types (`SemaphoreHandle_t`, `QueueHandle_t`) exposed in the header
+- [x] `main.c` calls `flight_data_init()` — no global variable definitions
+- [x] `fusion_task.c` uses `flight_data_publish()`, `baro_queue_receive()`, `calibration_queue_receive()`
+- [x] `baro_task.c` uses `baro_queue_send()`
+- [x] `ble_sender_task.c` uses `flight_data_read()`
+- [x] `sound_task.c` uses `flight_data_read()`
+- [x] All pointer parameters validated at function entry (`ESP_ERR_INVALID_ARG`)
+- [x] 155 Ceedling tests pass, build OK
+
+**Validation**:
+- `grep -r "extern" micro/main/flight_data.h` returns empty
+- `grep -r "g_flight_data\|g_baro_queue\|g_calibration_queue\|g_flight_data_mutex" micro/main/` returns only the `static` definitions in `flight_data.c`
+
+**Files created**:
+- `micro/main/flight_data.c`
+
+**Files modified**:
+- `micro/main/flight_data.h` — replaced `extern` declarations with API functions
+- `micro/main/main.c` — removed 4 global definitions, replaced `initialize_pipeline()` with `flight_data_init()`
+- `micro/main/fusion_task.c` — uses encapsulated API
+- `micro/main/fusion_task.h` — removed `sensor.h` include, removed `fusion_task_ctx_t`
+- `micro/main/baro_task.c` — uses `baro_queue_send()`
+- `micro/main/ble_sender_task.c` — uses `flight_data_read()`
+- `micro/main/sound_task.c` — uses `flight_data_read()`, removed `freertos/semphr.h` include
+- `micro/main/CMakeLists.txt` — added `flight_data.c`, removed `ahrs` from REQUIRES
+
+---
+
 ## Phase 10: Vario Acoustic Feedback (Piezo Buzzer)
 
-> **Status**: 🟡 Tasks 10.1–10.6 completadas. Task 10.7 (hardware tuning) pendiente — requiere dispositivo físico.
+> **Status**: 🟡 Tasks 10.1–10.7 completadas parcialmente. Startup sequence funcional. Tuning de confort pendiente.
 
 **Objective**: Implement acoustic vario feedback using the `sound` component, which follows the project's standard factory-backend pattern (same as `sensors` and `leds`). The `sound` component defines a `sound_generator_t` contract with `{init, update, get_name}` and dispatches to the Kconfig-selected backend. The first backend (`piezo`) drives a piezoelectric buzzer via ESP32-C3 LEDC PWM. Future backends (DAC+speaker, I2S amplifier, external codec) can be added by implementing the contract inside `sound/src/<backend>/` — no changes to the factory or task. The `update(vario_cms, altitude_m)` function encapsulates the full tone logic (model + beep state machine + hardware) inside each backend. Design prioritizes pilot comfort: logarithmic frequency response, capped max frequency (~1600 Hz), saturating cadence (min cycle ~180 ms), and smooth transitions. The tone configuration schema is prepared for remote adjustment via BLE (Phase 11).  
 **Estimated Duration**: 4–5 days  
@@ -2506,6 +2532,12 @@ typedef struct sound_generator_s
 - `micro/components/sound/src/piezo/src/piezo.c` — implemented `piezo_play_startup()` with 3-tone sequence
 - `micro/main/sound_task.c` — call `gen->play_startup()` after init (null-safe)
 - `micro/test/test/test_sound.c` — updated fake + added 2 tests for `play_startup`
+
+**Bug fix — EKF predict deadlock** (discovered during Task 10.7 hardware validation):
+- **Root cause**: `ekf_predict()` rejected `dt > 1.0s` but did NOT update `last_predict_us`, creating a permanent deadlock after AHRS warmup gap.
+- **Fix**: Added `state->last_predict_us = timestamp_us;` before early return in the dt guard (line 47 of `ekf.c`).
+- **Test added**: `test_predict_recovers_after_large_dt_gap` in `test_ekf.c` — verifies predict recovers after a large timestamp gap.
+- **Files**: `micro/components/ekf/src/ekf.c`, `micro/test/test/test_ekf.c`
 
 
 ---
