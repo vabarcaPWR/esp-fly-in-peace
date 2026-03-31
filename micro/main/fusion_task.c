@@ -15,26 +15,24 @@ static const char *TAG = "fusion";
 static void publish_flight_data(const ekf_state_t *ekf, const ekf_cfg_t *ekf_cfg, int32_t pressure_pa,
                                 int32_t temperature_mc, bool sensor_ok)
 {
-    if (xSemaphoreTake(g_flight_data_mutex, pdMS_TO_TICKS(FLIGHT_DATA_MUTEX_TIMEOUT_MS)) != pdTRUE)
-        return;
-
-    g_flight_data.altitude_m = ekf->altitude_m;
-    g_flight_data.vario_ms = ekf->vario_ms;
-    g_flight_data.pressure_pa = pressure_pa;
-    g_flight_data.temperature_mc = temperature_mc;
-    g_flight_data.reference_pressure_pa = ekf_cfg->reference_pressure_pa;
-    g_flight_data.vertical_accel_ms2 = 0.0f;
-    g_flight_data.timestamp_us = ekf->last_predict_us;
-    g_flight_data.sensor_valid = sensor_ok;
-    g_flight_data.imu_valid = false;
-
-    xSemaphoreGive(g_flight_data_mutex);
+    flight_data_t fd = {
+        .altitude_m = ekf->altitude_m,
+        .vario_ms = ekf->vario_ms,
+        .pressure_pa = pressure_pa,
+        .temperature_mc = temperature_mc,
+        .reference_pressure_pa = ekf_cfg->reference_pressure_pa,
+        .vertical_accel_ms2 = 0.0f,
+        .timestamp_us = ekf->last_predict_us,
+        .sensor_valid = sensor_ok,
+        .imu_valid = false,
+    };
+    flight_data_publish(&fd);
 }
 
 static void handle_calibration_request(ekf_cfg_t *ekf_cfg, ekf_state_t *ekf_state, int32_t last_pressure_pa)
 {
     calibration_request_t req;
-    if (xQueueReceive(g_calibration_queue, &req, 0) != pdTRUE)
+    if (calibration_queue_receive(&req) != ESP_OK)
         return;
 
     esp_err_t ret = ekf_calibrate(ekf_cfg, ekf_state, req.known_altitude_m, (float)last_pressure_pa);
@@ -68,7 +66,7 @@ void fusion_task_fn(void *param)
         handle_calibration_request(&ekf_cfg, &ekf_state, last_pressure_pa);
 
         data_baro_t baro_data;
-        if (xQueueReceive(g_baro_queue, &baro_data, pdMS_TO_TICKS(FUSION_BARO_PERIOD_MS)) == pdTRUE)
+        if (baro_queue_receive(&baro_data, FUSION_BARO_PERIOD_MS) == ESP_OK)
         {
             last_pressure_pa = baro_data.pressure_pa;
             last_temperature_mc = baro_data.temperature_mc;

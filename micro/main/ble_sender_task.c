@@ -18,13 +18,7 @@ static const char *TAG = "ble_tx";
 static flight_data_t read_flight_data(void)
 {
     flight_data_t snapshot = {0};
-
-    if (xSemaphoreTake(g_flight_data_mutex, pdMS_TO_TICKS(FLIGHT_DATA_MUTEX_TIMEOUT_MS)) == pdTRUE)
-    {
-        snapshot = g_flight_data;
-        xSemaphoreGive(g_flight_data_mutex);
-    }
-
+    flight_data_read(&snapshot);
     return snapshot;
 }
 

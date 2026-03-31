@@ -4,7 +4,6 @@
 
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
-#include "freertos/semphr.h"
 #include "freertos/task.h"
 
 #define SOUND_TASK_PERIOD_MS 50U
@@ -18,13 +17,13 @@ static void read_vario_data(float *vario_ms, float *altitude_m, bool *valid)
     *altitude_m = 0.0f;
     *valid = false;
 
-    if (xSemaphoreTake(g_flight_data_mutex, pdMS_TO_TICKS(FLIGHT_DATA_MUTEX_TIMEOUT_MS)) != pdTRUE)
+    flight_data_t snapshot;
+    if (flight_data_read(&snapshot) != ESP_OK)
         return;
 
-    *vario_ms = g_flight_data.vario_ms;
-    *altitude_m = g_flight_data.altitude_m;
-    *valid = g_flight_data.sensor_valid;
-    xSemaphoreGive(g_flight_data_mutex);
+    *vario_ms = snapshot.vario_ms;
+    *altitude_m = snapshot.altitude_m;
+    *valid = snapshot.sensor_valid;
 }
 
 void sound_task_fn(void *param)

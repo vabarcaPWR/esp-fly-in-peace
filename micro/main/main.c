@@ -31,11 +31,6 @@ static const led_t *led = NULL;
 static const sensor_baro_t *baro_sensor = NULL;
 static const sensor_imu_t *imu_sensor = NULL;
 
-SemaphoreHandle_t g_flight_data_mutex = NULL;
-flight_data_t g_flight_data = {0};
-QueueHandle_t g_baro_queue = NULL;
-QueueHandle_t g_calibration_queue = NULL;
-
 typedef struct application_threads_s
 {
     TaskHandle_t baro_task;
@@ -128,23 +123,6 @@ static esp_err_t initialize_sensors(void)
     return ESP_OK;
 }
 
-static esp_err_t initialize_pipeline(void)
-{
-    g_flight_data_mutex = xSemaphoreCreateMutex();
-    if (!g_flight_data_mutex)
-        return ESP_ERR_NO_MEM;
-
-    g_baro_queue = xQueueCreate(1, sizeof(data_baro_t));
-    if (!g_baro_queue)
-        return ESP_ERR_NO_MEM;
-
-    g_calibration_queue = xQueueCreate(1, sizeof(calibration_request_t));
-    if (!g_calibration_queue)
-        return ESP_ERR_NO_MEM;
-
-    return ESP_OK;
-}
-
 static esp_err_t initialize_modules(void)
 {
     esp_err_t led_result = initialize_led_module();
@@ -163,7 +141,7 @@ static esp_err_t initialize_modules(void)
     if (ble_result != ESP_OK)
         return ble_result;
 
-    return initialize_pipeline();
+    return flight_data_init();
 }
 
 static esp_err_t configure_modules_usage(void)

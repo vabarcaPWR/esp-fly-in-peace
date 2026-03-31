@@ -32,7 +32,7 @@ void baro_task_fn(void *param)
         if (ret == ESP_OK)
         {
             error_count = 0;
-            xQueueOverwrite(g_baro_queue, &reading);
+            baro_queue_send(&reading);
         }
         else
         {

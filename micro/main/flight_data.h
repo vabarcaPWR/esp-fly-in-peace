@@ -1,9 +1,7 @@
 #ifndef FLIGHT_DATA_H
 #define FLIGHT_DATA_H
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/queue.h"
-#include "freertos/semphr.h"
+#include "esp_err.h"
 #include "sensor.h"
 
 #include <stdbool.h>
@@ -13,8 +11,6 @@
 extern "C"
 {
 #endif
-
-#define FLIGHT_DATA_MUTEX_TIMEOUT_MS 10U
 
     typedef struct flight_data_s
     {
@@ -34,10 +30,40 @@ extern "C"
         float known_altitude_m;
     } calibration_request_t;
 
-    extern SemaphoreHandle_t g_flight_data_mutex;
-    extern flight_data_t g_flight_data;
-    extern QueueHandle_t g_baro_queue;
-    extern QueueHandle_t g_calibration_queue;
+    /**
+     * @brief Create internal mutex and queues. Call once before any task starts.
+     */
+    esp_err_t flight_data_init(void);
+
+    /**
+     * @brief Thread-safe publish of flight data (writer: fusion_task).
+     */
+    esp_err_t flight_data_publish(const flight_data_t *data);
+
+    /**
+     * @brief Thread-safe snapshot read of flight data (readers: ble_sender, sound).
+     */
+    esp_err_t flight_data_read(flight_data_t *snapshot);
+
+    /**
+     * @brief Overwrite the baro queue with a new sample (writer: baro_task).
+     */
+    esp_err_t baro_queue_send(const data_baro_t *data);
+
+    /**
+     * @brief Blocking receive from baro queue (reader: fusion_task).
+     */
+    esp_err_t baro_queue_receive(data_baro_t *out, uint32_t timeout_ms);
+
+    /**
+     * @brief Enqueue a calibration request.
+     */
+    esp_err_t calibration_queue_send(const calibration_request_t *req);
+
+    /**
+     * @brief Non-blocking poll for a calibration request (reader: fusion_task).
+     */
+    esp_err_t calibration_queue_receive(calibration_request_t *out);
 
 #ifdef __cplusplus
 }
