@@ -175,8 +175,6 @@ static esp_err_t configure_modules_usage(void)
     return ESP_OK;
 }
 
-static fusion_task_ctx_t fusion_ctx = {0};
-
 static esp_err_t create_baro_task(application_threads_t *threads)
 {
     if (!threads || !baro_sensor)
@@ -192,9 +190,7 @@ static esp_err_t create_fusion_task(application_threads_t *threads)
     if (!threads)
         return ESP_ERR_INVALID_ARG;
 
-    fusion_ctx.imu = imu_sensor;
-
-    BaseType_t ok = xTaskCreate(fusion_task_fn, "fusion", FUSION_TASK_STACK_SIZE, &fusion_ctx, FUSION_TASK_PRIORITY,
+    BaseType_t ok = xTaskCreate(fusion_task_fn, "fusion", FUSION_TASK_STACK_SIZE, NULL, FUSION_TASK_PRIORITY,
                                 &threads->fusion_task);
     return ok == pdPASS ? ESP_OK : ESP_FAIL;
 }

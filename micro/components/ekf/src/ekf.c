@@ -44,6 +44,7 @@ esp_err_t ekf_predict(ekf_state_t *state, const ekf_cfg_t *cfg, float vertical_a
     float dt = (float)(timestamp_us - state->last_predict_us) / 1e6f;
     if (dt <= 0.0f || dt > 1.0f)
     {
+        state->last_predict_us = timestamp_us;
         return ESP_OK;
     }
 

@@ -325,3 +325,23 @@ void test_ekf_calibrate_resets_filter_state(void)
     TEST_ASSERT_FLOAT_WITHIN(FLOAT_TOL, 0.0f, state.vario_ms);
     TEST_ASSERT_FALSE(state.initialized);
 }
+
+void test_predict_recovers_after_large_dt_gap(void)
+{
+    ekf_cfg_t cfg = default_cfg();
+    ekf_state_t state;
+    ekf_init(&state, &cfg);
+
+    int64_t t0 = 50000;
+    ekf_update_baro(&state, &cfg, 101325.0f, t0);
+    TEST_ASSERT_TRUE(state.initialized);
+
+    int64_t t_after_warmup = t0 + 3000000;
+    esp_err_t ret = ekf_predict(&state, &cfg, 0.0f, t_after_warmup);
+    TEST_ASSERT_EQUAL(ESP_OK, ret);
+
+    int64_t t_next = t_after_warmup + 10000;
+    ret = ekf_predict(&state, &cfg, 9.81f, t_next);
+    TEST_ASSERT_EQUAL(ESP_OK, ret);
+    TEST_ASSERT_TRUE(state.vario_ms != 0.0f);
+}
