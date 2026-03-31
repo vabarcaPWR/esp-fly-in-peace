@@ -83,7 +83,7 @@
   - [x] Task 9.6: Replace simulated provider with real sensor data
   - [x] Task 9.7: End-to-end data flow validation
   - [x] Task 9.8: Encapsulate flight_data module (opaque API)
-- [x] **Phase 10: Vario Acoustic Feedback (Piezo Buzzer)**
+- [x] **Phase 10: Vario Acoustic Feedback (Piezo Backend)**
   - [x] Task 10.1: Sound factory contract and Kconfig backend selection
   - [x] Task 10.2: Piezo backend — types and hardware layer
   - [x] Task 10.3: Piezo backend — tone model (frequency + cadence curves)
@@ -91,6 +91,15 @@
   - [x] Task 10.5: Sound task (`sound_task`)
   - [x] Task 10.6: Ceedling unit tests for piezo model and sound factory
   - [x] Task 10.7: Hardware integration and comfort tuning
+- [ ] **Phase 10.5: MAX98357A I2S Audio Backend**
+  - [ ] Task 10.5.1: Extract shared tone model from piezo
+  - [ ] Task 10.5.2: MAX98357 synth model — Ceedling tests (RED)
+  - [ ] Task 10.5.3: MAX98357 synth model — implementation (GREEN)
+  - [ ] Task 10.5.4: MAX98357 hardware layer (I2S + SD pin)
+  - [ ] Task 10.5.5: MAX98357 conductor
+  - [ ] Task 10.5.6: Kconfig, CMake, factory, sound_task integration
+  - [ ] Task 10.5.7: Factory tests for MAX98357
+  - [ ] Task 10.5.8: Hardware integration and validation
 - [ ] **Phase 11: NVS Configuration**
   - [ ] Task 11.1: Config schema definition and defaults
   - [ ] Task 11.2: NVS read/write with validation
@@ -2218,7 +2227,7 @@ Where $h$ = altitude, $\dot{h}$ = vertical velocity (vario), $b_a$ = Z-axis acce
 
 ## Phase 10: Vario Acoustic Feedback (Piezo Buzzer)
 
-> **Status**: 🟡 Tasks 10.1–10.7 completadas parcialmente. Startup sequence funcional. Tuning de confort pendiente.
+> **Status**: ✅ Completada. Piezo backend funcional con startup sequence, tone model, beep state machine, y comfort curve.
 
 **Objective**: Implement acoustic vario feedback using the `sound` component, which follows the project's standard factory-backend pattern (same as `sensors` and `leds`). The `sound` component defines a `sound_generator_t` contract with `{init, update, get_name}` and dispatches to the Kconfig-selected backend. The first backend (`piezo`) drives a piezoelectric buzzer via ESP32-C3 LEDC PWM. Future backends (DAC+speaker, I2S amplifier, external codec) can be added by implementing the contract inside `sound/src/<backend>/` — no changes to the factory or task. The `update(vario_cms, altitude_m)` function encapsulates the full tone logic (model + beep state machine + hardware) inside each backend. Design prioritizes pilot comfort: logarithmic frequency response, capped max frequency (~1600 Hz), saturating cadence (min cycle ~180 ms), and smooth transitions. The tone configuration schema is prepared for remote adjustment via BLE (Phase 11).  
 **Estimated Duration**: 4–5 days  
@@ -2543,11 +2552,328 @@ typedef struct sound_generator_s
 ---
 
 
+## Phase 10.5: MAX98357A I2S Audio Backend
+
+> **Status**: 🔲 No iniciada.
+
+**Objective**: Replace the metallic piezo square-wave sound with smooth sine-wave audio using a MAX98357A Class D I2S mono amplifier and small speaker. The existing factory-backend pattern allows adding this as a new backend (`max98357`) alongside the existing `piezo` backend — both selectable via Kconfig. This phase also refactors the tone computation model out of the piezo backend into a shared `tone_model` module, since both backends use identical vario→frequency/zone logic.
+
+**Estimated Duration**: 3–4 days  
+**Dependencies**: Phase 10 (sound factory contract, piezo backend as reference implementation)
+
+**Architecture Reference**: `firmware-architecture.md` §4 Components (`sound`), §5 Tasks (`sound_task`)
+
+**Hardware**:
+- MAX98357A I2S Class D mono amplifier breakout
+- Small speaker (8Ω, 0.5–1W)
+- GPIO allocation: BCLK=2, WS=3, DOUT=4, SD=1
+
+**Audio Parameters**:
+- Sample rate: 16000 Hz (sufficient for 100–4000 Hz tone range)
+- Bit depth: 16-bit signed PCM, mono
+- DMA: 4 descriptors × 256 frames = 64ms buffer
+- Sine lookup table: 256 entries (~512 bytes)
+- Per-update PCM buffer: 800 samples × 2 bytes = 1600 bytes (50ms at 16kHz)
+
+**Design — Shared Tone Model Extraction**:
+
+The current `piezo_model.c` contains pure tone computation logic (vario m/s → frequency, duty, cycle, zone) that is NOT piezo-specific. Both backends need identical tone computation but differ only in rendering:
+- **Piezo**: renders as square wave via LEDC PWM
+- **MAX98357**: renders as sine wave via I2S DMA
+
+The model is extracted to `sound/src/tone/` as shared infrastructure:
+
+| Old (piezo-specific)       | New (shared)              |
+|----------------------------|---------------------------|
+| `piezo_types.h`            | `tone_types.h`            |
+| `piezo_model.h/c`          | `tone_model.h/c`          |
+| `piezo_tone_zone_e`        | `tone_zone_e`             |
+| `PIEZO_ZONE_*`             | `TONE_ZONE_*`             |
+| `PIEZO_MAX_TONE_POINTS`    | `TONE_MAX_POINTS`         |
+| `piezo_tone_*_t`           | `tone_*_t`                |
+| `piezo_model_compute()`    | `tone_model_compute()`    |
+| `piezo_config_get_defaults()` | `tone_config_get_defaults()` |
+| `piezo_config_validate()`  | `tone_config_validate()`  |
+| `test_piezo_model.c`       | `test_tone_model.c`       |
+
+**Directory Structure After Phase 10.5**:
+```
+micro/components/sound/
+├── inc/
+│   └── sound.h                     # Public contract (unchanged)
+└── src/
+    ├── sound.c                      # Factory (+max98357 branch)
+    ├── tone/                        # Shared tone computation
+    │   ├── inc/
+    │   │   ├── tone_types.h
+    │   │   └── tone_model.h
+    │   └── src/
+    │       └── tone_model.c
+    ├── piezo/                       # Existing backend (updated includes)
+    │   ├── inc/
+    │   │   ├── piezo.h
+    │   │   └── piezo_hardware.h
+    │   └── src/
+    │       ├── piezo.c
+    │       └── piezo_hardware.c
+    └── max98357/                    # NEW backend
+        ├── inc/
+        │   ├── max98357.h
+        │   ├── max98357_types.h     # Synth config types
+        │   ├── max98357_model.h     # Synth: sine table, PCM fill
+        │   └── max98357_hardware.h  # I2S + SD pin
+        └── src/
+            ├── max98357.c           # Conductor
+            ├── max98357_model.c     # Pure synth logic (Ceedling testable)
+            └── max98357_hardware.c  # I2S HAL
+```
+
+---
+
+### Task 10.5.1: Extract shared tone model from piezo
+
+**Description**: Refactor the tone computation model out of the piezo backend into a shared `tone/` module within the sound component. This is a pure rename+move refactor with no functional changes. Both the existing piezo backend and the upcoming MAX98357 backend will consume the shared model.
+
+**Acceptance Criteria**:
+- [ ] New directory `sound/src/tone/inc/` with `tone_types.h` and `tone_model.h`
+- [ ] New file `sound/src/tone/src/tone_model.c`
+- [ ] All types renamed from `piezo_*` prefix to `tone_*` prefix (see rename map above)
+- [ ] Old files `piezo_types.h`, `piezo_model.h`, `piezo_model.c` deleted
+- [ ] `piezo.c` and `piezo_hardware.h` updated to include from `tone/inc/`
+- [ ] `CMakeLists.txt` updated: `tone_model.c` always compiled (for both backends), include paths updated
+- [ ] Test file renamed: `test_piezo_model.c` → `test_tone_model.c` with all references updated
+- [ ] Ceedling `project.yml` paths updated for new locations
+- [ ] All existing tests pass (155+)
+- [ ] Build succeeds
+
+**Validation**:
+- `./scripts/micro/test.sh` — all tests green
+- `./scripts/micro/build.sh` — build succeeds
+- `git diff --stat` shows only renames and reference updates, no logic changes
+
+**Files to create**:
+- `micro/components/sound/src/tone/inc/tone_types.h`
+- `micro/components/sound/src/tone/inc/tone_model.h`
+- `micro/components/sound/src/tone/src/tone_model.c`
+
+**Files to modify**:
+- `micro/components/sound/CMakeLists.txt`
+- `micro/components/sound/src/piezo/src/piezo.c`
+- `micro/components/sound/src/piezo/inc/piezo_hardware.h`
+- `micro/test/test/test_tone_model.c` (renamed from test_piezo_model.c)
+- `micro/test/project.yml`
+
+**Files to delete**:
+- `micro/components/sound/src/piezo/inc/piezo_types.h`
+- `micro/components/sound/src/piezo/inc/piezo_model.h`
+- `micro/components/sound/src/piezo/src/piezo_model.c`
+
+---
+
+### Task 10.5.2: MAX98357 synth model — Ceedling tests (RED)
+
+**Description**: Write comprehensive unit tests for the MAX98357 synthesizer model BEFORE implementing it (TDD RED phase). The synth model is pure C with zero ESP-IDF dependencies — it generates PCM audio samples from tone parameters.
+
+**Acceptance Criteria**:
+- [ ] Test file `micro/test/test/test_max98357_model.c` created
+- [ ] `CONFIG_SOUND_MAX98357` added to Ceedling common defines
+- [ ] Tests cover:
+  - Sine table initialization: correct values at 0°, 90°, 180°, 270° (0, +max, 0, -max)
+  - Phase increment calculation: known frequency at known sample rate
+  - Buffer fill with tone: non-zero samples, correct sample count
+  - Buffer fill with silence: all zero samples
+  - Volume scaling: 50% volume produces half-amplitude samples
+  - Phase continuity: no discontinuity across consecutive buffer fills
+  - Zero frequency produces silence
+  - Null parameter handling (no crash)
+- [ ] All new tests FAIL (no implementation exists yet)
+
+**Validation**:
+- `ceedling test:test_max98357_model` — tests compile but fail (RED)
+
+**Files to create**:
+- `micro/test/test/test_max98357_model.c`
+
+**Files to modify**:
+- `micro/test/project.yml` (add CONFIG_SOUND_MAX98357 to defines)
+
+---
+
+### Task 10.5.3: MAX98357 synth model — implementation (GREEN)
+
+**Description**: Implement the pure-logic synthesizer model that generates PCM audio samples. This is the MAX98357 backend's "model" layer in the conductor-model-hardware pattern.
+
+**Acceptance Criteria**:
+- [ ] `max98357_types.h` created with:
+  - `synth_state_t`: phase accumulator (uint32_t), sample rate, sine table
+  - Sine table size: 256 entries of `int16_t`
+- [ ] `max98357_model.h` / `max98357_model.c` created with:
+  - `esp_err_t synth_init(synth_state_t *state, uint32_t sample_rate)` — compute sine lookup table
+  - `void synth_fill_tone(synth_state_t *state, int16_t *buf, size_t samples, uint16_t freq_hz, uint8_t volume_pct)` — fill buffer with sine wave at frequency and volume
+  - `void synth_fill_silence(int16_t *buf, size_t samples)` — fill buffer with zeros
+- [ ] Zero ESP-IDF dependencies — pure C11
+- [ ] Phase accumulator maintains continuity across calls (no clicks between buffers)
+- [ ] All tests from Task 10.5.2 pass (RED → GREEN)
+
+**Validation**:
+- `ceedling test:test_max98357_model` — all tests pass (GREEN)
+- `./scripts/micro/test.sh` — all tests pass
+
+**Files to create**:
+- `micro/components/sound/src/max98357/inc/max98357_types.h`
+- `micro/components/sound/src/max98357/inc/max98357_model.h`
+- `micro/components/sound/src/max98357/src/max98357_model.c`
+
+---
+
+### Task 10.5.4: MAX98357 hardware layer (I2S + SD pin)
+
+**Description**: Implement the hardware abstraction layer for the MAX98357A I2S amplifier. Uses ESP-IDF v5.x I2S standard mode driver.
+
+**Acceptance Criteria**:
+- [ ] `max98357_hardware.h` / `max98357_hardware.c` created
+- [ ] `esp_err_t max98357_hw_init(const max98357_gpio_cfg_t *cfg)`:
+  - Configure I2S channel: standard mode, master, TX only
+  - Sample rate: 16000 Hz, 16-bit, mono
+  - DMA: 4 descriptors × 256 frames
+  - GPIO: BCLK, WS, DOUT from config; SD pin as GPIO output
+  - Assert SD pin HIGH (enable amplifier)
+- [ ] `esp_err_t max98357_hw_write(const int16_t *buf, size_t samples)`:
+  - Submit PCM buffer via `i2s_channel_write()`
+  - Blocking with timeout
+- [ ] `void max98357_hw_mute(void)` — write silence buffer
+- [ ] `void max98357_hw_shutdown(bool enable)` — control SD pin (LOW=off, HIGH=on)
+- [ ] Idempotent init (guard against double-init)
+- [ ] Not testable with Ceedling (ESP-IDF I2S driver dependency)
+
+**Validation**:
+- Build succeeds with `CONFIG_SOUND_MAX98357=y`
+- I2S peripheral initializes without error on hardware
+
+**Files to create**:
+- `micro/components/sound/src/max98357/inc/max98357_hardware.h`
+- `micro/components/sound/src/max98357/src/max98357_hardware.c`
+
+---
+
+### Task 10.5.5: MAX98357 conductor
+
+**Description**: Implement the MAX98357 backend conductor that orchestrates the shared tone model, the synth model, and the I2S hardware layer. Implements the `sound_generator_t` contract.
+
+**Acceptance Criteria**:
+- [ ] `max98357.h` / `max98357.c` created
+- [ ] `get_max98357_sound_generator()` returns valid `sound_generator_t *`
+- [ ] `init()`: calls `max98357_hw_init()`, `synth_init()`, deasserts SD pin
+- [ ] `update(vario_cms)`:
+  1. `tone_model_compute()` → get `{freq_hz, cycle_ms, duty_pct, zone}`
+  2. Beep state machine (same logic as piezo conductor)
+  3. If tone: `synth_fill_tone()` → `max98357_hw_write()`
+  4. If silence: `synth_fill_silence()` → `max98357_hw_write()`
+  5. Frequency smoothing for pleasant transitions
+- [ ] `play_startup()`: render 3-tone ascending sequence (C5→E5→G5) as sine waves
+- [ ] `get_name()`: returns `"max98357"`
+- [ ] PCM buffer allocated statically (800 samples × 2 bytes = 1600 bytes)
+
+**Validation**:
+- Build succeeds
+- Startup tones play as smooth sine waves on hardware
+
+**Files to create**:
+- `micro/components/sound/src/max98357/inc/max98357.h`
+- `micro/components/sound/src/max98357/src/max98357.c`
+
+---
+
+### Task 10.5.6: Kconfig, CMake, factory, sound_task integration
+
+**Description**: Wire the MAX98357 backend into the build system, factory dispatch, and sound task.
+
+**Acceptance Criteria**:
+- [ ] `Kconfig` updated:
+  - New choice: `CONFIG_SOUND_MAX98357` — "MAX98357A I2S amplifier + speaker"
+  - GPIO configs: `CONFIG_MAX98357_BCLK_GPIO` (default 2), `CONFIG_MAX98357_WS_GPIO` (default 3), `CONFIG_MAX98357_DOUT_GPIO` (default 4), `CONFIG_MAX98357_SD_GPIO` (default 1)
+  - All GPIO configs `depends on SOUND_MAX98357`
+- [ ] `CMakeLists.txt` updated:
+  - `if(CONFIG_SOUND_MAX98357)`: append max98357 sources and include dirs
+  - Add `esp_driver_i2s` to REQUIRES when MAX98357 selected
+  - `tone_model.c` compiled for both PIEZO and MAX98357
+- [ ] `sound.c` factory updated: `get_sound_generator("max98357")` → `get_max98357_sound_generator()`
+- [ ] `sound_task.c` updated: backend name selected via Kconfig preprocessor:
+  ```c
+  #if defined(CONFIG_SOUND_PIEZO)
+  #define SOUND_BACKEND_NAME "piezo"
+  #elif defined(CONFIG_SOUND_MAX98357)
+  #define SOUND_BACKEND_NAME "max98357"
+  #endif
+  ```
+- [ ] `sdkconfig.defaults` unchanged (piezo remains default)
+- [ ] Build succeeds with both `CONFIG_SOUND_PIEZO=y` and `CONFIG_SOUND_MAX98357=y` (separately)
+
+**Validation**:
+- `idf.py menuconfig` shows MAX98357 option with GPIO config
+- Build with piezo: `./scripts/micro/build.sh` succeeds
+- Build with max98357: manual sdkconfig override, build succeeds
+
+**Files to modify**:
+- `micro/components/sound/Kconfig`
+- `micro/components/sound/CMakeLists.txt`
+- `micro/components/sound/src/sound.c`
+- `micro/main/sound_task.c`
+
+---
+
+### Task 10.5.7: Factory tests for MAX98357
+
+**Description**: Update the sound factory unit tests to cover the MAX98357 backend registration.
+
+**Acceptance Criteria**:
+- [ ] `test_sound.c` updated with MAX98357 factory tests:
+  - `get_sound_generator("max98357")` returns non-NULL when `CONFIG_SOUND_MAX98357`
+  - Returned backend `get_name()` matches `"max98357"`
+  - Backend has non-NULL `play_startup` pointer
+  - `play_startup()` returns `ESP_OK`
+- [ ] All existing piezo factory tests still pass
+- [ ] Total test count increased
+
+**Validation**:
+- `./scripts/micro/test.sh` — all tests green
+
+**Files to modify**:
+- `micro/test/test/test_sound.c`
+
+---
+
+### Task 10.5.8: Hardware integration and validation
+
+**Description**: Build, flash, and validate the MAX98357 backend on real hardware.
+
+**Acceptance Criteria**:
+- [ ] Build with `CONFIG_SOUND_MAX98357=y` succeeds
+- [ ] Flash to ESP32-C3 with MAX98357A + speaker connected
+- [ ] Startup sequence: 3 ascending sine tones — smooth, no square-wave artifacts
+- [ ] Climb tone: beeping sine wave, frequency increases with climb rate
+- [ ] Sink tone: continuous low-frequency sine wave
+- [ ] Silence zone: no audio artifacts, no hiss, no clicks
+- [ ] Pre-lift zone: subtle single tick
+- [ ] Frequency transitions: smooth, no pops or clicks between frequencies
+- [ ] SD pin shutdown: amplifier powers down, no quiescent current draw
+- [ ] No interference with BLE or sensor pipeline
+- [ ] Power consumption measured with SD pin active vs shutdown
+- [ ] Free heap stable (no memory leaks)
+
+**Validation**:
+- Subjective listening test: sine tones significantly smoother than piezo square waves
+- Serial log: no errors, task watermarks healthy
+- `flight_data` values stable during audio output
+
+---
+
+
 ## Phase 11: NVS Configuration
 
 > **Status**: 🔲 No iniciada.
 
-**Objective**: Implement persistent device configuration with NVS storage and expose a BLE Config Service for remote configuration. Includes persistence and BLE exposure of the vario tone configuration (`piezo_tone_config_t`) defined in Phase 10.  
+**Objective**: Implement persistent device configuration with NVS storage and expose a BLE Config Service for remote configuration. Includes persistence and BLE exposure of the vario tone configuration (`tone_config_t`) defined in Phase 10/10.5.  
 **Estimated Duration**: 3–4 days  
 **Dependencies**: Phase 3 (BLE NUS for GATT server), Phase 9 (data pipeline for applying config), Phase 10 (sound tone config schema)  
  
@@ -2568,7 +2894,7 @@ typedef struct sound_generator_s
 
 **Acceptance Criteria**:
 - [ ] Component `config_manager` created in `micro/components/config_manager/`
-- [ ] `device_config_t` struct per architecture: `sensor_rate_hz` (10), `ble_tx_rate_hz` (4), `kalman_q` (0.01), `kalman_r` (0.5), `reference_pressure_pa` (101325.0), `device_name` ("FlyInPeace"), `wifi_enabled` (false), `vario_tone_config_t tone` (from Phase 10 buzzer component)
+- [ ] `device_config_t` struct per architecture: `sensor_rate_hz` (10), `ble_tx_rate_hz` (4), `kalman_q` (0.01), `kalman_r` (0.5), `reference_pressure_pa` (101325.0), `device_name` ("FlyInPeace"), `wifi_enabled` (false), `tone_config_t tone` (from Phase 10/10.5 sound component)
 - [ ] `const device_config_t *config_manager_get_defaults(void)` returns pointer to static defaults
 - [ ] Validation rules per architecture: `sensor_rate_hz` ∈ [1,100], `ble_tx_rate_hz` ∈ [1,50], etc.
 - [ ] Internal validation function: returns `ESP_ERR_INVALID_ARG` for out-of-range values
