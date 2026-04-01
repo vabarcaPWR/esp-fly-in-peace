@@ -4,6 +4,7 @@
 #include <stdlib.h>
 
 #include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include "freertos/task.h"
 
 #define PIEZO_FREQ_SMOOTH_MAX_STEP 50
@@ -17,6 +18,7 @@ typedef enum beep_phase_e
 } beep_phase_e;
 
 static tone_config_t s_config;
+static SemaphoreHandle_t s_config_mutex;
 static beep_phase_e s_beep_phase;
 static uint16_t s_beep_elapsed_ms;
 static uint16_t s_current_freq_hz;
@@ -40,6 +42,10 @@ static uint16_t smooth_frequency(uint16_t target_freq, uint16_t current_freq)
 
 static esp_err_t piezo_init(void)
 {
+    s_config_mutex = xSemaphoreCreateMutex();
+    if (!s_config_mutex)
+        return ESP_ERR_NO_MEM;
+
     const tone_config_t *defaults = tone_config_get_defaults();
     s_config = *defaults;
     s_beep_phase = BEEP_PHASE_ON;
@@ -157,11 +163,40 @@ static const char *piezo_get_name(void)
     return "piezo";
 }
 
+static esp_err_t piezo_set_config(const tone_config_t *cfg)
+{
+    if (!cfg)
+        return ESP_ERR_INVALID_ARG;
+
+    esp_err_t ret = tone_config_validate(cfg);
+    if (ret != ESP_OK)
+        return ret;
+
+    xSemaphoreTake(s_config_mutex, portMAX_DELAY);
+    s_config = *cfg;
+    s_muted = cfg->muted;
+    xSemaphoreGive(s_config_mutex);
+    return ESP_OK;
+}
+
+static esp_err_t piezo_get_config(tone_config_t *cfg)
+{
+    if (!cfg)
+        return ESP_ERR_INVALID_ARG;
+
+    xSemaphoreTake(s_config_mutex, portMAX_DELAY);
+    *cfg = s_config;
+    xSemaphoreGive(s_config_mutex);
+    return ESP_OK;
+}
+
 static const sound_generator_t s_piezo_generator = {
     .init = piezo_init,
     .update = piezo_update,
     .play_startup = piezo_play_startup,
     .get_name = piezo_get_name,
+    .set_config = piezo_set_config,
+    .get_config = piezo_get_config,
 };
 
 const sound_generator_t *get_piezo_sound_generator(void)

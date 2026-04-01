@@ -8,6 +8,22 @@
 #define TONE_PRE_LIFT_CYCLE_MS 1000
 #define TONE_PRE_LIFT_DUTY_PCT 5
 
+#ifndef CONFIG_TONE_CLIMB_THRESHOLD_CMS
+#define CONFIG_TONE_CLIMB_THRESHOLD_CMS 15
+#endif
+
+#ifndef CONFIG_TONE_SINK_THRESHOLD_CMS
+#define CONFIG_TONE_SINK_THRESHOLD_CMS -200
+#endif
+
+#ifndef CONFIG_TONE_PRELIFT_THRESHOLD_CMS
+#define CONFIG_TONE_PRELIFT_THRESHOLD_CMS 5
+#endif
+
+#ifndef CONFIG_TONE_VOLUME_PCT
+#define CONFIG_TONE_VOLUME_PCT 30
+#endif
+
 static float lerp(float a, float b, float t)
 {
     return a + (b - a) * t;
@@ -103,14 +119,14 @@ static const tone_config_t s_default_config = {
         },
     .thresholds =
         {
-            .climb_on_ms = 0.15f,
-            .climb_off_ms = 0.05f,
-            .sink_on_ms = -2.0f,
-            .sink_off_ms = -1.5f,
+            .climb_on_ms = (float)CONFIG_TONE_CLIMB_THRESHOLD_CMS / 100.0f,
+            .climb_off_ms = (float)CONFIG_TONE_PRELIFT_THRESHOLD_CMS / 100.0f,
+            .sink_on_ms = (float)CONFIG_TONE_SINK_THRESHOLD_CMS / 100.0f,
+            .sink_off_ms = (float)(CONFIG_TONE_SINK_THRESHOLD_CMS + 50) / 100.0f,
         },
     .pre_lift_enabled = true,
     .muted = false,
-    .volume_pct = 30,
+    .volume_pct = CONFIG_TONE_VOLUME_PCT,
 };
 
 const tone_config_t *tone_config_get_defaults(void)

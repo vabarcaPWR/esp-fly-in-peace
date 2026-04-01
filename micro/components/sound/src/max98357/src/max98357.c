@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include "freertos/task.h"
 
 #define MAX98357_SAMPLE_RATE 16000
@@ -38,6 +39,7 @@ static const startup_tone_step_t s_startup_sequence[] = {
 
 static synth_state_t s_synth;
 static tone_config_t s_config;
+static SemaphoreHandle_t s_config_mutex;
 static int16_t s_pcm_buf[MAX98357_SAMPLES_PER_UPDATE];
 static beep_phase_e s_beep_phase;
 static uint16_t s_beep_elapsed_ms;
@@ -78,6 +80,10 @@ static void apply_fade_out(int16_t *buf, size_t total_samples)
 
 static esp_err_t max98357_init(void)
 {
+    s_config_mutex = xSemaphoreCreateMutex();
+    if (!s_config_mutex)
+        return ESP_ERR_NO_MEM;
+
     const tone_config_t *defaults = tone_config_get_defaults();
     s_config = *defaults;
     s_beep_phase = BEEP_PHASE_ON;
@@ -235,11 +241,40 @@ static const char *max98357_get_name(void)
     return "max98357";
 }
 
+static esp_err_t max98357_set_config(const tone_config_t *cfg)
+{
+    if (!cfg)
+        return ESP_ERR_INVALID_ARG;
+
+    esp_err_t ret = tone_config_validate(cfg);
+    if (ret != ESP_OK)
+        return ret;
+
+    xSemaphoreTake(s_config_mutex, portMAX_DELAY);
+    s_config = *cfg;
+    s_muted = cfg->muted;
+    xSemaphoreGive(s_config_mutex);
+    return ESP_OK;
+}
+
+static esp_err_t max98357_get_config(tone_config_t *cfg)
+{
+    if (!cfg)
+        return ESP_ERR_INVALID_ARG;
+
+    xSemaphoreTake(s_config_mutex, portMAX_DELAY);
+    *cfg = s_config;
+    xSemaphoreGive(s_config_mutex);
+    return ESP_OK;
+}
+
 static const sound_generator_t s_max98357_generator = {
     .init = max98357_init,
     .update = max98357_update,
     .play_startup = max98357_play_startup,
     .get_name = max98357_get_name,
+    .set_config = max98357_set_config,
+    .get_config = max98357_get_config,
 };
 
 const sound_generator_t *get_max98357_sound_generator(void)

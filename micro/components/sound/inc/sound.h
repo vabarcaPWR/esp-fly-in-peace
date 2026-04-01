@@ -2,6 +2,7 @@
 #define SOUND_H
 
 #include "esp_err.h"
+#include "tone_types.h"
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -15,6 +16,8 @@ extern "C"
         esp_err_t (*update)(double vario_cms);
         esp_err_t (*play_startup)(void);
         const char *(*get_name)(void);
+        esp_err_t (*set_config)(const tone_config_t *cfg);
+        esp_err_t (*get_config)(tone_config_t *cfg);
     } sound_generator_t;
 
     const sound_generator_t *get_sound_generator(const char *sensor_name);

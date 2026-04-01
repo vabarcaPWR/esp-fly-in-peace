@@ -278,6 +278,33 @@ void test_validate_duty_over_100_rejected(void)
     TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, tone_config_validate(&cfg));
 }
 
+void test_defaults_climb_threshold_matches_kconfig(void)
+{
+    const tone_config_t *cfg = tone_config_get_defaults();
+    float expected = (float)CONFIG_TONE_CLIMB_THRESHOLD_CMS / 100.0f;
+    TEST_ASSERT_FLOAT_WITHIN(FLOAT_TOL, expected, cfg->thresholds.climb_on_ms);
+}
+
+void test_defaults_sink_threshold_matches_kconfig(void)
+{
+    const tone_config_t *cfg = tone_config_get_defaults();
+    float expected = (float)CONFIG_TONE_SINK_THRESHOLD_CMS / 100.0f;
+    TEST_ASSERT_FLOAT_WITHIN(FLOAT_TOL, expected, cfg->thresholds.sink_on_ms);
+}
+
+void test_defaults_prelift_threshold_matches_kconfig(void)
+{
+    const tone_config_t *cfg = tone_config_get_defaults();
+    float expected = (float)CONFIG_TONE_PRELIFT_THRESHOLD_CMS / 100.0f;
+    TEST_ASSERT_FLOAT_WITHIN(FLOAT_TOL, expected, cfg->thresholds.climb_off_ms);
+}
+
+void test_defaults_volume_matches_kconfig(void)
+{
+    const tone_config_t *cfg = tone_config_get_defaults();
+    TEST_ASSERT_EQUAL_UINT8(CONFIG_TONE_VOLUME_PCT, cfg->volume_pct);
+}
+
 void test_compute_null_curve_does_not_crash(void)
 {
     tone_thresholds_t thresh = default_thresholds();

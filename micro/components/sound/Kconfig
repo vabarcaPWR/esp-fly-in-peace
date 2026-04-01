@@ -67,4 +67,42 @@ menu "Sound generator"
             GPIO for MAX98357A shutdown pin (SD).
             LOW = amplifier off, HIGH = amplifier on.
 
+    menu "Tone thresholds"
+        depends on !SOUND_NONE
+
+        config TONE_CLIMB_THRESHOLD_CMS
+            int "Climb threshold (cm/s)"
+            default 15
+            range 5 100
+            help
+                Vario rate in cm/s above which the climb beep activates.
+                Values below this (and above the pre-lift threshold) are in the
+                pre-lift zone. Default: 15 (0.15 m/s).
+
+        config TONE_PRELIFT_THRESHOLD_CMS
+            int "Pre-lift threshold (cm/s)"
+            default 5
+            range 0 50
+            help
+                Vario rate in cm/s above which the pre-lift tick activates.
+                Values between this and the climb threshold produce a slow tick.
+                Must be lower than the climb threshold. Default: 5 (0.05 m/s).
+
+        config TONE_SINK_THRESHOLD_CMS
+            int "Sink alarm threshold (cm/s, negative)"
+            default -200
+            range -1000 -50
+            help
+                Vario rate in cm/s below which the continuous sink alarm sounds.
+                Use negative values. Default: -200 (-2.0 m/s).
+
+        config TONE_VOLUME_PCT
+            int "Default volume (%)"
+            default 30
+            range 5 100
+            help
+                Default audio volume percentage. Default: 30.
+
+    endmenu
+
 endmenu
