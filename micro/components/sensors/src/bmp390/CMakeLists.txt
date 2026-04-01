@@ -1,4 +1,5 @@
-idf_component_register(
-    SRCS "src/bmp390.c"
-    INCLUDE_DIRS "inc"
+list(APPEND SENSOR_SRCS
+    "${CMAKE_CURRENT_LIST_DIR}/src/bmp390.c"
+    "${CMAKE_CURRENT_LIST_DIR}/src/bmp390_model.c"
 )
+list(APPEND SENSOR_INCLUDE_DIRS "${CMAKE_CURRENT_LIST_DIR}/inc")

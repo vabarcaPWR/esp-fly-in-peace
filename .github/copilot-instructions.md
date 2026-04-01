@@ -61,13 +61,14 @@ All firmware components that support multiple implementations **must** follow th
 
 ```
 micro/components/<component>/
-├── CMakeLists.txt                    # Conditional backend compilation via Kconfig
+├── CMakeLists.txt                    # Root: include() sub-CMakeLists, call idf_component_register
 ├── Kconfig                           # choice <COMPONENT>_BACKEND with options per backend
 ├── inc/
 │   └── <component>.h                 # Public contract: <component>_t struct with function pointers + factory function
 └── src/
     ├── <component>.c                 # Factory dispatch: get_<component>(name) returns selected backend
     └── <backend_name>/               # One directory per backend implementation
+        ├── CMakeLists.txt            # list(APPEND) to parent SRCS/INCLUDE_DIRS variables
         ├── inc/
         │   ├── <backend>.h           # Backend API: get_<backend>_<component>() returning const <component>_t*
         │   ├── <backend>_types.h     # Backend-specific types (breakpoints, config, data structs)
@@ -99,8 +100,9 @@ Components that provide cross-cutting services (bus drivers, utilities) follow a
 
 ```
 micro/components/<component>/
-├── CMakeLists.txt              # Registers sources and public include dirs
+├── CMakeLists.txt              # Root: include() sub-CMakeLists, call idf_component_register
 └── <subsystem>/                # One directory per subsystem (e.g., i2c, spi)
+    ├── CMakeLists.txt          # list(APPEND) to parent SRCS/INCLUDE_DIRS variables
     ├── inc/
     │   └── <subsystem>.h       # Public API
     └── src/
@@ -112,6 +114,41 @@ micro/components/<component>/
 2. Subsystem directories group related code (e.g., `i2c/`, `spi/`, `uart/`).
 3. Implementations must be **idempotent** and **safe for multiple consumers** (guard against double-init).
 4. Components that depend on infrastructure declare it in `REQUIRES` in their `CMakeLists.txt`.
+
+## CMakeLists.txt Hierarchy Pattern
+
+**Every subdirectory with source files MUST have its own `CMakeLists.txt`**. The root component `CMakeLists.txt` uses `include()` to delegate to them.
+
+**Sub-CMakeLists.txt pattern** (inside each subdirectory):
+```cmake
+list(APPEND <COMPONENT>_SRCS "${CMAKE_CURRENT_LIST_DIR}/src/<file>.c")
+list(APPEND <COMPONENT>_INCLUDE_DIRS "${CMAKE_CURRENT_LIST_DIR}/inc")
+```
+
+**Root CMakeLists.txt pattern** (component root):
+```cmake
+set(<COMPONENT>_SRCS "src/<factory>.c")
+set(<COMPONENT>_INCLUDE_DIRS "inc")
+
+include(${CMAKE_CURRENT_LIST_DIR}/src/<shared>/CMakeLists.txt)
+
+if(CONFIG_<BACKEND_A>)
+    include(${CMAKE_CURRENT_LIST_DIR}/src/<backend_a>/CMakeLists.txt)
+endif()
+
+idf_component_register(
+    SRCS ${<COMPONENT>_SRCS}
+    INCLUDE_DIRS ${<COMPONENT>_INCLUDE_DIRS}
+    ...
+)
+```
+
+**Rules**:
+1. Use `CMAKE_CURRENT_LIST_DIR` (not relative paths) in sub-CMakeLists for portability.
+2. Sub-CMakeLists only use `list(APPEND ...)` — never call `idf_component_register()`.
+3. Only the root CMakeLists.txt calls `idf_component_register()`.
+4. Kconfig-conditional backends are wrapped in `if(CONFIG_...)` before `include()`.
+5. Shared modules (e.g., `tone/` in sound) are included unconditionally.
 
 **Reference implementation**: `bus_drivers/` (I2C bus shared across sensor backends).
 

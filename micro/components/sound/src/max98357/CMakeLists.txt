@@ -1,0 +1,6 @@
+list(APPEND SOUND_SRCS
+    "${CMAKE_CURRENT_LIST_DIR}/src/max98357.c"
+    "${CMAKE_CURRENT_LIST_DIR}/src/max98357_model.c"
+    "${CMAKE_CURRENT_LIST_DIR}/src/max98357_hardware.c"
+)
+list(APPEND SOUND_INCLUDE_DIRS "${CMAKE_CURRENT_LIST_DIR}/inc")

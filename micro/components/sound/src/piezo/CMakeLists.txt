@@ -1,0 +1,5 @@
+list(APPEND SOUND_SRCS
+    "${CMAKE_CURRENT_LIST_DIR}/src/piezo.c"
+    "${CMAKE_CURRENT_LIST_DIR}/src/piezo_hardware.c"
+)
+list(APPEND SOUND_INCLUDE_DIRS "${CMAKE_CURRENT_LIST_DIR}/inc")

@@ -2,6 +2,10 @@
 #include <math.h>
 #include <string.h>
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 #define PHASE_BITS 32
 #define TABLE_MASK (SYNTH_SINE_TABLE_SIZE - 1)
 #define TABLE_SHIFT (PHASE_BITS - 8)

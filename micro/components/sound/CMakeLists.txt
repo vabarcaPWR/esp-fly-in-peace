@@ -1,21 +1,14 @@
-set(SOUND_SRCS "src/sound.c" "src/tone/src/tone_model.c")
-set(SOUND_INCLUDE_DIRS "inc" "src/tone/inc")
+set(SOUND_SRCS "src/sound.c")
+set(SOUND_INCLUDE_DIRS "inc")
+
+include(${CMAKE_CURRENT_LIST_DIR}/src/tone/CMakeLists.txt)
 
 if(CONFIG_SOUND_PIEZO)
-    list(APPEND SOUND_SRCS
-        "src/piezo/src/piezo.c"
-        "src/piezo/src/piezo_hardware.c"
-    )
-    list(APPEND SOUND_INCLUDE_DIRS "src/piezo/inc")
+    include(${CMAKE_CURRENT_LIST_DIR}/src/piezo/CMakeLists.txt)
 endif()
 
 if(CONFIG_SOUND_MAX98357)
-    list(APPEND SOUND_SRCS
-        "src/max98357/src/max98357.c"
-        "src/max98357/src/max98357_model.c"
-        "src/max98357/src/max98357_hardware.c"
-    )
-    list(APPEND SOUND_INCLUDE_DIRS "src/max98357/inc")
+    include(${CMAKE_CURRENT_LIST_DIR}/src/max98357/CMakeLists.txt)
 endif()
 
 idf_component_register(
