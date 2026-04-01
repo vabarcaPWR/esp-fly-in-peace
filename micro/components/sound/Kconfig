@@ -15,6 +15,14 @@ menu "Sound generator"
                 with an appropriate current-limiting resistor (100–220 Ohm).
                 Frequency range: 100–4000 Hz. Duty cycle: 0–100%.
 
+        config SOUND_MAX98357
+            bool "MAX98357A I2S amplifier + speaker"
+            help
+                Drives a MAX98357A Class D mono amplifier via I2S.
+                Generates sine wave tones for smooth, pleasant audio.
+                Requires MAX98357A breakout + small speaker (8 Ohm, 0.5–1W).
+                Uses 3 GPIOs for I2S (BCLK, WS, DOUT) + 1 GPIO for SD (shutdown).
+
         config SOUND_NONE
             bool "None (no sound output)"
             help
@@ -29,5 +37,34 @@ menu "Sound generator"
         help
             GPIO number connected to the piezoelectric buzzer.
             Default: GPIO 5 (available on ESP32-C3 Super Mini).
+
+    config MAX98357_BCLK_GPIO
+        int "I2S BCLK GPIO number"
+        default 2
+        depends on SOUND_MAX98357
+        help
+            GPIO for I2S bit clock (BCLK).
+
+    config MAX98357_WS_GPIO
+        int "I2S WS (LRCLK) GPIO number"
+        default 3
+        depends on SOUND_MAX98357
+        help
+            GPIO for I2S word select (LRCLK).
+
+    config MAX98357_DOUT_GPIO
+        int "I2S data out GPIO number"
+        default 4
+        depends on SOUND_MAX98357
+        help
+            GPIO for I2S data output (DOUT).
+
+    config MAX98357_SD_GPIO
+        int "MAX98357A shutdown GPIO number"
+        default 1
+        depends on SOUND_MAX98357
+        help
+            GPIO for MAX98357A shutdown pin (SD).
+            LOW = amplifier off, HIGH = amplifier on.
 
 endmenu

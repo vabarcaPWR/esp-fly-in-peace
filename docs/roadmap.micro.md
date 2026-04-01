@@ -2708,9 +2708,9 @@ micro/components/sound/
   - `synth_state_t`: phase accumulator (uint32_t), sample rate, sine table
   - Sine table size: 256 entries of `int16_t`
 - [ ] `max98357_model.h` / `max98357_model.c` created with:
-  - `esp_err_t synth_init(synth_state_t *state, uint32_t sample_rate)` — compute sine lookup table
-  - `void synth_fill_tone(synth_state_t *state, int16_t *buf, size_t samples, uint16_t freq_hz, uint8_t volume_pct)` — fill buffer with sine wave at frequency and volume
-  - `void synth_fill_silence(int16_t *buf, size_t samples)` — fill buffer with zeros
+  - `esp_err_t max98357_mdl_init(synth_state_t *state, uint32_t sample_rate)` — compute sine lookup table
+  - `void max98357_mdl_fill_tone(synth_state_t *state, int16_t *buf, size_t samples, uint16_t freq_hz, uint8_t volume_pct)` — fill buffer with sine wave at frequency and volume
+  - `void max98357_mdl_fill_silence(int16_t *buf, size_t samples)` — fill buffer with zeros
 - [ ] Zero ESP-IDF dependencies — pure C11
 - [ ] Phase accumulator maintains continuity across calls (no clicks between buffers)
 - [ ] All tests from Task 10.5.2 pass (RED → GREEN)
@@ -2763,12 +2763,12 @@ micro/components/sound/
 **Acceptance Criteria**:
 - [ ] `max98357.h` / `max98357.c` created
 - [ ] `get_max98357_sound_generator()` returns valid `sound_generator_t *`
-- [ ] `init()`: calls `max98357_hw_init()`, `synth_init()`, deasserts SD pin
+- [ ] `init()`: calls `max98357_hw_init()`, `max98357_mdl_init()`, deasserts SD pin
 - [ ] `update(vario_cms)`:
   1. `tone_model_compute()` → get `{freq_hz, cycle_ms, duty_pct, zone}`
   2. Beep state machine (same logic as piezo conductor)
-  3. If tone: `synth_fill_tone()` → `max98357_hw_write()`
-  4. If silence: `synth_fill_silence()` → `max98357_hw_write()`
+  3. If tone: `max98357_mdl_fill_tone()` → `max98357_hw_write()`
+  4. If silence: `max98357_mdl_fill_silence()` → `max98357_hw_write()`
   5. Frequency smoothing for pleasant transitions
 - [ ] `play_startup()`: render 3-tone ascending sequence (C5→E5→G5) as sine waves
 - [ ] `get_name()`: returns `"max98357"`

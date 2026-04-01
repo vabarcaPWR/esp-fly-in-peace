@@ -1,7 +1,6 @@
 #ifndef PIEZO_H
 #define PIEZO_H
 
-#include "piezo_types.h"
 #include "sound.h"
 
 #ifdef __cplusplus

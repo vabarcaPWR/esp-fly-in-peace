@@ -7,7 +7,14 @@
 #include "freertos/task.h"
 
 #define SOUND_TASK_PERIOD_MS 50U
+
+#if defined(CONFIG_SOUND_PIEZO)
 #define SOUND_BACKEND_NAME "piezo"
+#elif defined(CONFIG_SOUND_MAX98357)
+#define SOUND_BACKEND_NAME "max98357"
+#else
+#define SOUND_BACKEND_NAME "piezo"
+#endif
 
 static const char *TAG = "sound_task";
 
@@ -68,8 +75,7 @@ void sound_task_fn(void *param)
 
         if (!valid)
         {
-            if (had_valid_data)
-                gen->update(0.0);
+            gen->update(0.0);
             had_valid_data = false;
         }
         else

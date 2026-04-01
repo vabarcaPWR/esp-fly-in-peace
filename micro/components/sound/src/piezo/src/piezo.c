@@ -1,6 +1,6 @@
 #include "piezo.h"
 #include "piezo_hardware.h"
-#include "piezo_model.h"
+#include "tone_model.h"
 #include <stdlib.h>
 
 #include "freertos/FreeRTOS.h"
@@ -16,7 +16,7 @@ typedef enum beep_phase_e
     BEEP_PHASE_OFF,
 } beep_phase_e;
 
-static piezo_tone_config_t s_config;
+static tone_config_t s_config;
 static beep_phase_e s_beep_phase;
 static uint16_t s_beep_elapsed_ms;
 static uint16_t s_current_freq_hz;
@@ -40,7 +40,7 @@ static uint16_t smooth_frequency(uint16_t target_freq, uint16_t current_freq)
 
 static esp_err_t piezo_init(void)
 {
-    const piezo_tone_config_t *defaults = piezo_config_get_defaults();
+    const tone_config_t *defaults = tone_config_get_defaults();
     s_config = *defaults;
     s_beep_phase = BEEP_PHASE_ON;
     s_beep_elapsed_ms = 0;
@@ -60,7 +60,7 @@ static void handle_continuous_tone(uint16_t freq_hz, uint8_t duty_pct)
     piezo_hw_set_tone(s_current_freq_hz, duty_pct);
 }
 
-static void handle_beeping_tone(const piezo_tone_output_t *tone)
+static void handle_beeping_tone(const tone_output_t *tone)
 {
     s_beep_elapsed_ms += PIEZO_BEEP_UPDATE_RESOLUTION_MS;
 
@@ -100,10 +100,10 @@ static esp_err_t piezo_update(double vario_cms)
 
     float vario_ms = (float)(vario_cms / 100.0);
 
-    piezo_tone_output_t tone = {0};
-    piezo_model_compute(&s_config.curve, &s_config.thresholds, s_config.pre_lift_enabled, vario_ms, &tone);
+    tone_output_t tone = {0};
+    tone_model_compute(&s_config.curve, &s_config.thresholds, s_config.pre_lift_enabled, vario_ms, &tone);
 
-    if (tone.zone == PIEZO_ZONE_SILENCE)
+    if (tone.zone == TONE_ZONE_SILENCE)
     {
         piezo_hw_mute();
         s_current_freq_hz = 0;
@@ -112,7 +112,7 @@ static esp_err_t piezo_update(double vario_cms)
         return ESP_OK;
     }
 
-    if (tone.zone == PIEZO_ZONE_SINK)
+    if (tone.zone == TONE_ZONE_SINK)
     {
         handle_continuous_tone(tone.freq_hz, tone.duty_pct);
         return ESP_OK;

@@ -1,19 +1,19 @@
-#include "piezo_model.h"
+#include "tone_model.h"
 #include <math.h>
 #include <stddef.h>
 
-#define PIEZO_FREQ_MIN 100
-#define PIEZO_FREQ_MAX 4000
-#define PIEZO_PRE_LIFT_FREQ_HZ 400
-#define PIEZO_PRE_LIFT_CYCLE_MS 1000
-#define PIEZO_PRE_LIFT_DUTY_PCT 5
+#define TONE_FREQ_MIN 100
+#define TONE_FREQ_MAX 4000
+#define TONE_PRE_LIFT_FREQ_HZ 400
+#define TONE_PRE_LIFT_CYCLE_MS 1000
+#define TONE_PRE_LIFT_DUTY_PCT 5
 
 static float lerp(float a, float b, float t)
 {
     return a + (b - a) * t;
 }
 
-static void interpolate_curve(const piezo_tone_curve_t *curve, float vario_ms, piezo_tone_output_t *out)
+static void interpolate_curve(const tone_curve_t *curve, float vario_ms, tone_output_t *out)
 {
     if (curve->count == 0)
         return;
@@ -37,8 +37,8 @@ static void interpolate_curve(const piezo_tone_curve_t *curve, float vario_ms, p
 
     for (uint8_t i = 0; i < last; i++)
     {
-        const piezo_tone_point_t *a = &curve->points[i];
-        const piezo_tone_point_t *b = &curve->points[i + 1];
+        const tone_point_t *a = &curve->points[i];
+        const tone_point_t *b = &curve->points[i + 1];
 
         if (vario_ms >= a->vario_ms && vario_ms <= b->vario_ms)
         {
@@ -53,8 +53,8 @@ static void interpolate_curve(const piezo_tone_curve_t *curve, float vario_ms, p
     }
 }
 
-void piezo_model_compute(const piezo_tone_curve_t *curve, const piezo_tone_thresholds_t *thresh, bool pre_lift_enabled,
-                         float vario_ms, piezo_tone_output_t *out)
+void tone_model_compute(const tone_curve_t *curve, const tone_thresholds_t *thresh, bool pre_lift_enabled,
+                        float vario_ms, tone_output_t *out)
 {
     if (!curve || !thresh || !out)
         return;
@@ -62,28 +62,28 @@ void piezo_model_compute(const piezo_tone_curve_t *curve, const piezo_tone_thres
     out->freq_hz = 0;
     out->cycle_ms = 0;
     out->duty_pct = 0;
-    out->zone = PIEZO_ZONE_SILENCE;
+    out->zone = TONE_ZONE_SILENCE;
 
     if (vario_ms >= thresh->climb_on_ms)
     {
-        out->zone = PIEZO_ZONE_CLIMB;
+        out->zone = TONE_ZONE_CLIMB;
         interpolate_curve(curve, vario_ms, out);
     }
     else if (vario_ms <= thresh->sink_on_ms)
     {
-        out->zone = PIEZO_ZONE_SINK;
+        out->zone = TONE_ZONE_SINK;
         interpolate_curve(curve, vario_ms, out);
     }
     else if (pre_lift_enabled && vario_ms >= thresh->climb_off_ms && vario_ms < thresh->climb_on_ms)
     {
-        out->zone = PIEZO_ZONE_PRE_LIFT;
-        out->freq_hz = PIEZO_PRE_LIFT_FREQ_HZ;
-        out->cycle_ms = PIEZO_PRE_LIFT_CYCLE_MS;
-        out->duty_pct = PIEZO_PRE_LIFT_DUTY_PCT;
+        out->zone = TONE_ZONE_PRE_LIFT;
+        out->freq_hz = TONE_PRE_LIFT_FREQ_HZ;
+        out->cycle_ms = TONE_PRE_LIFT_CYCLE_MS;
+        out->duty_pct = TONE_PRE_LIFT_DUTY_PCT;
     }
 }
 
-static const piezo_tone_config_t s_default_config = {
+static const tone_config_t s_default_config = {
     .curve =
         {
             .points =
@@ -110,26 +110,26 @@ static const piezo_tone_config_t s_default_config = {
         },
     .pre_lift_enabled = true,
     .muted = false,
-    .volume_pct = 100,
+    .volume_pct = 30,
 };
 
-const piezo_tone_config_t *piezo_config_get_defaults(void)
+const tone_config_t *tone_config_get_defaults(void)
 {
     return &s_default_config;
 }
 
-esp_err_t piezo_config_validate(const piezo_tone_config_t *config)
+esp_err_t tone_config_validate(const tone_config_t *config)
 {
     if (!config)
         return ESP_ERR_INVALID_ARG;
 
-    if (config->curve.count < 2 || config->curve.count > PIEZO_MAX_TONE_POINTS)
+    if (config->curve.count < 2 || config->curve.count > TONE_MAX_POINTS)
         return ESP_ERR_INVALID_ARG;
 
     for (uint8_t i = 0; i < config->curve.count; i++)
     {
-        const piezo_tone_point_t *p = &config->curve.points[i];
-        if (p->freq_hz > PIEZO_FREQ_MAX)
+        const tone_point_t *p = &config->curve.points[i];
+        if (p->freq_hz > TONE_FREQ_MAX)
             return ESP_ERR_INVALID_ARG;
         if (p->duty_pct > 100)
             return ESP_ERR_INVALID_ARG;

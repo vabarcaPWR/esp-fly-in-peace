@@ -1,10 +1,12 @@
-#include "sound.h"
+#include "mock_max98357.h"
 #include "mock_piezo.h"
+#include "sound.h"
 #include "unity.h"
 
 TEST_SOURCE_FILE("../components/sound/src/sound.c")
 
 static int piezo_provider_call_count;
+static int max98357_provider_call_count;
 
 static esp_err_t fake_init(void)
 {
@@ -22,9 +24,14 @@ static esp_err_t fake_play_startup(void)
     return ESP_OK;
 }
 
-static const char *fake_get_name(void)
+static const char *fake_piezo_get_name(void)
 {
     return "piezo";
+}
+
+static const char *fake_max98357_get_name(void)
+{
+    return "max98357";
 }
 
 static const sound_generator_t *stub_get_piezo_sound_generator(int cmock_num_calls)
@@ -36,7 +43,22 @@ static const sound_generator_t *stub_get_piezo_sound_generator(int cmock_num_cal
         .init = fake_init,
         .update = fake_update,
         .play_startup = fake_play_startup,
-        .get_name = fake_get_name,
+        .get_name = fake_piezo_get_name,
+    };
+
+    return &fake_gen;
+}
+
+static const sound_generator_t *stub_get_max98357_sound_generator(int cmock_num_calls)
+{
+    (void)cmock_num_calls;
+    max98357_provider_call_count++;
+
+    static const sound_generator_t fake_gen = {
+        .init = fake_init,
+        .update = fake_update,
+        .play_startup = fake_play_startup,
+        .get_name = fake_max98357_get_name,
     };
 
     return &fake_gen;
@@ -45,10 +67,14 @@ static const sound_generator_t *stub_get_piezo_sound_generator(int cmock_num_cal
 void setUp(void)
 {
     piezo_provider_call_count = 0;
+    max98357_provider_call_count = 0;
     get_piezo_sound_generator_StubWithCallback(stub_get_piezo_sound_generator);
+    get_max98357_sound_generator_StubWithCallback(stub_get_max98357_sound_generator);
 }
 
-void tearDown(void) {}
+void tearDown(void)
+{
+}
 
 void test_get_sound_generator_null_name_returns_null(void)
 {
@@ -94,6 +120,44 @@ void test_get_sound_generator_piezo_backend_has_play_startup(void)
 void test_get_sound_generator_piezo_play_startup_returns_ok(void)
 {
     const sound_generator_t *gen = get_sound_generator("piezo");
+    TEST_ASSERT_NOT_NULL(gen);
+    TEST_ASSERT_EQUAL(ESP_OK, gen->play_startup());
+}
+
+void test_get_sound_generator_max98357_returns_non_null(void)
+{
+    TEST_ASSERT_NOT_NULL(get_sound_generator("max98357"));
+}
+
+void test_get_sound_generator_max98357_queries_max98357_backend(void)
+{
+    (void)get_sound_generator("max98357");
+    TEST_ASSERT_EQUAL_INT(1, max98357_provider_call_count);
+}
+
+void test_get_sound_generator_max98357_does_not_query_piezo(void)
+{
+    (void)get_sound_generator("max98357");
+    TEST_ASSERT_EQUAL_INT(0, piezo_provider_call_count);
+}
+
+void test_get_sound_generator_max98357_backend_name_matches(void)
+{
+    const sound_generator_t *gen = get_sound_generator("max98357");
+    TEST_ASSERT_NOT_NULL(gen);
+    TEST_ASSERT_EQUAL_STRING("max98357", gen->get_name());
+}
+
+void test_get_sound_generator_max98357_backend_has_play_startup(void)
+{
+    const sound_generator_t *gen = get_sound_generator("max98357");
+    TEST_ASSERT_NOT_NULL(gen);
+    TEST_ASSERT_NOT_NULL(gen->play_startup);
+}
+
+void test_get_sound_generator_max98357_play_startup_returns_ok(void)
+{
+    const sound_generator_t *gen = get_sound_generator("max98357");
     TEST_ASSERT_NOT_NULL(gen);
     TEST_ASSERT_EQUAL(ESP_OK, gen->play_startup());
 }

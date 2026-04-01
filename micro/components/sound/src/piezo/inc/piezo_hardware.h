@@ -1,7 +1,7 @@
 #ifndef PIEZO_HARDWARE_H
 #define PIEZO_HARDWARE_H
 
-#include "piezo_types.h"
+#include "tone_types.h"
 
 #ifdef __cplusplus
 extern "C"
