@@ -17,17 +17,22 @@
 #endif
 
 static const char *TAG = "lk8ex1_sim";
-static QueueHandle_t lk8ex1_profile_queue = NULL;
+typedef struct lk8ex1_sim_context_s
+{
+    QueueHandle_t profile_queue;
+} lk8ex1_sim_context_t;
+
+static lk8ex1_sim_context_t lk8ex1_sim_context;
 
 static void lk8ex1_simulation_apply_profile_update_if_requested(lk8ex1_simulation_state_t *state)
 {
-    if (!state || !lk8ex1_profile_queue)
+    if (!state || !lk8ex1_sim_context.profile_queue)
     {
         return;
     }
 
     lk8ex1_sim_profile_e next_profile = LK8EX1_SIM_PROFILE_NOMINAL;
-    if (xQueueReceive(lk8ex1_profile_queue, &next_profile, 0) != pdTRUE)
+    if (xQueueReceive(lk8ex1_sim_context.profile_queue, &next_profile, 0) != pdTRUE)
     {
         return;
     }
@@ -44,19 +49,19 @@ static void lk8ex1_simulation_apply_profile_update_if_requested(lk8ex1_simulatio
 
 esp_err_t lk8ex1_simulation_runtime_init(void)
 {
-    if (lk8ex1_profile_queue)
+    if (lk8ex1_sim_context.profile_queue)
     {
         return ESP_OK;
     }
 
-    lk8ex1_profile_queue = xQueueCreate(1U, sizeof(lk8ex1_sim_profile_e));
-    if (!lk8ex1_profile_queue)
+    lk8ex1_sim_context.profile_queue = xQueueCreate(1U, sizeof(lk8ex1_sim_profile_e));
+    if (!lk8ex1_sim_context.profile_queue)
     {
         return ESP_ERR_NO_MEM;
     }
 
     lk8ex1_sim_profile_e default_profile = LK8EX1_SIM_PROFILE_DEFAULT;
-    if (xQueueOverwrite(lk8ex1_profile_queue, &default_profile) != pdTRUE)
+    if (xQueueOverwrite(lk8ex1_sim_context.profile_queue, &default_profile) != pdTRUE)
     {
         return ESP_FAIL;
     }
@@ -80,13 +85,13 @@ void lk8ex1_simulation_ble_rx_callback(const uint8_t *data, uint16_t len)
         return;
     }
 
-    if (!lk8ex1_profile_queue)
+    if (!lk8ex1_sim_context.profile_queue)
     {
         ESP_LOGW(TAG, "Profile queue not initialized");
         return;
     }
 
-    if (xQueueOverwrite(lk8ex1_profile_queue, &next_profile) != pdTRUE)
+    if (xQueueOverwrite(lk8ex1_sim_context.profile_queue, &next_profile) != pdTRUE)
     {
         ESP_LOGW(TAG, "Failed to queue profile change: %s", lk8ex1_simulation_profile_to_name(next_profile));
         return;

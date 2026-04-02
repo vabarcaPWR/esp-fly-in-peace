@@ -50,7 +50,7 @@ typedef struct bmp390_context_s
     bmp390_calib_t calib;
 } bmp390_context_t;
 
-static bmp390_context_t ctx = {
+static bmp390_context_t s_self = {
     .i2c_ready = false,
     .calibration_ready = false,
 #if BMP390_HAS_I2C_MASTER_API
@@ -62,26 +62,26 @@ static bmp390_context_t ctx = {
 
 static esp_err_t bmp390_i2c_write_reg(uint8_t reg, uint8_t value)
 {
-    if (!ctx.i2c_dev_handle)
+    if (!s_self.i2c_dev_handle)
         return ESP_ERR_INVALID_STATE;
 
     uint8_t buf[2] = {reg, value};
-    return i2c_master_transmit(ctx.i2c_dev_handle, buf, sizeof(buf), 100);
+    return i2c_master_transmit(s_self.i2c_dev_handle, buf, sizeof(buf), 100);
 }
 
 static esp_err_t bmp390_i2c_read_reg(uint8_t reg, uint8_t *data, size_t len)
 {
     if (!data)
         return ESP_ERR_INVALID_ARG;
-    if (!ctx.i2c_dev_handle)
+    if (!s_self.i2c_dev_handle)
         return ESP_ERR_INVALID_STATE;
 
-    return i2c_master_transmit_receive(ctx.i2c_dev_handle, &reg, 1, data, len, 100);
+    return i2c_master_transmit_receive(s_self.i2c_dev_handle, &reg, 1, data, len, 100);
 }
 
 static esp_err_t bmp390_ensure_i2c_ready(void)
 {
-    if (ctx.i2c_ready)
+    if (s_self.i2c_ready)
         return ESP_OK;
 
     i2c_master_bus_handle_t bus = sensor_i2c_bus_get_handle();
@@ -96,11 +96,11 @@ static esp_err_t bmp390_ensure_i2c_ready(void)
         .flags.disable_ack_check = 0,
     };
 
-    esp_err_t result = i2c_master_bus_add_device(bus, &device_config, &ctx.i2c_dev_handle);
+    esp_err_t result = i2c_master_bus_add_device(bus, &device_config, &s_self.i2c_dev_handle);
     if (result != ESP_OK)
         return result;
 
-    ctx.i2c_ready = true;
+    s_self.i2c_ready = true;
     return ESP_OK;
 }
 
@@ -137,8 +137,8 @@ static esp_err_t bmp390_read_calibration(void)
     if (result != ESP_OK)
         return result;
 
-    bmp390_parse_calib(raw, &ctx.calib);
-    ctx.calibration_ready = true;
+    bmp390_parse_calib(raw, &s_self.calib);
+    s_self.calibration_ready = true;
     return ESP_OK;
 }
 
@@ -168,8 +168,8 @@ esp_err_t bmp390_init(void)
     if (result != ESP_OK)
         return result;
 
-    ESP_LOGI(TAG, "par_t1=%.1f par_t2=%.10f par_p5=%.1f par_p6=%.4f", ctx.calib.par_t1, ctx.calib.par_t2,
-             ctx.calib.par_p5, ctx.calib.par_p6);
+    ESP_LOGI(TAG, "par_t1=%.1f par_t2=%.10f par_p5=%.1f par_p6=%.4f", s_self.calib.par_t1, s_self.calib.par_t2,
+             s_self.calib.par_p5, s_self.calib.par_p6);
     return ESP_OK;
 }
 
@@ -177,7 +177,7 @@ esp_err_t bmp390_read(data_baro_t *out)
 {
     if (!out)
         return ESP_ERR_INVALID_ARG;
-    if (!ctx.calibration_ready)
+    if (!s_self.calibration_ready)
         return ESP_ERR_INVALID_STATE;
 
     esp_err_t result = bmp390_i2c_write_reg(BMP390_REG_PWR_CTRL, BMP390_FORCED_MODE);
@@ -194,7 +194,7 @@ esp_err_t bmp390_read(data_baro_t *out)
     uint32_t raw_press = (uint32_t)data[0] | ((uint32_t)data[1] << 8U) | ((uint32_t)data[2] << 16U);
     uint32_t raw_temp = (uint32_t)data[3] | ((uint32_t)data[4] << 8U) | ((uint32_t)data[5] << 16U);
 
-    result = bmp390_compensate(raw_press, raw_temp, &ctx.calib, &out->pressure_pa, &out->temperature_mc);
+    result = bmp390_compensate(raw_press, raw_temp, &s_self.calib, &out->pressure_pa, &out->temperature_mc);
     if (result != ESP_OK)
         return result;
 

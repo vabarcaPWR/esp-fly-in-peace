@@ -24,15 +24,26 @@
 #define LED_PATTERN_STANDARD_ON_TICKS 3U
 #define LED_PATTERN_ERROR_ON_TICKS 50U
 
-static led_state_e active_led_state = LED_STATE_BOOT;
-static bool led_is_initialized = false;
-static QueueHandle_t led_state_queue = NULL;
-static StaticQueue_t led_state_queue_control;
-static uint8_t led_state_queue_storage[LED_STATE_QUEUE_LENGTH * sizeof(led_state_e)];
-static StackType_t led_task_stack[LED_TASK_STACK_SIZE_WORDS];
-static StaticTask_t led_task_control;
-static TaskHandle_t led_task_handle = NULL;
-static portMUX_TYPE led_state_lock = portMUX_INITIALIZER_UNLOCKED;
+typedef struct led_single_context_s
+{
+    led_state_e active_state;
+    bool initialized;
+    QueueHandle_t state_queue;
+    StaticQueue_t state_queue_control;
+    uint8_t state_queue_storage[LED_STATE_QUEUE_LENGTH * sizeof(led_state_e)];
+    StackType_t task_stack[LED_TASK_STACK_SIZE_WORDS];
+    StaticTask_t task_control;
+    TaskHandle_t task_handle;
+    portMUX_TYPE state_lock;
+} led_single_context_t;
+
+static led_single_context_t s_self = {
+    .active_state = LED_STATE_BOOT,
+    .initialized = false,
+    .state_queue = NULL,
+    .task_handle = NULL,
+    .state_lock = portMUX_INITIALIZER_UNLOCKED,
+};
 
 static bool led_state_is_valid(led_state_e state)
 {
@@ -41,16 +52,16 @@ static bool led_state_is_valid(led_state_e state)
 
 static void led_store_state(led_state_e state)
 {
-    taskENTER_CRITICAL(&led_state_lock);
-    active_led_state = state;
-    taskEXIT_CRITICAL(&led_state_lock);
+    taskENTER_CRITICAL(&s_self.state_lock);
+    s_self.active_state = state;
+    taskEXIT_CRITICAL(&s_self.state_lock);
 }
 
 static led_state_e led_load_state(void)
 {
-    taskENTER_CRITICAL(&led_state_lock);
-    led_state_e state = active_led_state;
-    taskEXIT_CRITICAL(&led_state_lock);
+    taskENTER_CRITICAL(&s_self.state_lock);
+    led_state_e state = s_self.active_state;
+    taskEXIT_CRITICAL(&s_self.state_lock);
     return state;
 }
 
@@ -114,7 +125,7 @@ static void led_single_task(void *param)
     while (true)
     {
         led_state_e requested_state = LED_STATE_COUNT;
-        if (xQueueReceive(led_state_queue, &requested_state, 0U) == pdPASS)
+        if (xQueueReceive(s_self.state_queue, &requested_state, 0U) == pdPASS)
         {
             active_state = requested_state;
             led_store_state(requested_state);
@@ -130,7 +141,7 @@ static void led_single_task(void *param)
 
 static esp_err_t led_single_init(void)
 {
-    if (led_is_initialized)
+    if (s_self.initialized)
         return ESP_OK;
 
     gpio_config_t gpio_configuration = {
@@ -145,24 +156,24 @@ static esp_err_t led_single_init(void)
     if (gpio_result != ESP_OK)
         return gpio_result;
 
-    led_state_queue = xQueueCreateStatic(LED_STATE_QUEUE_LENGTH, sizeof(led_state_e), led_state_queue_storage,
-                                         &led_state_queue_control);
-    if (!led_state_queue)
+    s_self.state_queue = xQueueCreateStatic(LED_STATE_QUEUE_LENGTH, sizeof(led_state_e), s_self.state_queue_storage,
+                                            &s_self.state_queue_control);
+    if (!s_self.state_queue)
         return ESP_FAIL;
 
     led_state_e boot_state = LED_STATE_BOOT;
-    if (xQueueOverwrite(led_state_queue, &boot_state) != pdPASS)
+    if (xQueueOverwrite(s_self.state_queue, &boot_state) != pdPASS)
         return ESP_FAIL;
 
     led_store_state(boot_state);
     gpio_set_level(LED_SINGLE_GPIO, LED_SINGLE_ON_LEVEL);
 
-    led_task_handle = xTaskCreateStatic(led_single_task, "led_task", LED_TASK_STACK_SIZE_WORDS, NULL, LED_TASK_PRIORITY,
-                                        led_task_stack, &led_task_control);
-    if (!led_task_handle)
+    s_self.task_handle = xTaskCreateStatic(led_single_task, "led_task", LED_TASK_STACK_SIZE_WORDS, NULL,
+                                           LED_TASK_PRIORITY, s_self.task_stack, &s_self.task_control);
+    if (!s_self.task_handle)
         return ESP_FAIL;
 
-    led_is_initialized = true;
+    s_self.initialized = true;
     return ESP_OK;
 }
 
@@ -171,10 +182,10 @@ static esp_err_t led_single_set_state(led_state_e state)
     if (!led_state_is_valid(state))
         return ESP_ERR_INVALID_ARG;
 
-    if (!led_is_initialized || !led_state_queue)
+    if (!s_self.initialized || !s_self.state_queue)
         return ESP_ERR_INVALID_STATE;
 
-    if (xQueueOverwrite(led_state_queue, &state) != pdPASS)
+    if (xQueueOverwrite(s_self.state_queue, &state) != pdPASS)
         return ESP_FAIL;
 
     return ESP_OK;

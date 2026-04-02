@@ -11,12 +11,17 @@
 #define PIEZO_MAX_FREQ_HZ 4000U
 
 static const char *TAG = "piezo_hw";
-static bool s_initialized = false;
-static uint8_t s_gpio = 0;
+typedef struct piezo_hw_context_s
+{
+    bool initialized;
+    uint8_t gpio;
+} piezo_hw_context_t;
+
+static piezo_hw_context_t s_self;
 
 esp_err_t piezo_hw_init(uint8_t gpio_num)
 {
-    if (s_initialized)
+    if (s_self.initialized)
         return ESP_OK;
 
     ledc_timer_config_t timer_cfg = {
@@ -51,14 +56,14 @@ esp_err_t piezo_hw_init(uint8_t gpio_num)
         return ret;
     }
 
-    s_gpio = gpio_num;
-    s_initialized = true;
+    s_self.gpio = gpio_num;
+    s_self.initialized = true;
     return ESP_OK;
 }
 
 esp_err_t piezo_hw_set_tone(uint16_t freq_hz, uint8_t duty_pct)
 {
-    if (!s_initialized)
+    if (!s_self.initialized)
         return ESP_ERR_INVALID_STATE;
 
     if (freq_hz == 0 || duty_pct == 0)
@@ -88,7 +93,7 @@ esp_err_t piezo_hw_set_tone(uint16_t freq_hz, uint8_t duty_pct)
 
 void piezo_hw_mute(void)
 {
-    if (!s_initialized)
+    if (!s_self.initialized)
         return;
 
     ledc_set_duty(PIEZO_LEDC_SPEED, PIEZO_LEDC_CHANNEL, 0);

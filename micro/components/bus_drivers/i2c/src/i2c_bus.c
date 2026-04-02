@@ -13,12 +13,17 @@ static const char *TAG = "i2c_bus";
 
 #if __has_include("driver/i2c_master.h")
 
-static bool bus_initialized = false;
-static i2c_master_bus_handle_t bus_handle = NULL;
+typedef struct i2c_bus_context_s
+{
+    bool initialized;
+    i2c_master_bus_handle_t handle;
+} i2c_bus_context_t;
+
+static i2c_bus_context_t s_self;
 
 esp_err_t sensor_i2c_bus_init(void)
 {
-    if (bus_initialized)
+    if (s_self.initialized)
         return ESP_OK;
 
     i2c_master_bus_config_t bus_config = {
@@ -32,16 +37,16 @@ esp_err_t sensor_i2c_bus_init(void)
         .flags.enable_internal_pullup = true,
     };
 
-    esp_err_t result = i2c_new_master_bus(&bus_config, &bus_handle);
+    esp_err_t result = i2c_new_master_bus(&bus_config, &s_self.handle);
     if (result != ESP_OK)
         return result;
 
-    bus_initialized = true;
+    s_self.initialized = true;
     ESP_LOGI(TAG, "I2C bus ready (SDA=%d SCL=%d)", CONFIG_SENSOR_I2C_SDA_GPIO, CONFIG_SENSOR_I2C_SCL_GPIO);
 
     for (uint8_t addr = 0x08; addr < 0x78; addr++)
     {
-        if (i2c_master_probe(bus_handle, addr, 50) == ESP_OK)
+        if (i2c_master_probe(s_self.handle, addr, 50) == ESP_OK)
             ESP_LOGI(TAG, "I2C device found at 0x%02x", addr);
     }
 
@@ -50,7 +55,7 @@ esp_err_t sensor_i2c_bus_init(void)
 
 i2c_master_bus_handle_t sensor_i2c_bus_get_handle(void)
 {
-    return bus_handle;
+    return s_self.handle;
 }
 
 #else

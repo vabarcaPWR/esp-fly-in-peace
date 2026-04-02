@@ -23,7 +23,12 @@
 #define BLE_NUS_ADV_SHORT_NAME_LEN 6U
 
 static const char *TAG = "ble_nus_hw";
-static uint16_t s_tx_value_handle;
+typedef struct ble_nus_hw_context_s
+{
+    uint16_t tx_value_handle;
+} ble_nus_hw_context_t;
+
+static ble_nus_hw_context_t s_self;
 
 static const ble_uuid128_t NUS_SERVICE_UUID =
     BLE_UUID128_INIT(0x9e, 0xca, 0xdc, 0x24, 0x0e, 0xe5, 0xa9, 0xe0, 0x93, 0xf3, 0xa3, 0xb5, 0x01, 0x00, 0x40, 0x6e);
@@ -252,7 +257,7 @@ static const struct ble_gatt_svc_def s_gatt_services[] = {
                     .uuid = &NUS_TX_UUID.u,
                     .access_cb = ble_nus_hardware_gatt_access_cb,
                     .arg = (void *)&NUS_TX_UUID.u,
-                    .val_handle = &s_tx_value_handle,
+                    .val_handle = &s_self.tx_value_handle,
                     .flags = BLE_GATT_CHR_F_NOTIFY | BLE_GATT_CHR_F_READ,
                 },
                 {
@@ -350,7 +355,7 @@ esp_err_t ble_nus_hardware_start(void)
         return ESP_FAIL;
     }
 
-    ble_nus_model_set_tx_value_handle(s_tx_value_handle);
+    ble_nus_model_set_tx_value_handle(s_self.tx_value_handle);
     nimble_port_freertos_init(ble_nus_hardware_host_task);
 
     return ESP_OK;

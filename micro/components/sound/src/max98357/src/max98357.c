@@ -37,15 +37,20 @@ static const startup_tone_step_t s_startup_sequence[] = {
 #define STARTUP_SEQUENCE_LEN (sizeof(s_startup_sequence) / sizeof(s_startup_sequence[0]))
 #define STARTUP_SAMPLES_PER_MS (MAX98357_SAMPLE_RATE / 1000)
 
-static synth_state_t s_synth;
-static tone_config_t s_config;
-static SemaphoreHandle_t s_config_mutex;
-static int16_t s_pcm_buf[MAX98357_SAMPLES_PER_UPDATE];
-static beep_phase_e s_beep_phase;
-static uint16_t s_beep_elapsed_ms;
-static uint16_t s_current_freq_hz;
-static bool s_muted;
-static bool s_was_playing;
+typedef struct max98357_context_s
+{
+    synth_state_t synth;
+    tone_config_t config;
+    SemaphoreHandle_t config_mutex;
+    int16_t pcm_buf[MAX98357_SAMPLES_PER_UPDATE];
+    beep_phase_e beep_phase;
+    uint16_t beep_elapsed_ms;
+    uint16_t current_freq_hz;
+    bool muted;
+    bool was_playing;
+} max98357_context_t;
+
+static max98357_context_t s_self;
 
 static int16_t clamp_step(int16_t delta, int16_t max_step)
 {
@@ -80,19 +85,19 @@ static void apply_fade_out(int16_t *buf, size_t total_samples)
 
 static esp_err_t max98357_init(void)
 {
-    s_config_mutex = xSemaphoreCreateMutex();
-    if (!s_config_mutex)
+    s_self.config_mutex = xSemaphoreCreateMutex();
+    if (!s_self.config_mutex)
         return ESP_ERR_NO_MEM;
 
     const tone_config_t *defaults = tone_config_get_defaults();
-    s_config = *defaults;
-    s_beep_phase = BEEP_PHASE_ON;
-    s_beep_elapsed_ms = 0;
-    s_current_freq_hz = 0;
-    s_muted = s_config.muted;
-    s_was_playing = false;
+    s_self.config = *defaults;
+    s_self.beep_phase = BEEP_PHASE_ON;
+    s_self.beep_elapsed_ms = 0;
+    s_self.current_freq_hz = 0;
+    s_self.muted = s_self.config.muted;
+    s_self.was_playing = false;
 
-    esp_err_t ret = max98357_mdl_init(&s_synth, MAX98357_SAMPLE_RATE);
+    esp_err_t ret = max98357_mdl_init(&s_self.synth, MAX98357_SAMPLE_RATE);
     if (ret != ESP_OK)
         return ret;
 
@@ -108,69 +113,69 @@ static esp_err_t max98357_init(void)
 
 static void write_tone(uint16_t freq_hz, uint8_t volume_pct)
 {
-    max98357_mdl_fill_tone(&s_synth, s_pcm_buf, MAX98357_SAMPLES_PER_UPDATE, freq_hz, volume_pct);
-    if (!s_was_playing)
-        apply_fade_in(s_pcm_buf, MAX98357_SAMPLES_PER_UPDATE);
-    s_was_playing = true;
-    max98357_hw_write(s_pcm_buf, MAX98357_SAMPLES_PER_UPDATE);
+    max98357_mdl_fill_tone(&s_self.synth, s_self.pcm_buf, MAX98357_SAMPLES_PER_UPDATE, freq_hz, volume_pct);
+    if (!s_self.was_playing)
+        apply_fade_in(s_self.pcm_buf, MAX98357_SAMPLES_PER_UPDATE);
+    s_self.was_playing = true;
+    max98357_hw_write(s_self.pcm_buf, MAX98357_SAMPLES_PER_UPDATE);
 }
 
 static void write_silence(void)
 {
-    if (s_was_playing && s_current_freq_hz > 0)
+    if (s_self.was_playing && s_self.current_freq_hz > 0)
     {
-        max98357_mdl_fill_tone(&s_synth, s_pcm_buf, FADE_SAMPLES, s_current_freq_hz, s_config.volume_pct);
-        apply_fade_out(s_pcm_buf, FADE_SAMPLES);
-        memset(&s_pcm_buf[FADE_SAMPLES], 0,
-               (MAX98357_SAMPLES_PER_UPDATE - FADE_SAMPLES) * sizeof(int16_t));
+        max98357_mdl_fill_tone(&s_self.synth, s_self.pcm_buf, FADE_SAMPLES, s_self.current_freq_hz,
+                               s_self.config.volume_pct);
+        apply_fade_out(s_self.pcm_buf, FADE_SAMPLES);
+        memset(&s_self.pcm_buf[FADE_SAMPLES], 0, (MAX98357_SAMPLES_PER_UPDATE - FADE_SAMPLES) * sizeof(int16_t));
     }
     else
     {
-        max98357_mdl_fill_silence(s_pcm_buf, MAX98357_SAMPLES_PER_UPDATE);
+        max98357_mdl_fill_silence(s_self.pcm_buf, MAX98357_SAMPLES_PER_UPDATE);
     }
-    s_was_playing = false;
-    max98357_hw_write(s_pcm_buf, MAX98357_SAMPLES_PER_UPDATE);
+    s_self.was_playing = false;
+    max98357_hw_write(s_self.pcm_buf, MAX98357_SAMPLES_PER_UPDATE);
 }
 
 static void handle_continuous_tone(uint16_t freq_hz, uint8_t duty_pct)
 {
-    s_current_freq_hz = smooth_frequency(freq_hz, s_current_freq_hz);
-    write_tone(s_current_freq_hz, s_config.volume_pct);
+    s_self.current_freq_hz = smooth_frequency(freq_hz, s_self.current_freq_hz);
+    write_tone(s_self.current_freq_hz, s_self.config.volume_pct);
 }
 
 static void handle_beeping_tone(const tone_output_t *tone)
 {
-    s_beep_elapsed_ms += MAX98357_UPDATE_PERIOD_MS;
+    s_self.beep_elapsed_ms += MAX98357_UPDATE_PERIOD_MS;
 
     uint16_t on_duration_ms = (uint16_t)((uint32_t)tone->cycle_ms * tone->duty_pct / 100);
     uint16_t off_duration_ms = tone->cycle_ms - on_duration_ms;
 
-    if (s_beep_phase == BEEP_PHASE_ON)
+    if (s_self.beep_phase == BEEP_PHASE_ON)
     {
-        s_current_freq_hz = smooth_frequency(tone->freq_hz, s_current_freq_hz);
-        write_tone(s_current_freq_hz, s_config.volume_pct);
+        s_self.current_freq_hz = smooth_frequency(tone->freq_hz, s_self.current_freq_hz);
+        write_tone(s_self.current_freq_hz, s_self.config.volume_pct);
 
-        if (s_beep_elapsed_ms >= on_duration_ms)
+        if (s_self.beep_elapsed_ms >= on_duration_ms)
         {
-            s_beep_phase = BEEP_PHASE_OFF;
-            s_beep_elapsed_ms = 0;
+            s_self.beep_phase = BEEP_PHASE_OFF;
+            s_self.beep_elapsed_ms = 0;
         }
     }
     else
     {
         write_silence();
 
-        if (s_beep_elapsed_ms >= off_duration_ms)
+        if (s_self.beep_elapsed_ms >= off_duration_ms)
         {
-            s_beep_phase = BEEP_PHASE_ON;
-            s_beep_elapsed_ms = 0;
+            s_self.beep_phase = BEEP_PHASE_ON;
+            s_self.beep_elapsed_ms = 0;
         }
     }
 }
 
 static esp_err_t max98357_update(double vario_cms)
 {
-    if (s_muted)
+    if (s_self.muted)
     {
         write_silence();
         return ESP_OK;
@@ -179,14 +184,15 @@ static esp_err_t max98357_update(double vario_cms)
     float vario_ms = (float)(vario_cms / 100.0);
 
     tone_output_t tone = {0};
-    tone_model_compute(&s_config.curve, &s_config.thresholds, s_config.pre_lift_enabled, vario_ms, &tone);
+    tone_model_compute(&s_self.config.curve, &s_self.config.thresholds, s_self.config.pre_lift_enabled, vario_ms,
+                       &tone);
 
     if (tone.zone == TONE_ZONE_SILENCE)
     {
         write_silence();
-        s_current_freq_hz = 0;
-        s_beep_phase = BEEP_PHASE_ON;
-        s_beep_elapsed_ms = 0;
+        s_self.current_freq_hz = 0;
+        s_self.beep_phase = BEEP_PHASE_ON;
+        s_self.beep_elapsed_ms = 0;
         return ESP_OK;
     }
 
@@ -214,7 +220,7 @@ static esp_err_t max98357_play_startup(void)
             uint16_t chunk_ms = remaining_ms > 10 ? 10 : remaining_ms;
             size_t chunk_samples = (size_t)chunk_ms * STARTUP_SAMPLES_PER_MS;
             max98357_mdl_fill_tone(&startup_synth, buf, chunk_samples, s_startup_sequence[i].freq_hz,
-                            MAX98357_STARTUP_VOLUME_PCT);
+                                   MAX98357_STARTUP_VOLUME_PCT);
             max98357_hw_write(buf, chunk_samples);
             remaining_ms -= chunk_ms;
         }
@@ -250,10 +256,10 @@ static esp_err_t max98357_set_config(const tone_config_t *cfg)
     if (ret != ESP_OK)
         return ret;
 
-    xSemaphoreTake(s_config_mutex, portMAX_DELAY);
-    s_config = *cfg;
-    s_muted = cfg->muted;
-    xSemaphoreGive(s_config_mutex);
+    xSemaphoreTake(s_self.config_mutex, portMAX_DELAY);
+    s_self.config = *cfg;
+    s_self.muted = cfg->muted;
+    xSemaphoreGive(s_self.config_mutex);
     return ESP_OK;
 }
 
@@ -262,9 +268,9 @@ static esp_err_t max98357_get_config(tone_config_t *cfg)
     if (!cfg)
         return ESP_ERR_INVALID_ARG;
 
-    xSemaphoreTake(s_config_mutex, portMAX_DELAY);
-    *cfg = s_config;
-    xSemaphoreGive(s_config_mutex);
+    xSemaphoreTake(s_self.config_mutex, portMAX_DELAY);
+    *cfg = s_self.config;
+    xSemaphoreGive(s_self.config_mutex);
     return ESP_OK;
 }
 

@@ -328,7 +328,7 @@ esp_err_t ms5611_read(data_baro_t *out)
 
 #endif
 
-const char *ms5611_get_name(void)
+static const char *ms5611_get_name(void)
 {
     return "MS5611";
 }
