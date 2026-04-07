@@ -1,0 +1,30 @@
+menu "LED Configuration"
+
+    choice LED_BACKEND
+        prompt "LED backend"
+        default LED_RGB
+        help
+            Select the LED driver backend.
+
+        config LED_SINGLE
+            bool "Single GPIO LED"
+            help
+                Standard single-color LED driven by GPIO on/off.
+                Used on ESP32-C3 Super Mini boards.
+
+        config LED_RGB
+            bool "WS2812 RGB LED"
+            help
+                Addressable RGB LED (WS2812) driven via RMT peripheral.
+                Used on ESP32-C3 Zero boards.
+
+    endchoice
+
+    config LED_RGB_GPIO
+        int "RGB LED data GPIO"
+        default 8
+        depends on LED_RGB
+        help
+            GPIO pin connected to the WS2812 data line.
+
+endmenu

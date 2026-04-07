@@ -2322,6 +2322,14 @@ CONFIG_WIFI_PROV_STA_ALL_CHANNEL_SCAN=y
 # end of Wi-Fi Provisioning Manager
 
 #
+# LED Configuration
+#
+# CONFIG_LED_SINGLE is not set
+CONFIG_LED_RGB=y
+CONFIG_LED_RGB_GPIO=8
+# end of LED Configuration
+
+#
 # Sensor driver
 #
 # CONFIG_SENSOR_MS5611 is not set

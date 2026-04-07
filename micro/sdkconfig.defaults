@@ -1,5 +1,5 @@
 # sdkconfig.defaults — esp-fly-in-peace
-# Optimal settings for ESP32-C3 Super Mini with NimBLE
+# Optimal settings for ESP32-C3 Zero with NimBLE
 
 # --- BLE: NimBLE stack (lighter than Bluedroid) ---
 CONFIG_BT_ENABLED=y
@@ -18,9 +18,13 @@ CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
 # --- Baro: BMP390 ---
 CONFIG_SENSOR_BMP390=y
 
-# --- ESP32-C3 Super Mini GPIO defaults ---
+# --- ESP32-C3 Zero GPIO defaults ---
 CONFIG_SENSOR_I2C_SDA_GPIO=6
 CONFIG_SENSOR_I2C_SCL_GPIO=7
+
+# --- LED: WS2812 RGB on GPIO 8 ---
+CONFIG_LED_RGB=y
+CONFIG_LED_RGB_GPIO=8
 
 # --- IMU: MPU6050 ---
 CONFIG_IMU_MPU6050=y

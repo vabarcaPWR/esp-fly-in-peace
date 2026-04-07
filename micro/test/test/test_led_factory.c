@@ -1,10 +1,12 @@
 #include "led.h"
+#include "mock_led_rgb.h"
 #include "mock_led_single.h"
 #include "unity.h"
 
 TEST_SOURCE_FILE("../components/leds/src/led.c")
 
 static int single_led_provider_call_count;
+static int rgb_led_provider_call_count;
 
 static esp_err_t fake_led_init(void)
 {
@@ -27,6 +29,11 @@ static const char *fake_led_get_name(void)
     return "single";
 }
 
+static const char *fake_rgb_get_name(void)
+{
+    return "rgb";
+}
+
 static const led_t *stub_get_single_led(int cmock_num_calls)
 {
     (void)cmock_num_calls;
@@ -42,10 +49,27 @@ static const led_t *stub_get_single_led(int cmock_num_calls)
     return &fake_led;
 }
 
+static const led_t *stub_get_rgb_led(int cmock_num_calls)
+{
+    (void)cmock_num_calls;
+    rgb_led_provider_call_count++;
+
+    static const led_t fake_rgb = {
+        .init = fake_led_init,
+        .set_state = fake_led_set_state,
+        .get_state = fake_led_get_state,
+        .get_name = fake_rgb_get_name,
+    };
+
+    return &fake_rgb;
+}
+
 void setUp(void)
 {
     single_led_provider_call_count = 0;
+    rgb_led_provider_call_count = 0;
     get_single_led_StubWithCallback(stub_get_single_led);
+    get_rgb_led_StubWithCallback(stub_get_rgb_led);
 }
 
 void tearDown(void)
@@ -70,8 +94,21 @@ void test_get_led_when_name_is_single_returns_single_backend(void)
 
 void test_get_led_when_name_is_single_queries_single_backend_once(void)
 {
+    single_led_provider_call_count = 0;
     (void)get_led("single");
     TEST_ASSERT_EQUAL_INT(1, single_led_provider_call_count);
+}
+
+void test_get_led_when_name_is_rgb_returns_rgb_backend(void)
+{
+    TEST_ASSERT_EQUAL_PTR(stub_get_rgb_led(0), get_led("rgb"));
+}
+
+void test_get_led_when_name_is_rgb_queries_rgb_backend_once(void)
+{
+    rgb_led_provider_call_count = 0;
+    (void)get_led("rgb");
+    TEST_ASSERT_EQUAL_INT(1, rgb_led_provider_call_count);
 }
 
 void test_get_led_when_name_is_unknown_returns_null(void)

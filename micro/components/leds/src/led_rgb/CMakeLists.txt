@@ -1,0 +1,5 @@
+list(APPEND LED_SRCS
+    "${CMAKE_CURRENT_LIST_DIR}/led_rgb.c"
+    "${CMAKE_CURRENT_LIST_DIR}/led_rgb_model.c"
+)
+list(APPEND LED_INCLUDE_DIRS "${CMAKE_CURRENT_LIST_DIR}")
