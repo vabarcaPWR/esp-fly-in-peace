@@ -955,6 +955,13 @@ bluetoothctl --timeout 10 scan on || true
   - `NULL` input returns `NULL`
 - Firmware build remains green with selected backend
 
+**Pinout reference — LED modules/backends**:
+
+| Backend / module | Module signal | ESP32-C3 pin | Notes |
+|------------------|---------------|--------------|-------|
+| `single` status LED | LED drive | GPIO 8 | Current implementation uses `LED_SINGLE_GPIO` on GPIO 8 and drives it active-low. |
+| `rgb` WS2812 LED | DIN | GPIO 8 | `CONFIG_LED_RGB_GPIO` default/current value in `sdkconfig.defaults`. |
+
 **LED Factory pattern**
 - Led API implemented as `led_t` structure
 - Files:
@@ -1186,6 +1193,15 @@ micro/components/bus_drivers/
 - `bus_drivers` is a **shared infrastructure component**, not a factory component — it has no Kconfig selection, no factory dispatch, no backends. It simply exposes a bus API.
 - Future bus types (SPI, UART) can be added under `bus_drivers/spi/`, `bus_drivers/uart/` following the same `<bus>/inc/` + `<bus>/src/` layout.
 
+**Pinout reference — shared I2C bus (current board configuration)**:
+
+| Signal | ESP32-C3 pin | Shared with | Notes |
+|--------|--------------|-------------|-------|
+| SDA | GPIO 6 | MS5611, BMP390, MPU6050 | `CONFIG_SENSOR_I2C_SDA_GPIO`, default/current value 6. |
+| SCL | GPIO 7 | MS5611, BMP390, MPU6050 | `CONFIG_SENSOR_I2C_SCL_GPIO`, default/current value 7. |
+| 3V3 | 3V3 rail | MS5611, BMP390, MPU6050 | External 4.7 kOhm pull-ups on SDA/SCL recommended for 400 kHz operation. |
+| GND | GND | MS5611, BMP390, MPU6050 | Common reference for all devices on the bus. |
+
 **Status Note (2026-03-03 — Phase 5 complete)**:
 - Component `sensors` created with Kconfig support, public API header, and factory dispatch implementation.
 - Kconfig exposes sensor selection plus I2C pin/frequency/address configuration under "Component config → Sensor driver".
@@ -1258,6 +1274,16 @@ micro/components/bus_drivers/
 - MS5611 I2C address: `0x77` (CSB low) or `0x76` (CSB high). Default: `0x77`.
 - PROM read commands: `0xA0` to `0xAE` (8 words, 16-bit each; C1–C6 are words 1–6).
 - Reset command: `0x1E` — send before PROM read.
+
+**Pinout reference — MS5611 (I2C mode)**:
+
+| MS5611 pin | ESP32-C3 / rail | Notes |
+|------------|-----------------|-------|
+| VCC | 3V3 | Use the 3.3 V rail. |
+| GND | GND | Common ground. |
+| SDA | GPIO 6 | Shared I2C data line. |
+| SCL | GPIO 7 | Shared I2C clock line. |
+| CSB | GND | Default address `0x77`; tie HIGH for `0x76`. |
 
 ---
 
@@ -1420,6 +1446,16 @@ micro/components/bus_drivers/
 - BMP390 I2C address: `0x77` (SDO=GND) or `0x76` (SDO=VCC). Default: `0x77`.
 - Chip ID register: `0x00`, expected value: `0x60`.
 - Keep backend naming explicit and stable in factory (recommended selector: `"bmp390"`).
+
+**Pinout reference — BMP390 (I2C mode)**:
+
+| BMP390 pin | ESP32-C3 / rail | Notes |
+|------------|-----------------|-------|
+| VDD / VIN | 3V3 | Supply the breakout from the 3.3 V rail. |
+| GND | GND | Common ground. |
+| SDA | GPIO 6 | Shared I2C data line. |
+| SCL | GPIO 7 | Shared I2C clock line. |
+| SDO | GND | Default address `0x77`; tie HIGH for `0x76`. |
 
 ---
 
@@ -1630,6 +1666,17 @@ The MPU6050 path provides IMU samples for upcoming fusion work while preserving 
 - Burst read of 14 bytes starting at `0x3B`: accel (6) + temp (2) + gyro (6).
 - Full-scale ranges: accel ±2g/±4g/±8g/±16g, gyro ±250/±500/±1000/±2000 °/s.
 - Wiring baseline: same I2C bus as barometer. MPU6050 VCC=3.3V, GND, SDA=GPIO6, SCL=GPIO7, AD0=GND (addr 0x68).
+
+**Pinout reference — MPU6050**:
+
+| MPU6050 pin | ESP32-C3 / rail | Notes |
+|-------------|-----------------|-------|
+| VCC | 3V3 | Power rail used in the current wiring baseline. |
+| GND | GND | Common ground. |
+| SDA | GPIO 6 | Shared I2C data line. |
+| SCL | GPIO 7 | Shared I2C clock line. |
+| AD0 | GND | Default address `0x68`; tie HIGH for `0x69`. |
+| INT | NC | Not used by the current firmware path. |
 
 **Status Note (2026-03-26 — driver implementation complete)**:
 - Full driver implemented with `#ifdef TEST` deterministic stub path (accel=[0,0,−9.81], gyro=[0,0,0], timestamp=0) and real I2C path.
@@ -2322,6 +2369,15 @@ Commercial varios (BlueFlyVario, XCTracer, Stodeus miniBip) typically use linear
 - `micro/components/sound/src/piezo/inc/piezo_hardware.h` (fill in API declarations)
 - `micro/components/sound/Kconfig` (add `CONFIG_PIEZO_GPIO` under piezo option)
 
+**Pinout reference — passive piezo buzzer**:
+
+| Piezo pin | ESP32-C3 / rail | Notes |
+|-----------|-----------------|-------|
+| SIG / `+` | GPIO 5 | `CONFIG_PIEZO_GPIO` default value. |
+| GND / `-` | GND | Use the return path to ground. |
+
+- Wiring note: add a 100-220 Ohm resistor inline with the signal path, as documented in `sound/Kconfig`.
+
 ---
 
 ### Task 10.3: Piezo backend — tone model (frequency + cadence curves)
@@ -2567,6 +2623,18 @@ typedef struct sound_generator_s
 - MAX98357A I2S Class D mono amplifier breakout
 - Small speaker (8Ω, 0.5–1W)
 - GPIO allocation: BCLK=2, WS=3, DOUT=4, SD=1
+
+**Pinout reference — MAX98357A**:
+
+| MAX98357A pin | ESP32-C3 / rail | Notes |
+|---------------|-----------------|-------|
+| BCLK | GPIO 2 | `CONFIG_MAX98357_BCLK_GPIO` default/current value. |
+| LRC / WS | GPIO 3 | `CONFIG_MAX98357_WS_GPIO` default/current value. |
+| DIN | GPIO 4 | `CONFIG_MAX98357_DOUT_GPIO` default/current value. |
+| SD | GPIO 1 | `CONFIG_MAX98357_SD_GPIO`; LOW = amplifier off, HIGH = amplifier on. |
+| VIN | Module supply rail | Power the breakout according to its rated supply range. |
+| GND | GND | Common ground. |
+| SPK+ / SPK- | Speaker terminals | Connect to the 8 Ohm, 0.5-1 W speaker used by this backend. |
 
 **Audio Parameters**:
 - Sample rate: 16000 Hz (sufficient for 100–4000 Hz tone range)
