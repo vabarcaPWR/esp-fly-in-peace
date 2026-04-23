@@ -2,8 +2,44 @@
 
 > **Project**: esp-fly-in-peace  
 > **Component**: Firmware (`micro/`)  
-> **Target**: ESP32-C3 Super Mini  
-> **Master reference**: `.github/PRE-PROMPT.md`
+> **Target**: ESP32-C3 Zero (Waveshare) — _Super Mini soportado como plan B para prototipado, ver [ADR 0001](./adr/0001-audio-storage-and-pinmap.md)._
+> **Master reference**: `.github/PRE-PROMPT.md`  
+> **Pin map & storage decision**: [ADR 0001 — Audio storage, GPS & pin map](./adr/0001-audio-storage-and-pinmap.md)  
+> **Audio pipeline & pitch-shift**: [ADR 0002 — Audio pipeline](./adr/0002-audio-pipeline-pitch-shift.md)
+
+---
+
+## Hardware Target & Pin Map (ESP32-C3 Zero)
+
+> Decisión cerrada en **[ADR 0001](./adr/0001-audio-storage-and-pinmap.md)**.
+> Esta sección es solo un resumen operativo; el ADR contiene la justificación,
+> alternativas consideradas, riesgos y criterios de aceptación.
+
+**Target**: ESP32-C3 Zero (Waveshare, 15 GPIOs expuestos).
+**Almacenamiento de audio**: flash SPI NOR **W25Q128** (16 MB) soldada al PCB.
+**Consola**: UART0 TX externo en `GPIO 20` (dev) + BLE NUS debug log (campo).
+USB-CDC nativo **deshabilitado en runtime** (flasheo vía `BOOT + RST`).
+
+| GPIO | Función | Componente / módulo |
+|------|---------|---------------------|
+| 0 | Flash SPI MOSI (pullup 10 kΩ en DI) | `storage/flash_ext` (W25Q128) |
+| 1 | MAX98357A SHDN (mute / deep-sleep amp) | `sound/max98357` |
+| 2 | I2S BCLK (strapping, pullup 10 kΩ) | `sound/max98357` |
+| 3 | I2S WS | `sound/max98357` |
+| 4 | I2S DOUT | `sound/max98357` |
+| 5 | Flash SPI SCK | `storage/flash_ext` |
+| 6 | I2C SDA | `bus_drivers/i2c` (BMP390 + MPU6050) |
+| 7 | I2C SCL | `bus_drivers/i2c` |
+| 8 | WS2812 DIN (LED integrado del Zero) | `leds/led_rgb` |
+| 9 | BOOT / botón usuario | pairing, reset config |
+| 10 | Flash SPI MISO | `storage/flash_ext` |
+| 18 | GPS UART1 RX (GPS→ESP) | `gps/m100_mini` |
+| 19 | GPS UART1 TX (ESP→GPS) | `gps/m100_mini` |
+| 20 | UART0 TX (consola dev, opcional) | ESP-IDF console |
+| 21 | Flash SPI CS | `storage/flash_ext` |
+
+Plan B (Super Mini, 13 GPIOs): asignación reducida sin GPS o sin SHDN del
+MAX98357A. No soportado para producción.
 
 ---
 
@@ -100,6 +136,46 @@
   - [ ] Task 10.5.6: Kconfig, CMake, factory, sound_task integration
   - [ ] Task 10.5.7: Factory tests for MAX98357
   - [ ] Task 10.5.8: Hardware integration and validation
+- [ ] **Phase 10.6: SPI Bus Driver Infrastructure** ([ADR 0001](./adr/0001-audio-storage-and-pinmap.md))
+  - [ ] Task 10.6.1: `bus_drivers/spi` component skeleton (SPI2/FSPI)
+  - [ ] Task 10.6.2: SPI bus init, deinit, host getter API
+  - [ ] Task 10.6.3: Kconfig pins (SCK=5, MISO=10, MOSI=0, default CS per device)
+  - [ ] Task 10.6.4: Ceedling mock + integration smoke test
+- [ ] **Phase 10.7: External Flash Storage (W25Q128)** ([ADR 0001](./adr/0001-audio-storage-and-pinmap.md))
+  - [ ] Task 10.7.1: `storage/flash_ext` factory + contract (`flash_ext_t`)
+  - [ ] Task 10.7.2: W25Q128 hardware layer (read `0x03`, page program `0x02`, sector erase `0x20`, power-down `0xB9/0xAB`, JEDEC ID `0x9F`)
+  - [ ] Task 10.7.3: W25Q128 model — address validation + timing (Ceedling)
+  - [ ] Task 10.7.4: W25Q128 conductor + JEDEC ID check at boot
+  - [ ] Task 10.7.5: Kconfig backend selection + CS pin (GPIO 21)
+  - [ ] Task 10.7.6: Hardware bring-up (read JEDEC, write/read/erase 1 sector)
+- [ ] **Phase 10.8: Audio Bank + Packaging Tool** ([ADR 0002](./adr/0002-audio-pipeline-pitch-shift.md))
+  - [ ] Task 10.8.1: `audio_bank` component (header, descriptor table, CRC32 validation)
+  - [ ] Task 10.8.2: Clip descriptor API (`audio_bank_get`, `audio_bank_open_stream`)
+  - [ ] Task 10.8.3: Ring-buffered stream reader over `flash_ext` (4 KB default)
+  - [ ] Task 10.8.4: Offline tool `scripts/micro/build-audio-bank.py` (WAV/PCM16 + IMA-ADPCM + CRC)
+  - [ ] Task 10.8.5: Flash helper `scripts/micro/flash-audio-bank.sh` (via esptool write_flash at bank offset)
+  - [ ] Task 10.8.6: Ceedling tests for header parser and CRC
+  - [ ] Task 10.8.7: Graceful fallback when bank is absent/corrupt (vario continues with synth tones)
+- [ ] **Phase 10.9: Audio Pipeline — Clips, Pitch-Shift, Mixer** ([ADR 0002](./adr/0002-audio-pipeline-pitch-shift.md))
+  - [ ] Task 10.9.1: `clip_player` model — PCM16 passthrough decoder (Ceedling)
+  - [ ] Task 10.9.2: `clip_player` model — IMA-ADPCM decoder (Ceedling)
+  - [ ] Task 10.9.3: `pitch` method A — re-sampling by fractional advance + linear interpolation (Ceedling)
+  - [ ] Task 10.9.4: `mixer` — float sum of tone + 2 clips + soft-clip limiter (Ceedling)
+  - [ ] Task 10.9.5: Integration into `sound/max98357` conductor; ducking on high-priority clips
+  - [ ] Task 10.9.6: `SHDN` auto-off after 500 ms silence (power state machine)
+  - [ ] Task 10.9.7: Public API `sound_play_clip(id, priority, pitch_semitones)`
+  - [ ] Task 10.9.8: Hardware integration (playback with BLE 8 Hz active, no audible glitches)
+  - [ ] Task 10.9.9 *(optional)*: `pitch/wsola` backend for fixed-tempo pitch (Kconfig-gated)
+- [ ] **Phase 10.10: GPS Driver (Quectel M100 Mini)** ([ADR 0001](./adr/0001-audio-storage-and-pinmap.md))
+  - [ ] Task 10.10.1: `gps` factory + contract (`gps_t`: init, get_fix, get_name)
+  - [ ] Task 10.10.2: `m100_mini` hardware layer — UART1 @ 9600 baud on GPIO 18/19
+  - [ ] Task 10.10.3: `m100_mini` model — NMEA parser (GGA + RMC) with checksum validation (Ceedling)
+  - [ ] Task 10.10.4: `m100_mini` conductor — line framing, fix staleness, error recovery
+  - [ ] Task 10.10.5: `gps_fix_t` published to `flight_data` (lat/lon/alt/speed/course/fix_quality/sat_count/timestamp)
+  - [ ] Task 10.10.6: `gps_task` (priority 5, 4 KB stack)
+  - [ ] Task 10.10.7: Kconfig backend + pin selection
+  - [ ] Task 10.10.8: Hardware bring-up (cold fix acquired outdoors, NMEA rate steady)
+  - [ ] Task 10.10.9 *(optional)*: extend LK8EX1 / add secondary NMEA passthrough on BLE NUS
 - [ ] **Phase 11: NVS Configuration**
   - [ ] Task 11.1: Config schema definition and defaults
   - [ ] Task 11.2: NVS read/write with validation
@@ -145,7 +221,7 @@ For every module/component implemented in those phases:
 
 > **Status**: ✅ Completada.
 
-**Objective**: Set up a working ESP-IDF project that compiles, flashes, and runs a "Hello World" on the ESP32-C3 Super Mini.  
+**Objective**: Set up a working ESP-IDF project that compiles, flashes, and runs a "Hello World" on the ESP32-C3 Zero (target) or Super Mini (prototyping fallback).  
 **Estimated Duration**: 2–3 days  
 **Dependencies**: None
 
@@ -283,7 +359,7 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 
 ### Task 0.6: Verify "Hello World" builds, flashes, and runs
 
-**Description**: End-to-end verification: build the firmware, flash it to the ESP32-C3 Super Mini, and verify the startup log message appears in the serial monitor.
+**Description**: End-to-end verification: build the firmware, flash it to the ESP32-C3 Zero (or Super Mini for early prototyping), and verify the startup log message appears in the serial monitor.
 
 **Acceptance Criteria**:
 - [x] `idf.py build` succeeds with 0 errors, 0 warnings (except SDK warnings)
@@ -709,7 +785,7 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
 
 > **Status**: ✅ Completada — factory + single backend + BLE integration.
 
-**Objective**: Drive the onboard status LED of the ESP32-C3 Super Mini to indicate device state using a single-color blink state machine.  
+**Objective**: Drive the onboard status LED of the ESP32-C3 Zero (integrated WS2812 on GPIO 8) — Super Mini also exposes a single LED on the same pin — to indicate device state using a single-color blink state machine.  
 **Estimated Duration**: 1–2 days  
 **Dependencies**: Phase 3 (BLE state callbacks for integration)  
 
@@ -973,7 +1049,7 @@ bluetoothctl --timeout 10 scan on || true
 
 ### Task 4.1: Status LED driver backend (`single`)
 
-**Description**: Implement the `single` backend in the `led` component to drive the onboard status LED of the ESP32-C3 Super Mini.
+**Description**: Implement the `single` backend in the `led` component to drive the onboard status LED (GPIO 8 on both ESP32-C3 Zero and Super Mini).
 
 **Acceptance Criteria**:
 - [x] Component `led` created in `micro/components/leds/`
@@ -981,7 +1057,7 @@ bluetoothctl --timeout 10 scan on || true
 - [x] `single.init()` configures status LED GPIO and creates LED task (Priority 1, 2048 bytes)
 - [x] Internal backend functions turn status LED on/off
 - [x] Uses ESP-IDF GPIO driver for single-color LED control
-- [x] Uses the onboard status LED pin of ESP32-C3 Super Mini
+- [x] Uses the onboard status LED pin shared by ESP32-C3 Zero and Super Mini (GPIO 8)
 - [x] LED GPIO does not collide with active sensor I2C pins
 - [x] Backend state ownership is local to LED backend (same encapsulation principle used by sensor backends)
 
@@ -1261,7 +1337,7 @@ micro/components/bus_drivers/
 - [x] Uses ESP-IDF I2C driver directly (no wrapper)
 
 **Validation**:
-- Flash to ESP32-C3 Super Mini with MS5611 connected, verify calibration values in log output
+- Flash to ESP32-C3 (Zero or Super Mini) with MS5611 connected, verify calibration values in log output
 
 **Files to create**:
 - `micro/components/sensors/src/ms5611/CMakeLists.txt`
@@ -2937,6 +3013,390 @@ micro/components/sound/
 ---
 
 
+## Phase 10.6: SPI Bus Driver Infrastructure
+
+> **Status**: 🔲 No iniciada.
+
+**Objective**: Provide a shared SPI2 (FSPI) bus driver consumed by the external
+flash (Phase 10.7) and reusable by any future SPI peripheral (display, sensor
+breakout). Mirrors the role of `bus_drivers/i2c` — shared infrastructure with
+no factory dispatch, no Kconfig backend selection.  
+**Estimated Duration**: 1 day  
+**Dependencies**: [ADR 0001](./adr/0001-audio-storage-and-pinmap.md) §2.5 pin map locked.
+
+**Refactorización (obligatoria)**:
+- Aplicar Boy Scout Rule al cerrar cada tarea de la fase.
+- Mantener nombres por rol: infraestructura pura, sin conductor/model/hardware (no aplica para shared bus drivers, como ya ocurre con `i2c_bus.c`).
+
+**Architecture Reference**: `firmware-architecture.md` §2 Layer Architecture, `.github/PRE-PROMPT.md` Shared Infrastructure Components.
+
+---
+
+### Task 10.6.1: `bus_drivers/spi` component skeleton
+
+**Description**: Create the `spi/` subdirectory inside `bus_drivers/` following the shared-infrastructure pattern (`inc/`, `src/`, own sub-CMakeLists.txt that appends to parent vars).
+
+**Acceptance Criteria**:
+- [ ] `micro/components/bus_drivers/spi/` with `inc/spi_bus.h`, `src/spi_bus.c`, `CMakeLists.txt`
+- [ ] Root `bus_drivers/CMakeLists.txt` includes the new sub-CMakeLists
+- [ ] Component builds with no warnings
+
+### Task 10.6.2: SPI bus init / deinit / getter
+
+**Description**: Public API to initialize SPI2 once and let consumers attach devices.
+
+**Acceptance Criteria**:
+- [ ] `esp_err_t spi_bus_init(void)` initializes SPI2_HOST with DMA enabled; idempotent (double-call returns `ESP_OK`)
+- [ ] `esp_err_t spi_bus_deinit(void)` releases the bus if no active devices remain
+- [ ] `spi_host_device_t spi_bus_get_host(void)` returns `SPI2_HOST`
+- [ ] Internal mutex protects init/deinit from concurrent callers
+
+### Task 10.6.3: Kconfig pin configuration
+
+**Description**: Expose MOSI/MISO/SCK GPIOs via Kconfig (CS is per device, not part of the bus).
+
+**Acceptance Criteria**:
+- [ ] Kconfig keys: `SPI_BUS_MOSI_GPIO` (default 0), `SPI_BUS_MISO_GPIO` (default 10), `SPI_BUS_SCK_GPIO` (default 5)
+- [ ] `sdkconfig.defaults` sets these to the Zero pin map
+- [ ] Pullup note in Kconfig help text for `SPI_BUS_MOSI_GPIO` (strapping pin, external pullup required on flash DI)
+
+### Task 10.6.4: Ceedling mock + integration smoke test
+
+**Description**: Mock-based test validating init idempotency and parameter passing.
+
+**Acceptance Criteria**:
+- [ ] `test_spi_bus.c` in `micro/test/` with ≥ 4 cases (happy path, double init, deinit, host getter)
+- [ ] Runtime smoke test: `spi_bus_init()` followed by `spi_bus_get_host()` returns `SPI2_HOST`
+
+---
+
+## Phase 10.7: External Flash Storage (W25Q128)
+
+> **Status**: 🔲 No iniciada.
+
+**Objective**: Implement the `storage/flash_ext` component with backend `w25q128`, following the factory/backend + conductor-model-hardware pattern. Provides block-level read/write/erase over SPI2 for the audio bank and any future external-flash consumer.  
+**Estimated Duration**: 3 days  
+**Dependencies**: Phase 10.6 (SPI bus).
+
+**Refactorización (obligatoria)**:
+- Aplicar Boy Scout Rule al cerrar cada tarea.
+- Convención de nombres obligatoria: `w25q128_conductor.c`, `w25q128_model.c`, `w25q128_hardware.c`.
+
+**Architecture Reference**: [ADR 0001](./adr/0001-audio-storage-and-pinmap.md) §2.2–§2.5, `firmware-architecture.md` §11.3 SPI Configuration.
+
+---
+
+### Task 10.7.1: `storage/flash_ext` factory + contract
+
+**Description**: Create the component with the `flash_ext_t` contract and a factory dispatcher, mirroring `sensors/sensor.c`.
+
+**Acceptance Criteria**:
+- [ ] `micro/components/storage/flash_ext/` directory tree per factory/backend layout
+- [ ] `flash_ext.h` exposes `flash_ext_t` with function pointers: `init`, `read(offset, buf, len)`, `write_page(offset, buf, len)`, `erase_sector(offset)`, `get_size()`, `power_down()`, `release_power_down()`, `get_name()`
+- [ ] `flash_ext.c` factory: `const flash_ext_t *get_flash_ext(const char *name)` dispatches by Kconfig
+- [ ] Unselected backends are compiled out
+
+### Task 10.7.2: W25Q128 hardware layer
+
+**Description**: SPI command implementation for the Winbond W25Q128JVSIQ.
+
+**Acceptance Criteria**:
+- [ ] `w25q128_hardware.c` implements: read (`0x03`), fast read (`0x0B`), page program (`0x02`), sector erase 4 KB (`0x20`), write enable (`0x06`), read status register 1 (`0x05`), power-down (`0xB9`), release power-down (`0xAB`), JEDEC ID (`0x9F`)
+- [ ] Uses the bus from `spi_bus_get_host()`; owns only its CS line (GPIO 21, Kconfig)
+- [ ] Busy-wait loop after program/erase polls status-register BUSY bit with timeout
+
+### Task 10.7.3: W25Q128 model — address validation + timing
+
+**Description**: Pure model with no ESP-IDF deps. Validates offsets against chip size, page boundaries for writes, sector alignment for erases; computes expected timing windows for polling.
+
+**Acceptance Criteria**:
+- [ ] `w25q128_model.c` exports: `bool w25q128_model_is_valid_read(uint32_t off, uint32_t len)`, `bool w25q128_model_is_valid_page_write(...)`, `bool w25q128_model_is_valid_sector_erase(uint32_t off)`, `uint32_t w25q128_model_erase_timeout_ms(void)` (returns 400), etc.
+- [ ] Ceedling tests ≥ 90 % coverage for edge cases (off-by-one, cross-page writes, unaligned erases)
+
+### Task 10.7.4: W25Q128 conductor + JEDEC check
+
+**Description**: Orchestrate hardware + model; run a JEDEC ID probe at init and fail gracefully if the chip is absent or unknown.
+
+**Acceptance Criteria**:
+- [ ] `w25q128_conductor.c` implements the `flash_ext_t` function pointers
+- [ ] `init()` calls `spi_bus_init()`, installs the device on the bus, releases power-down, reads JEDEC ID and verifies expected manufacturer/device (`0xEF4018`)
+- [ ] Mismatch or timeout returns `ESP_ERR_NOT_FOUND`; the system continues without external flash (log WARN)
+- [ ] Thread-safe: mutex around every public operation
+
+### Task 10.7.5: Kconfig + sdkconfig defaults
+
+**Acceptance Criteria**:
+- [ ] Kconfig `choice FLASH_EXT_BACKEND` with default `FLASH_EXT_W25Q128`
+- [ ] Key `FLASH_EXT_CS_GPIO` (default 21), `FLASH_EXT_SPI_HZ` (default 40 000 000)
+- [ ] Key `FLASH_EXT_NONE` option to disable the subsystem entirely
+- [ ] `sdkconfig.defaults` updated
+
+### Task 10.7.6: Hardware bring-up
+
+**Description**: On-device validation with the soldered or breadboarded W25Q128.
+
+**Acceptance Criteria**:
+- [ ] Boot log prints JEDEC ID, size (16 MB), and current mode
+- [ ] Test command (temporary CLI or boot-time check) writes 256 B to offset `0x100000`, reads them back identical
+- [ ] Sector erase at `0x100000` returns `0xFF` pattern
+- [ ] Power-down enters ≤ 10 µA (measured or datasheet-compared)
+
+---
+
+## Phase 10.8: Audio Bank + Packaging Tool
+
+> **Status**: 🔲 No iniciada.
+
+**Objective**: On top of `flash_ext`, provide an immutable-at-runtime **audio clip bank**: header with CRC32, descriptor table, and raw/ADPCM payload. Ships with an offline Python tool that assembles the bank blob from a folder of WAVs and flashes it via esptool.  
+**Estimated Duration**: 3–4 days  
+**Dependencies**: Phase 10.7.
+
+**Refactorización (obligatoria)**:
+- Convención: `audio_bank_conductor.c`, `audio_bank_model.c` (no hardware layer — reads go through `flash_ext`).
+
+**Architecture Reference**: [ADR 0002](./adr/0002-audio-pipeline-pitch-shift.md) §2.2.
+
+---
+
+### Task 10.8.1: Bank header + descriptor table parsing
+
+**Description**: On-chip parser for the bank layout described in ADR 0002 §2.2.
+
+**Acceptance Criteria**:
+- [ ] `audio_bank_model.c` parses header (magic `FIPB`, version, clip_count, crc32) and descriptor table
+- [ ] CRC32 over header + table; mismatch → bank marked invalid, system logs WARN and continues
+- [ ] Descriptor cached in RAM (≤ 1 KB for 64 clips)
+
+### Task 10.8.2: Lookup + stream open API
+
+**Acceptance Criteria**:
+- [ ] `esp_err_t audio_bank_get(uint8_t clip_id, audio_clip_desc_t *out)`
+- [ ] `esp_err_t audio_bank_open_stream(uint8_t clip_id, audio_stream_t **out)` allocates a stream object with a 4 KB internal ring buffer
+- [ ] `audio_stream_read(stream, dst, n_samples)` advances the stream; EOF returns `ESP_ERR_NOT_FINISHED` (partial) or `ESP_ERR_INVALID_STATE` (end)
+- [ ] `audio_stream_close(stream)` releases RAM
+
+### Task 10.8.3: Ring-buffered reader over `flash_ext`
+
+**Description**: Reads in 256-byte pages from flash, refills the ring when below high-watermark.
+
+**Acceptance Criteria**:
+- [ ] Refill logic bounded by ~60 µs per page read on the C3 (deterministic NOR timing)
+- [ ] No dynamic allocation per refill (preallocated buffer)
+- [ ] Stress test: 5-second continuous read at 22.05 kHz → no underruns
+
+### Task 10.8.4: Offline tool `scripts/micro/build-audio-bank.py`
+
+**Description**: Python script that takes a YAML manifest + folder of WAV files and produces a `audio-bank.bin` flashable blob.
+
+**Acceptance Criteria**:
+- [ ] YAML manifest keys: `clip_id`, `source`, `format` (`pcm16`|`adpcm_ima`), `sample_rate_hz`, optional `psola_markers`
+- [ ] Converts WAV → PCM16 or IMA-ADPCM; writes header + descriptor table + payload; computes CRC32
+- [ ] Validates total size ≤ 16 MB − header region (16 MB − 8 KB)
+- [ ] Unit tests (pytest) for header serialization and CRC
+
+### Task 10.8.5: Flash helper `scripts/micro/flash-audio-bank.sh`
+
+**Description**: Wrapper over `esptool.py write_flash <offset> audio-bank.bin` at the external-flash partition offset (configurable).
+
+**Acceptance Criteria**:
+- [ ] Script invocable from project root: `./scripts/micro/flash-audio-bank.sh path/to/audio-bank.bin`
+- [ ] Uses `BOOT + RST` download mode (documented in script help text)
+- [ ] Post-flash on-device boot log confirms new CRC matches
+
+### Task 10.8.6: Ceedling tests for header + CRC
+
+**Acceptance Criteria**:
+- [ ] Golden blobs (valid, corrupted header, corrupted table, valid but empty) committed under `micro/test/fixtures/audio_bank/`
+- [ ] ≥ 6 test cases covering happy path + every rejection reason
+
+### Task 10.8.7: Graceful fallback
+
+**Acceptance Criteria**:
+- [ ] Bank absent → `audio_bank_get()` returns `ESP_ERR_NOT_FOUND`
+- [ ] Bank corrupt → same, logged once at boot with `ESP_LOG_WARN`
+- [ ] `sound_task` continues producing synth tones (Phase 10/10.5) unaffected
+
+---
+
+## Phase 10.9: Audio Pipeline — Clips, Pitch-Shift, Mixer
+
+> **Status**: 🔲 No iniciada.
+
+**Objective**: Extend the MAX98357A backend with clip playback, re-sampling pitch-shift (method A per [ADR 0002](./adr/0002-audio-pipeline-pitch-shift.md) §2.3), mixing of tones + up to 2 clips, and automatic `SHDN` power management. Optional WSOLA backend gated by Kconfig.  
+**Estimated Duration**: 4–5 days  
+**Dependencies**: Phase 10.5 (MAX98357 I2S backend), Phase 10.8 (audio bank).
+
+**Refactorización (obligatoria)**:
+- New submodules inside `sound/src/max98357/`: `clip_player/`, `pitch/`, `mixer/`, each with own model (+ optional hardware where unavoidable).
+- Keep the `sound_generator_t` contract unchanged — the factory is backend-agnostic.
+
+**Architecture Reference**: [ADR 0002](./adr/0002-audio-pipeline-pitch-shift.md).
+
+---
+
+### Task 10.9.1: `clip_player` — PCM16 passthrough decoder
+
+**Acceptance Criteria**:
+- [ ] `clip_player_model.c` with `clip_player_decode_pcm16(in, in_len, out, out_cap, *produced)`
+- [ ] Handles truncated input (end-of-clip) gracefully
+- [ ] Ceedling tests: ≥ 6 cases, 100 % branch coverage
+
+### Task 10.9.2: `clip_player` — IMA-ADPCM decoder
+
+**Acceptance Criteria**:
+- [ ] 4-bit Intel/DVI IMA-ADPCM decoder, stateless per block (or state saved externally for resumption)
+- [ ] Integer-only arithmetic (no `float` in the decoder; ESP32-C3 has no FPU)
+- [ ] Ceedling tests against reference vectors (at least 2 sample clips with known PCM output)
+
+### Task 10.9.3: `pitch` — method A (re-sampling)
+
+**Description**: Fractional-index linear interpolation in the sample stream. Changes pitch **and** tempo simultaneously.
+
+**Acceptance Criteria**:
+- [ ] `pitch_model_process(in, in_len, out, out_cap, factor, *consumed, *produced)` with `factor ∈ [0.5, 2.0]`
+- [ ] Factor derived from semitones: `factor = powf(2, st/12.0f)` (pre-computed at clip start, not per sample)
+- [ ] Unity test: factor = 1.0 → bit-exact passthrough
+- [ ] Octave test: factor = 2.0 → length halved, frequency doubled (validated via sine test vector)
+
+### Task 10.9.4: `mixer` — sum + soft-clip limiter
+
+**Acceptance Criteria**:
+- [ ] `mixer_model.c`: `mixer_mix(sources[], n_sources, gains[], out, n_samples)` in float, then saturates to int16 via soft-clip `tanh`-like curve
+- [ ] Respects gain schedules (ducking: `-12 dB` on tone source when a high-priority clip is active)
+- [ ] Ceedling tests: overflow, silence, 2-source mix, 3-source mix, ducking transitions (100 ms linear ramp)
+
+### Task 10.9.5: Integration into MAX98357 conductor
+
+**Acceptance Criteria**:
+- [ ] `max98357_conductor.c` feeds I2S DMA from `mixer` output at the existing sample rate (16 or 22.05 kHz)
+- [ ] Sources wired: tone (existing `tone_model`) + up to 2 active clip streams from `audio_bank`
+- [ ] Clip start/stop APIs preserve existing `sound_generator_t` contract (new functions added, no changes to factory)
+
+### Task 10.9.6: `SHDN` auto-off after silence
+
+**Description**: Power state machine that raises `SHDN = LOW` after 500 ms of total silence on the mixed output and raises it `HIGH` ≥ 5 ms before any new source starts.
+
+**Acceptance Criteria**:
+- [ ] `max98357_power_model.c` implements the FSM (IDLE → WAIT_SILENCE → SHUTDOWN) with Ceedling tests
+- [ ] Wake latency: first sample played ≤ 10 ms after `sound_play_clip()` or tone activation (scope measurement)
+- [ ] Quiescent current with `SHDN=LOW` ≤ 5 µA (datasheet spec, validated with DMM on rail)
+
+### Task 10.9.7: Public API
+
+**Acceptance Criteria**:
+- [ ] `esp_err_t sound_play_clip(uint8_t clip_id, sound_priority_t prio, float pitch_semitones)`
+- [ ] `priority_t { LOW, NORMAL, HIGH }` — HIGH triggers beep ducking (−12 dB)
+- [ ] Returns `ESP_ERR_NOT_FOUND` if bank absent or clip missing; logs WARN
+- [ ] Queued clips policy: HIGH preempts LOW; identical-priority clips queue (up to 2 concurrent)
+
+### Task 10.9.8: Hardware integration
+
+**Acceptance Criteria**:
+- [ ] Play a 5 s PCM16 clip at 22.05 kHz while BLE streams LK8EX1 at 8 Hz and GPS parses NMEA → no audible cuts, no BLE disconnects, no sensor cycle overruns
+- [ ] Pitch +6 and −6 semitones audibly correct, no aliasing above 8 kHz (subjective + FFT of recorded output)
+- [ ] `idf.py monitor` shows task watermarks healthy (>512 B free on stack)
+
+### Task 10.9.9 *(optional)*: `pitch/wsola` backend
+
+**Description**: WSOLA implementation for tempo-preserving pitch-shift, gated by `CONFIG_SOUND_PITCH_WSOLA=y`. Not required for MVP.
+
+**Acceptance Criteria**:
+- [ ] Window 30 ms, 50 % overlap, similarity search via normalized cross-correlation
+- [ ] Integer-only inner loop where possible; float only at coefficient computation
+- [ ] CPU usage ≤ 15 % at 22.05 kHz mono on C3 @160 MHz (profiled)
+- [ ] Ceedling tests: sine input, pitch = +3 semitones → duration preserved, pitch shifted (FFT check)
+
+---
+
+## Phase 10.10: GPS Driver (Quectel M100 Mini)
+
+> **Status**: 🔲 No iniciada.
+
+**Objective**: Add GPS localisation to the vario via the Quectel M100 Mini module over UART1 (NMEA 9600 baud). Publishes fix data to `flight_data` for later BLE exposure or on-device track logging. Follows the factory/backend + conductor-model-hardware pattern so additional modules (uBlox, Ateli) can be swapped in.  
+**Estimated Duration**: 3–4 days  
+**Dependencies**: [ADR 0001](./adr/0001-audio-storage-and-pinmap.md) (pin map with UART1 on GPIO 18/19; USB-CDC disabled at runtime), Phase 9 (data pipeline for `flight_data` integration).
+
+**Refactorización (obligatoria)**:
+- Convención: `m100_mini_conductor.c`, `m100_mini_model.c`, `m100_mini_hardware.c`.
+- Factory under `gps/gps.c` + contract in `gps/inc/gps.h`, same shape as `sensors/sensor.c`.
+
+**Architecture Reference**: `firmware-architecture.md` §11.5 (UART) + §11.7 (GPS wiring), [ADR 0001](./adr/0001-audio-storage-and-pinmap.md).
+
+---
+
+### Task 10.10.1: `gps` factory + contract
+
+**Acceptance Criteria**:
+- [ ] `micro/components/gps/` with `gps_t` function-pointer contract: `init`, `get_fix(gps_fix_t *)`, `get_name`
+- [ ] `gps_fix_t { bool valid; double lat_deg; double lon_deg; float alt_m; float speed_mps; float course_deg; uint8_t sat_count; uint8_t fix_quality; int64_t ts_us; }`
+- [ ] Factory function `get_gps(const char *name)` dispatches by Kconfig; unselected backends compile out
+
+### Task 10.10.2: `m100_mini` hardware layer — UART1
+
+**Acceptance Criteria**:
+- [ ] UART1 configured 9600 8N1 on `CONFIG_GPS_UART_RX_GPIO` (default 18) and `CONFIG_GPS_UART_TX_GPIO` (default 19)
+- [ ] RX buffer ≥ 1 KB, event queue for line reception
+- [ ] Optional TX path for sending MTK/Quectel proprietary commands (rate, sentence enable/disable)
+
+### Task 10.10.3: `m100_mini` model — NMEA parser
+
+**Description**: Pure-C parser for `$GPGGA` (fix + altitude) and `$GPRMC` (speed + course + validity). Checksum validated; malformed sentences dropped silently with a counter.
+
+**Acceptance Criteria**:
+- [ ] `nmea_parse_gga(line, gps_fix_t *out)`, `nmea_parse_rmc(line, gps_fix_t *out)`
+- [ ] Checksum via XOR over bytes between `$` and `*`
+- [ ] Ceedling tests: ≥ 12 cases (valid, no fix, malformed, truncated, wrong checksum, locale variants)
+- [ ] No dynamic allocation; operates on caller-provided buffers
+
+### Task 10.10.4: `m100_mini` conductor
+
+**Description**: Line framing, fix merging (GGA + RMC), staleness (fix invalid after 3 s without updates), error recovery (UART overrun, framing errors).
+
+**Acceptance Criteria**:
+- [ ] Merges GGA + RMC into a single `gps_fix_t` snapshot before publishing
+- [ ] Staleness: `get_fix()` returns `valid=false` if last update > 3 s
+- [ ] UART errors logged with rate-limiting (1 warning per second max)
+
+### Task 10.10.5: `flight_data` integration
+
+**Acceptance Criteria**:
+- [ ] `flight_data.h` extended with `flight_data_set_gps(const gps_fix_t *)` and `flight_data_get_gps(gps_fix_t *)`
+- [ ] Protected by the existing `flight_data` mutex
+- [ ] No breaking change to existing callers; new field optional
+
+### Task 10.10.6: `gps_task`
+
+**Acceptance Criteria**:
+- [ ] Task created in `micro/main/` (`gps_task.c`/`.h`), priority 5, stack 4096 B
+- [ ] Blocks on UART event queue; parses line, calls model, updates `flight_data`
+- [ ] Does not register with TWDT (non-critical path)
+
+### Task 10.10.7: Kconfig + sdkconfig defaults
+
+**Acceptance Criteria**:
+- [ ] `choice GPS_BACKEND` with options `GPS_M100_MINI` (default) and `GPS_NONE`
+- [ ] `GPS_UART_RX_GPIO=18`, `GPS_UART_TX_GPIO=19`, `GPS_BAUD=9600`
+- [ ] `GPS_NONE` compiles out the GPS task and component
+
+### Task 10.10.8: Hardware bring-up
+
+**Acceptance Criteria**:
+- [ ] Cold start outdoors: fix acquired within 60 s, logged with lat/lon/sat_count
+- [ ] Steady 1 Hz update rate observed in logs
+- [ ] Antenna placement documented in the architecture doc bring-up notes
+
+### Task 10.10.9 *(optional)*: NMEA passthrough over BLE
+
+**Description**: Expose raw filtered NMEA (GGA + RMC) over a secondary BLE NUS-like characteristic for the Android app's map view. Not required for MVP.
+
+**Acceptance Criteria**:
+- [ ] New GATT characteristic `gps_nmea_tx` (notify, read)
+- [ ] Rate-limited to ≤ 2 sentences/s to keep BLE bandwidth share below 10 %
+- [ ] Disabled by default; enabled via config (Phase 11)
+
+---
+
+
 ## Phase 11: NVS Configuration
 
 > **Status**: 🔲 No iniciada.
@@ -3090,21 +3550,89 @@ micro/components/sound/
 
 ---
 
-### Recalculated Power Baseline (Status LED, non-RGB)
+### Power Baseline — ESP32-C3 Zero full hardware
 
-Assumptions for planning:
-- Onboard status LED current when ON (`I_led_on`): **2.0 mA** (to be confirmed in Phase 12.4 measurements).
-- Values below represent LED contribution only (delta over core system current).
+Full system power budget for the Zero target (see [ADR 0001](./adr/0001-audio-storage-and-pinmap.md)).
+All figures are **datasheet-typical** values for planning. Measured values are
+logged in Phase 12.4 and supersede these during final validation.
+
+#### Per-component reference (typical @ 3.3 V)
+
+| Component | Mode | Current | Source |
+|-----------|------|---------|--------|
+| ESP32-C3 core | Active 160 MHz, RF off | ~20 mA | ESP32-C3 datasheet §5 |
+| ESP32-C3 core | BLE connected (200–400 ms interval, 8 Hz notify) | ~22 mA avg | DS + NimBLE tuning |
+| ESP32-C3 core | BLE advertising (1 s interval, disconnected) | ~5 mA avg | DS |
+| ESP32-C3 core | BLE TX burst peak | ~80 mA | DS |
+| ESP32-C3 core | Light-sleep (tickless idle) | ~0.8 mA | DS |
+| ESP32-C3 core | Deep-sleep (RTC only) | ~5 µA | DS |
+| BMP390 | Forced mode, 10 Hz, OSR×8 | ~3.4 µA | Bosch DS |
+| BMP390 | Sleep | ~0.2 µA | Bosch DS |
+| MPU6050 | Normal 1 kHz | ~3.9 mA | InvenSense DS |
+| MPU6050 | Cycle low-power 10 Hz | ~10 µA | InvenSense DS |
+| WS2812 (integrated) | Idle (data low) | ~0.6 mA | WS2812B DS |
+| WS2812 (integrated) | One pixel white full | ~20 mA | WS2812B DS |
+| MAX98357A | `SHDN = LOW` (deep-sleep) | ~2 µA | Maxim DS |
+| MAX98357A | I2S idle, `SHDN = HIGH`, no signal | ~5 mA | Maxim DS |
+| MAX98357A | Beep ~50 mW into 8 Ω | ~20 mA | estimation |
+| MAX98357A | Clip playback ~0.5 W into 8 Ω | ~150 mA avg | Maxim DS |
+| W25Q128 | SPI read @ 40 MHz | ~4 mA | Winbond DS |
+| W25Q128 | Standby | ~15 µA | Winbond DS |
+| W25Q128 | Power-down (`0xB9`) | ~1 µA | Winbond DS |
+| Quectel M100 Mini | Acquisition | ~35–40 mA | Quectel DS |
+| Quectel M100 Mini | Tracking (fix acquired) | ~25 mA | Quectel DS |
+| Quectel M100 Mini | Backup (RTC only) | ~150 µA | Quectel DS |
+| I2C/SPI pull-ups | 4.7 kΩ × 2 + 10 kΩ × 3 | ~2 mA worst case | Ohm's law |
+
+#### Operating scenarios (sum of above)
+
+| Scenario | Expected avg | Notes |
+|----------|-------------:|-------|
+| **Boot (first 5 s)** | ~120 mA | RF init, flash reads, GPS cold acquisition, WS2812 BOOT solid |
+| **Cruise — BLE connected, GPS tracking, audio muted** (`SHDN=HIGH`, no beep) | **~56 mA** | 22 (BLE) + 3.9 (IMU) + 5 (amp idle) + 25 (GPS) + 0.08 (LED duty) + negligible (flash/baro) |
+| **Cruise — BLE connected + continuous vario beep** | **~71 mA** | +15 mA delta MAX98357A active beep |
+| **Clip playback (alarm, ~2 s burst)** | **~200 mA peak** | +150 mA amp + 4 mA flash reads over 2 s |
+| **Idle — BLE advertising, GPS standby, audio `SHDN=LOW`** | **~6 mA** | 5 (BLE adv) + 0.1 (IMU cycle) + 0.15 (GPS backup) + 0.3 (LED) |
+| **Deep-sleep — GPS backup only** | **~160 µA** | 5 µA ESP + 150 µA GPS + 2 µA amp + 1 µA flash |
+| **Deep-sleep — GPS fully off (VCC gated)** | **~8 µA** | GPS rail disconnected; RTC wake only |
+
+#### Battery-life projections (500 mAh LiPo, ideal discharge)
+
+| Scenario | Runtime |
+|----------|--------:|
+| Cruise normal (56 mA avg) | **~8.9 h** ✓ meets 8 h target |
+| Cruise with continuous beep (71 mA avg) | ~7.0 h |
+| Mixed flight 80% silent / 20% beep | ~8.5 h |
+| Idle advertising (6 mA) | ~83 h |
+| Deep-sleep + GPS backup (0.16 mA) | ~130 days |
+| Deep-sleep bare (8 µA) | ~7 years (self-discharge dominates) |
+
+#### LED cadence contribution (WS2812 on GPIO 8)
+
+Only the contribution of the LED blink patterns, already included above via the
+"Cruise" avg. Shown here for tuning purposes.
 
 | LED State | Pattern | Duty Cycle | Average LED Current |
-|-----------|---------|------------|---------------------|
-| `BOOT` | always ON | 100% | `2.00 mA` |
-| `BLE_DISCONNECTED` | 15 ms ON / 950 ms OFF | 1.55% | `0.031 mA` |
-| `BLE_CONNECTED` | 15 ms ON / 3950 ms OFF | 0.38% | `0.008 mA` |
-| `ERROR` | 250 ms ON / 250 ms OFF | 50% | `1.00 mA` |
+|-----------|---------|------------|--------------------:|
+| `BOOT` | solid white (20 mA) | 100% | `20.0 mA` |
+| `BLE_DISCONNECTED` | green 15 ms ON / 950 ms OFF | 1.55% | `0.31 mA` |
+| `BLE_CONNECTED` | green 15 ms ON / 3950 ms OFF | 0.38% | `0.08 mA` |
+| `ERROR` | red 250 ms ON / 250 ms OFF | 50% | `10.0 mA` |
 
-Planning note:
-- Compared with previous WS2812-oriented assumptions, this configuration reduces average LED current and simplifies hardware control.
+Mitigation: in production, reduce WS2812 brightness to ~10% (set RGB values
+≤25/255) to cap the worst case to ~2 mA during `BOOT`/`ERROR`.
+
+Planning notes:
+- **GPS is the dominant active consumer** (~45% of cruise current). A "GPS-off
+  mode" (power-gate the rail from a MOSFET driven by `GPIO 1`'s sibling signal
+  or an unused pin in a future revision) would push cruise under 40 mA and
+  runtime past 12 h on the same battery.
+- **MAX98357A idle current (5 mA)** is 10% of cruise. Gating `SHDN = LOW`
+  whenever no sound is queued recovers it. The firmware must ensure silent
+  periods drop SHDN within 100 ms of queue empty.
+- **Flash SPI** consumption is negligible in normal operation (reads are
+  sporadic and short). Keep the chip in power-down (`0xB9`) during long silent
+  periods if microamperes matter.
 
 ### Battery Optimization Design (prepared)
 

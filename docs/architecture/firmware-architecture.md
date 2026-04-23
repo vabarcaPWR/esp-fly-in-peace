@@ -1255,17 +1255,39 @@ stateDiagram-v2
 
 ## 11. Hardware Mapping
 
-### 11.1 ESP32-C3 Super Mini Pin Assignment
+> **Target board**: ESP32-C3 Zero (Waveshare). The Super Mini variant is supported
+> as a prototyping fallback with a reduced feature set (no GPS or no MAX98357A
+> `SHDN` control). Pin map and storage decisions are closed in
+> [ADR 0001 — Audio storage, GPS & pin map](../adr/0001-audio-storage-and-pinmap.md).
+
+### 11.1 ESP32-C3 Zero Pin Assignment
+
+14 of 15 exposed GPIOs are used; `GPIO 20` is reserved for the development
+UART0 console (optional) or future peripherals.
 
 | GPIO | Function | Peripheral | Notes |
 |------|----------|-----------|-------|
+| GPIO 0 | Flash SPI MOSI | SPI2 (FSPI) | W25Q128; external 10 kΩ pull-up on chip DI (strapping: boot=HIGH) |
+| GPIO 1 | MAX98357A SHDN | GPIO | LOW = amplifier mute / deep-sleep; HIGH = active |
+| GPIO 2 | I2S BCLK | I2S0 | Strapping pin — external 10 kΩ pull-up required |
+| GPIO 3 | I2S WS (LRCLK) | I2S0 | — |
+| GPIO 4 | I2S DOUT | I2S0 | To MAX98357A DIN |
+| GPIO 5 | Flash SPI SCK | SPI2 (FSPI) | — |
 | GPIO 6 | I2C SDA | I2C_NUM_0 | Sensor data line (4.7 kΩ pull-up recommended) |
 | GPIO 7 | I2C SCL | I2C_NUM_0 | Sensor clock line (4.7 kΩ pull-up recommended) |
-| GPIO 8 | LED output | GPIO | Onboard single LED (`led_single`) |
-| GPIO 18 | USB D- | USB-CDC | Serial monitor / flash |
-| GPIO 19 | USB D+ | USB-CDC | Serial monitor / flash |
+| GPIO 8 | WS2812 DIN | RMT | Onboard RGB LED integrated in the Zero module (strapping: HIGH at boot) |
+| GPIO 9 | BOOT / user button | GPIO | Internal pull-up; BOOT + RST to enter USB download mode |
+| GPIO 10 | Flash SPI MISO | SPI2 (FSPI) | Internal pull-up |
+| GPIO 18 | GPS UART1 RX | UART1 | From GPS TX (Quectel M100 Mini) |
+| GPIO 19 | GPS UART1 TX | UART1 | To GPS RX |
+| GPIO 20 | UART0 TX (dev console, optional) | UART0 | 115200 baud, external USB-UART adapter |
+| GPIO 21 | Flash SPI CS | SPI2 (FSPI) | — |
 
-The current firmware LED implementation uses a single digital LED driver on GPIO 8.
+**Native USB-CDC is disabled at runtime** to free `GPIO 18/19` for the GPS.
+Flashing uses the ROM bootloader reclaiming USB via the `BOOT + RST` sequence
+(standard ESP32-C3 procedure, no extra hardware). Runtime logs are available:
+1. Over UART0 TX on `GPIO 20` during development (via external USB-UART dongle).
+2. Over BLE NUS as a filtered debug log channel in field conditions.
 
 ### 11.2 I2C Configuration
 
@@ -1287,15 +1309,51 @@ Additional I2C behavior toggles:
 - `CONFIG_SENSOR_I2C_INTERNAL_PULLUP` (default `n`)
 - `CONFIG_SENSOR_I2C_ALLOW_PD` (default `y`)
 
-### 11.3 Sensor Wiring (Super Mini → Sensor Module)
+### 11.3 SPI Configuration (external flash)
+
+| Parameter | Value |
+|-----------|-------|
+| Host | SPI2 (FSPI) |
+| Mode | Standard SPI (1-bit data) |
+| Clock | 40 MHz (reads), 20 MHz fallback |
+| MOSI | GPIO 0 |
+| MISO | GPIO 10 |
+| SCK | GPIO 5 |
+| CS | GPIO 21 |
+| Chip | Winbond W25Q128JVSIQ (128 Mbit = 16 MB NOR) |
+
+W25Q128 `WP` and `HOLD` pins tied to 3V3 through 10 kΩ. Local decoupling:
+100 nF + 10 µF near VCC.
+
+### 11.4 I2S Configuration (MAX98357A)
+
+| Parameter | Value |
+|-----------|-------|
+| Port | I2S0 |
+| BCLK | GPIO 2 (`CONFIG_MAX98357_BCLK_GPIO`) |
+| WS (LRCLK) | GPIO 3 (`CONFIG_MAX98357_WS_GPIO`) |
+| DOUT | GPIO 4 (`CONFIG_MAX98357_DOUT_GPIO`) |
+| SHDN | GPIO 1 (`CONFIG_MAX98357_SD_GPIO`) — software mute / deep-sleep |
+| Sample rates | 16 kHz (tones), 22.05 kHz (clips) |
+| Bit depth | 16-bit signed PCM, mono |
+
+### 11.5 UART Configuration
+
+| Port | Function | TX | RX | Baud |
+|------|----------|----|----|------|
+| UART0 | Dev console (optional) | GPIO 20 | — | 115200 |
+| UART1 | GPS NMEA | GPIO 19 | GPIO 18 | 9600 |
+
+### 11.6 Sensor Wiring (Zero → Sensor Module)
 
 The barometric sensor and IMU share the same I2C bus with different addresses.
-Only one barometric sensor is connected at a time. The active baro driver is selected via `idf.py menuconfig`.
-The IMU is optional (`CONFIG_IMU_NONE` for baro-only operation).
+Only one barometric sensor is connected at a time. The active baro driver is
+selected via `idf.py menuconfig`. The IMU is optional (`CONFIG_IMU_NONE` for
+baro-only operation).
 
 **MS5611 + MPU6050 Wiring:**
 ```
-ESP32-C3 Super Mini          MS5611 Module         MPU6050 Module
+ESP32-C3 Zero                MS5611 Module         MPU6050 Module
 ┌──────────────────┐         ┌─────────────┐       ┌─────────────┐
 │           3V3 ───┼────────►│ VCC         │       │ VCC         │
 │           GND ───┼────────►│ GND         │       │ GND         │
@@ -1308,7 +1366,7 @@ ESP32-C3 Super Mini          MS5611 Module         MPU6050 Module
 
 **BMP390 + MPU6050 Wiring:**
 ```
-ESP32-C3 Super Mini          BMP390 Module         MPU6050 Module
+ESP32-C3 Zero                BMP390 Module         MPU6050 Module
 ┌──────────────────┐         ┌─────────────┐       ┌─────────────┐
 │           3V3 ───┼────────►│ VCC         │       │ VCC         │
 │           GND ───┼────────►│ GND         │       │ GND         │
@@ -1320,7 +1378,7 @@ ESP32-C3 Super Mini          BMP390 Module         MPU6050 Module
 
 **GY-86 Wiring (integrated MS5611 + MPU6050 + HMC5883L):**
 ```
-ESP32-C3 Super Mini          GY-86 Module
+ESP32-C3 Zero                GY-86 Module
 ┌──────────────────┐         ┌─────────────┐
 │           3V3 ───┼────────►│ VCC         │
 │           GND ───┼────────►│ GND         │
@@ -1335,7 +1393,63 @@ GY-86 integration notes:
 - For current firmware pipeline, use MS5611 + MPU6050 data paths.
 - HMC5883L remains available for a future heading-capable fusion extension.
 
-### 11.4 Sensor Selection (Build-Time)
+### 11.7 GPS Wiring (Zero → Quectel M100 Mini)
+
+```
+ESP32-C3 Zero                Quectel M100 Mini
+┌──────────────────┐         ┌─────────────┐
+│           3V3 ───┼────────►│ VCC (3.3 V) │
+│           GND ───┼────────►│ GND         │
+│       GPIO 19 ───┼────────►│ RX          │   (ESP TX → GPS RX)
+│       GPIO 18 ◄──┼─────────┤ TX          │   (GPS TX → ESP RX)
+└──────────────────┘         └─────────────┘
+```
+
+UART1 at 9600 baud, 8N1. NMEA output (GGA + RMC) parsed by the `gps/m100_mini`
+backend. Optional: wire the GPS `PPS` pin to a free GPIO if a precise 1 Hz
+time reference is later required (not part of the MVP).
+
+### 11.8 External Flash Wiring (Zero → W25Q128)
+
+```
+ESP32-C3 Zero                W25Q128JVSIQ (SOIC-8)
+┌──────────────────┐         ┌─────────────┐
+│           3V3 ───┼────────►│ VCC (pin 8) │
+│           GND ───┼────────►│ GND (pin 4) │
+│        GPIO 5 ───┼────────►│ CLK (pin 6) │
+│        GPIO 0 ───┼────────►│ DI  (pin 5) │   10 kΩ pull-up to 3V3 on DI (strapping)
+│       GPIO 10 ◄──┼─────────┤ DO  (pin 2) │
+│       GPIO 21 ───┼────────►│ /CS (pin 1) │
+│                  │    3V3──┤►/WP (pin 3) │   tied high via 10 kΩ
+│                  │    3V3──┤►/HOLD (pin 7)│  tied high via 10 kΩ
+└──────────────────┘         └─────────────┘
+```
+
+Decoupling: 100 nF ceramic + 10 µF ceramic as close as possible to the chip
+VCC pin. Keep traces short and route MOSI/MISO/SCK away from the I2S lines to
+minimise crosstalk into the audio path.
+
+### 11.9 MAX98357A Wiring (Zero → Amplifier Breakout)
+
+```
+ESP32-C3 Zero                MAX98357A Breakout
+┌──────────────────┐         ┌─────────────┐
+│           VIN ───┼────────►│ VIN (3.3-5 V)│
+│           GND ───┼────────►│ GND         │
+│        GPIO 2 ───┼────────►│ BCLK        │
+│        GPIO 3 ───┼────────►│ LRC (WS)    │
+│        GPIO 4 ───┼────────►│ DIN         │
+│        GPIO 1 ───┼────────►│ SD (shutdown)│  LOW=mute/sleep, HIGH=on
+└──────────────────┘         └─────────────┘
+                                   │
+                                   ├──► SPK+ ─┐
+                                   └──► SPK- ─┴─ 8 Ω speaker (0.5–1 W)
+```
+
+The `GAIN` pin of the breakout is left at its default (9 dB) unless specified
+otherwise by the hardware revision.
+
+### 11.10 Sensor Selection (Build-Time)
 
 To switch sensors or enable/disable IMU, run:
 ```bash
@@ -1357,6 +1471,25 @@ For GY-86 specifically:
 No application code changes are needed for sensor driver swaps. The `sensor` layer
 dispatches to the selected driver at compile time.
 
+### 11.11 Flashing & Console Procedure
+
+**Flashing** (USB-CDC disabled at runtime):
+1. Connect the Zero over USB-C.
+2. Hold `BOOT`, press `RST`, release `BOOT` → the ROM bootloader enables
+   USB-JTAG on `GPIO 18/19`.
+3. Run `idf.py -p /dev/ttyACM0 flash` (or the project `scripts/micro/flash.sh`).
+4. Press `RST` alone to return to application mode (USB-JTAG detaches).
+
+**Development console** (optional):
+- Wire an external USB-UART adapter RX to `GPIO 20` (TX only) and GND.
+- Run `idf.py -p /dev/ttyUSBx monitor` at 115200 baud.
+
+**Field logs**:
+- Enable the BLE NUS debug-log characteristic from the mobile app.
+- Logs stream at `ESP_LOG_WARN` level or above by default; the app can bump
+  the level at runtime.
+
 ---
 
 *End of Firmware Architecture Document*
+
