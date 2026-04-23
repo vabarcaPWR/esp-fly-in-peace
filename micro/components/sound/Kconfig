@@ -32,11 +32,13 @@ menu "Sound generator"
 
     config PIEZO_GPIO
         int "Piezo buzzer GPIO number"
-        default 5
+        default 4
         depends on SOUND_PIEZO
         help
             GPIO number connected to the piezoelectric buzzer.
-            Default: GPIO 5 (available on ESP32-C3 Super Mini).
+            Default: GPIO 4 on ESP32-C3 Zero (free when SOUND_MAX98357 is
+            not selected). GPIO 5 is reserved for SPI flash SCK per
+            ADR 0001.
 
     config MAX98357_BCLK_GPIO
         int "I2S BCLK GPIO number"
